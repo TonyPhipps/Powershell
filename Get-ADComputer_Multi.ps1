@@ -1,16 +1,16 @@
 ####################################################################################
 #.Synopsis 
-#    Perform "Get-ADComputer -Property *" on several systems.
+#    Performs "Get-ADComputer -Property *" on several systems.
 #
 #.Description 
-#    Perform "Get-ADComputer -Property *" on several systems.
+#    Performs "Get-ADComputer -Property *" on several systems.
 #	 Output errors to Get-ADComputers_errors.txt.
 #
 #.Parameter InputList  
 #    Piped-in list of hosts/IP addresses
 #
 #.Example 
-#    get-content .\hosts.txt | Get-ADComputers | export-csv Get-ADComputers.csv
+#    get-content .\hosts.txt | Get-ADComputer_Multi | export-csv Get-ADComputers.csv
 #
 #.Notes 
 # Updated: 2016-10-19
@@ -29,7 +29,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ####################################################################################
 
-Function Get-ADComputers() {
+Function Get-ADComputer_Multi() {
 	[cmdletbinding()]
 
 
