@@ -4,13 +4,13 @@
 #
 #.Description 
 #    Performs "Get-ADComputer -Property *" on several systems.
-#	 Output errors to Get-ADComputers_errors.txt.
+#	 Output errors to Get-ADComputer_Multi_errors.txt.
 #
 #.Parameter InputList  
 #    Piped-in list of hosts/IP addresses
 #
 #.Example 
-#    get-content .\hosts.txt | Get-ADComputer_Multi | export-csv Get-ADComputers.csv
+#    get-content .\hosts.txt | Get-ADComputer_Multi | export-csv Get-ADComputer_Multi.csv
 #
 #.Notes 
 # Updated: 2016-10-19
@@ -52,7 +52,7 @@ Function Get-ADComputer_Multi() {
 			};
 		}
 		CATCH{
-			Add-Content -Path .\Get-ADComputers_errors.txt -Value ("$thisHost");
+			Add-Content -Path .\Get-ADComputer_Multi_errors.txt -Value ("$thisHost");
 		}
 	};
 };
