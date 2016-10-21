@@ -1,16 +1,16 @@
 ####################################################################################
 #.Synopsis 
-#    Perform Get-WmiObject -class Win32_ComputerSystem on several systems.
+#    Performs Get-WmiObject -class Win32_ComputerSystem on several systems.
 #
 #.Description 
-#    Perform Get-WmiObject -class Win32_ComputerSystem on several systems.
+#    Performs Get-WmiObject -class Win32_ComputerSystem on several systems.
 #	 Output errors to Get-Win32_ComputerSystems_errors.txt.
 #
 #.Parameter InputList  
 #    Piped-in list of hosts/IP addresses
 #
 #.Example 
-#    get-content .\hosts.txt | Get-Win32_ComputerSystems | export-csv Get-Win32_ComputerSystems.csv
+#    get-content .\hosts.txt | Get-Win32_ComputerSystem_Multi | export-csv Get-Win32_ComputerSystems.csv
 #
 #.Notes 
 # Updated: 2016-10-19
@@ -29,7 +29,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ####################################################################################
 
-Function Get-Win32_ComputerSystems() {
+Function Get-Win32_ComputerSystem_Multi() {
 	[cmdletbinding()]
 
 
