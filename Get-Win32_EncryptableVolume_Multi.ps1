@@ -1,18 +1,18 @@
 ####################################################################################
 #.Synopsis 
 #   Performs Get-WmiObject -namespace "Root\cimv2\security\MicrosoftVolumeEncryption"\
-#	-ClassName "Win32_Encryptablevolume" on several systems.
+#	-ClassName "Win32_Encryptablevolume" | Select-Object *; on several systems.
 #
 #.Description 
 #   Performs Get-WmiObject -namespace "Root\cimv2\security\MicrosoftVolumeEncryption"\
 #	-ClassName "Win32_Encryptablevolume" on several systems.
-#	Outputs errors to Get-Win32_ComputerSystems_errors.txt.
+#	Outputs errors to Get-Win32_Encryptablevolume_Multi_errors.txt.
 #
 #.Parameter InputList  
 #    Piped-in list of hosts/IP addresses
 #
 #.Example 
-#    get-content .\hosts.txt | Get-Win32_Encryptablevolume_Multi | export-csv .\Win32_Encryptablevolumes.csv
+#    get-content .\hosts.txt | Get-Win32_Encryptablevolume_Multi | export-csv .\Get-Win32_Encryptablevolume_Multi.csv
 #
 #.Notes 
 # Updated: 2016-10-21
@@ -49,7 +49,7 @@ Function Get-Win32_Encryptablevolume_Multi() {
 			};
 		}
 		CATCH{
-			Add-Content -Path .\Get-Win32_Encryptablevolumes_errors.txt -Value ("$thisHost");
+			Add-Content -Path .\Get-Win32_Encryptablevolume_Multi_errors.txt -Value ("$thisHost");
 		}
 	};
 };
