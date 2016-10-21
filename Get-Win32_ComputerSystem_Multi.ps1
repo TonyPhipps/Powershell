@@ -1,16 +1,16 @@
 ####################################################################################
 #.Synopsis 
-#    Performs Get-WmiObject -class Win32_ComputerSystem on several systems.
+#    Performs Get-WmiObject -class Win32_ComputerSystem | Select-Object *; on several systems.
 #
 #.Description 
 #    Performs Get-WmiObject -class Win32_ComputerSystem on several systems.
-#	 Output errors to Get-Win32_ComputerSystems_errors.txt.
+#	 Output errors to Get-Win32_ComputerSystem_Multi_errors.txt.
 #
 #.Parameter InputList  
 #    Piped-in list of hosts/IP addresses
 #
 #.Example 
-#    get-content .\hosts.txt | Get-Win32_ComputerSystem_Multi | export-csv Get-Win32_ComputerSystems.csv
+#    get-content .\hosts.txt | Get-Win32_ComputerSystem_Multi | export-csv Get-Win32_ComputerSystem_Multi.csv
 #
 #.Notes 
 # Updated: 2016-10-19
@@ -47,7 +47,7 @@ Function Get-Win32_ComputerSystem_Multi() {
 			};
 		}
 		CATCH{
-			Add-Content -Path .\Get-Win32_ComputerSystems_errors.txt -Value ("$thisHost");
+			Add-Content -Path .\Get-Win32_ComputerSystem_Multi_errors.txt -Value ("$thisHost");
 		}
 	};
 };
