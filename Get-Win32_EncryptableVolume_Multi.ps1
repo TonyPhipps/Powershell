@@ -1,10 +1,10 @@
 ####################################################################################
 #.Synopsis 
-#   Perform Get-WmiObject -namespace "Root\cimv2\security\MicrosoftVolumeEncryption"\
+#   Performs Get-WmiObject -namespace "Root\cimv2\security\MicrosoftVolumeEncryption"\
 #	-ClassName "Win32_Encryptablevolume" on several systems.
 #
 #.Description 
-#   Perform Get-WmiObject -namespace "Root\cimv2\security\MicrosoftVolumeEncryption"\
+#   Performs Get-WmiObject -namespace "Root\cimv2\security\MicrosoftVolumeEncryption"\
 #	-ClassName "Win32_Encryptablevolume" on several systems.
 #	Outputs errors to Get-Win32_ComputerSystems_errors.txt.
 #
@@ -12,7 +12,7 @@
 #    Piped-in list of hosts/IP addresses
 #
 #.Example 
-#    get-content .\hosts.txt | Get-Win32_Encryptablevolumes | export-csv .\Win32_Encryptablevolumes.csv
+#    get-content .\hosts.txt | Get-Win32_Encryptablevolume_Multi | export-csv .\Win32_Encryptablevolumes.csv
 #
 #.Notes 
 # Updated: 2016-10-21
@@ -31,7 +31,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ####################################################################################
 
-Function Get-Win32_Encryptablevolumes() {
+Function Get-Win32_Encryptablevolume_Multi() {
 	[cmdletbinding()]
 
 
