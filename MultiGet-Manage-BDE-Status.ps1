@@ -53,10 +53,11 @@ Function MultiGet-Manage-BDE-Status() {
 						Computer=$thisHost;
 						Volume=($_.Line -Split "Volume\s")[1];
 						Size=($_.Context.PostContext[2] -Split ":\s+")[1];
-						Version=($_.Context.PostContext[4] -Split ":\s+")[1];
+						Version=($_.Context.PostContext[3] -Split ":\s+")[1];
+						ConversionStatus=($_.Context.PostContext[4] -Split ":\s+")[1];
 						Percentage=($_.Context.PostContext[5] -Split ":\s+")[1];
 						Method=($_.Context.PostContext[6] -Split ":\s+")[1];
-						Status=($_.Context.PostContext[7] -Split ":\s+")[1];
+						ProtectionStatus=($_.Context.PostContext[7] -Split ":\s+")[1];
 						IDField=($_.Context.PostContext[9] -Split ":\s+")[1];
 						};
 						$BitLocker +=$Record;
