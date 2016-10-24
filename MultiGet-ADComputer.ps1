@@ -10,10 +10,10 @@
 #    Piped-in list of hosts/IP addresses
 #
 #.Example 
-#    get-content .\hosts.txt | Get-ADComputer_Multi | export-csv Get-ADComputer_Multi.csv
+#    get-content .\hosts.txt | MultiGet-ADComputer | export-csv Get-ADComputer_Multi.csv
 #
 #.Notes 
-# Updated: 2016-10-19
+# Updated: 2016-10-21
 # LEGAL: Copyright (C) 2016  Anthony Phipps
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ####################################################################################
 
-Function Get-ADComputer_Multi() {
+Function MultiGet-ADComputer() {
 	[cmdletbinding()]
 
 
@@ -52,7 +52,7 @@ Function Get-ADComputer_Multi() {
 			};
 		}
 		CATCH{
-			Add-Content -Path .\Get-ADComputer_Multi_errors.txt -Value ("$thisHost");
+			Add-Content -Path .\MultiGet-ADComputer_errors.txt -Value ("$thisHost");
 		}
 	};
 };
