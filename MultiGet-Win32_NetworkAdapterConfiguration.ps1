@@ -10,10 +10,10 @@
 #    Piped-in list of hosts/IP addresses
 #
 #.Example 
-#    get-content .\hosts.txt | Get-Win32_NetworkAdapterConfiguration_Multi | export-csv Get-Win32_NetworkAdapterConfiguration_Multi.csv
+#    get-content .\hosts.txt | MultiGet-Win32_NetworkAdapterConfiguration | export-csv Get-Win32_NetworkAdapterConfiguration_Multi.csv
 #
 #.Notes 
-# Updated: 2016-10-21
+# Updated: 2016-10-24
 # LEGAL: Copyright (C) 2016  Anthony Phipps
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ####################################################################################
 
-Function Get-Win32_NetworkAdapterConfiguration_Multi() {
+Function MultiGet-Win32_NetworkAdapterConfiguration() {
 	[cmdletbinding()]
 
 
@@ -47,7 +47,7 @@ Function Get-Win32_NetworkAdapterConfiguration_Multi() {
 			};
 		}
 		CATCH{
-			Add-Content -Path .\Get-Win32_NetworkAdapterConfiguration_Multi_errors.txt -Value ("$thisHost");
+			Add-Content -Path .\MultiGet-Win32_NetworkAdapterConfiguration_errors.txt -Value ("$thisHost");
 		}
 	};
 };
