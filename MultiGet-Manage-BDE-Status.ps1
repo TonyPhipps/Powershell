@@ -47,17 +47,17 @@ Function MultiGet-Manage-BDE-Status() {
 				$BitLocker = @() 
 				 
 				Invoke-Expression "manage-bde -ComputerName $thisHost -Status" | 
-				Select-String -Pattern "Name:" -Context 0,17 | 
+				Select-String -Pattern "^Volume" -Context 0,13 |  
 					WHERE { 
 						$Record = New-Object PSObject -Property @{
-						Computer=($_.Line -Split "Name:\s")[1];
-						Volume=($_.Context.PostContext[3] -Split "Volume\s")[1];
-						Size=($_.Context.PostContext[6] -Split ":\s+")[1];
-						Version=($_.Context.PostContext[7] -Split ":\s+")[1];
-						Percentage=($_.Context.PostContext[9] -Split ":\s+")[1];
-						Method=($_.Context.PostContext[10] -Split ":\s+")[1];
-						Status=($_.Context.PostContext[11] -Split ":\s+")[1];
-						IDField=($_.Context.PostContext[13] -Split ":\s+")[1];
+						Computer=$thisHost;
+						Volume=($_.Line -Split "Volume\s")[1];
+						Size=($_.Context.PostContext[2] -Split ":\s+")[1];
+						Version=($_.Context.PostContext[4] -Split ":\s+")[1];
+						Percentage=($_.Context.PostContext[5] -Split ":\s+")[1];
+						Method=($_.Context.PostContext[6] -Split ":\s+")[1];
+						Status=($_.Context.PostContext[7] -Split ":\s+")[1];
+						IDField=($_.Context.PostContext[9] -Split ":\s+")[1];
 						};
 						$BitLocker +=$Record;
 					};
