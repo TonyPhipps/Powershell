@@ -58,7 +58,9 @@ Function MultiGet-Manage-BDE-Status() {
 						Percentage=($_.Context.PostContext[5] -Split ":\s+")[1];
 						Method=($_.Context.PostContext[6] -Split ":\s+")[1];
 						ProtectionStatus=($_.Context.PostContext[7] -Split ":\s+")[1];
+						LockStatus=($_.Context.PostContext[8] -Split ":\s+")[1];
 						IDField=($_.Context.PostContext[9] -Split ":\s+")[1];
+						AutomaticUnlock=($_.Context.PostContext[10] -Split ":\s+")[1];
 						};
 						$BitLocker +=$Record;
 					};
