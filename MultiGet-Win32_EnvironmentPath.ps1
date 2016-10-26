@@ -1,10 +1,12 @@
 ####################################################################################
 #.Synopsis 
-#    Performs Get-WMIObject -Class Win32_Environment | Where-Object {$_.Name -eq "Path"} | Select-Object *; | Select-Object *; on several systems.
+#   Retreives PATH environment variables from multiple systems.
 #
-#.Description 
-#    Performs Get-WMIObject -Class Win32_Environment | Where-Object {$_.Name -eq "Path"} | Select-Object *; | Select-Object *; on several systems.
-#	 Output errors to MultiGet-Win32_Environment_errors.txt.
+#.Description
+#	Retreives PATH environment variables from multiple systems.
+#	Performs Get-WMIObject -Class Win32_Environment | Where-Object {$_.Name -eq "Path"} | Select-Object *; | Select-Object *; on several systems.
+#	The end result will be a list of all PATH environment variables, each with the associated computer name.
+#	Output errors to MultiGet-Win32_Environment_errors.txt.
 #
 #.Parameter InputList  
 #    Piped-in list of hosts/IP addresses
@@ -43,12 +45,27 @@ Function MultiGet-Win32_Environment() {
 	PROCESS{
 		TRY{
 			foreach ($thisHost in $INPUTLIST){
-				Get-WMIObject -Class Win32_Environment -ComputerName $thisHost -ErrorAction Stop | Where-Object {$_.Name -eq "Path"} | Select-Object *;
+				$paths = (Get-WMIObject -Class Win32_Environment -ComputerName $thisHost -ErrorAction Stop | Where {$_.Name -eq "Path"} | select -ExpandProperty VariableValue).Split(';') | Where-Object {$_ -ne ""};
+
+				ForEach ($path in $paths){
+					$path = $path.Replace('"',"");
+
+					if (-not $path.EndsWith("\")){
+						$path = $path + "\";
+					};
+
+					$output = New-Object PSObject;
+					$output | Add-Member NoteProperty Host ($thisHost);
+					$output | Add-Member NoteProperty VariableValue ($path);
+
+					Write-Output $output;
+					$output.PsObject.Members.Remove('*');
+				};
 			};
 		}
 		CATCH{
 			Add-Content -Path .\MultiGet-Win32_Environment_errors.txt -Value ("$thisHost");
-		}
+		};
 	};
 };
 
