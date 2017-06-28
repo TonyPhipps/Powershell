@@ -1,9 +1,42 @@
+####################################################################################
+#.Synopsis 
+#	Queries SCCM for a given hostname or IP address.
+#
+#.Description 
+#	Queries SCCM for a given hostname or IP address.
+#
+#.Parameter Computer  
+#   Computer can be a single hostname, IP address, or a piped in object with "Name, IP" fields.
+#
+#.Example 
+#   Get-SCCMComputer 
+#   import-csv C:\hosts.csv | Get-SCCMComputer
+#   Get-SCCMComputer $env:computername
+#   Get-SCCMComputer SomeHostName.domain.com
+#
+#.Notes 
+# Updated: 2017-03-01
+# LEGAL: Copyright (C) 2017  Anthony Phipps
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+####################################################################################
+
 FUNCTION Get-SCCMComputer {
 
     Param(
     	[Parameter(
-	ValueFromPipeline=$True)]
-	$Computer,
+			ValueFromPipeline=$True)]
+		$Computer,
         $IP,
         $SiteName="AA1",
         $SCCMServer="domain.com"
