@@ -15,7 +15,7 @@
 #   Get-SCCMComputer SomeHostName.domain.com
 #
 #.Notes 
-# Updated: 2017-03-01
+# Updated: 2017-06-28
 # LEGAL: Copyright (C) 2017  Anthony Phipps
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
