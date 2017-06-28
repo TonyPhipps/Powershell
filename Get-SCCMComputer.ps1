@@ -4,7 +4,8 @@ FUNCTION Get-SCCMComputer {
     	[Parameter(
 			ValueFromPipeline=$True)]
 		$ComputerName,
-        $SiteName="NA1",
+        $SiteName="AA1",
+        $SCCMServer="domain.com"
     );
 
 	BEGIN{
