@@ -1,4 +1,4 @@
-FUNCTION Digest-NetworkCKP {
+FUNCTION Parse-NetworkCKP {
 <#
 .Synopsis 
 	Scans .CKP network object files and outputs properties.
@@ -10,9 +10,9 @@ FUNCTION Digest-NetworkCKP {
     The path to a file. Can use DIR to feed filenames.
 
 .Example 
-    "C:\temp\network.ckp" | Digest-NetworkCKP
-    dir *.ckp | Digest-NetworkCKP
-    dir *.ckp | Digest-NetworkCKP | export-csv networks.csv    
+    "C:\temp\network.ckp" | Parse-NetworkCKP
+    dir *.ckp | Parse-NetworkCKP
+    dir *.ckp | Parse-NetworkCKP | export-csv networks.csv    
 
 .Notes 
     Updated: 2017-07-05
