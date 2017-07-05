@@ -1,4 +1,4 @@
-FUNCTION Digest-IPAMNetworks {
+FUNCTION Parse-IPAMNetworks {
 <#
 .Synopsis 
 	Scans InfoBlox IPAM exports for specific types and extracts required fields and comment.
@@ -7,12 +7,12 @@ FUNCTION Digest-IPAMNetworks {
     Scans InfoBlox IPAM exports for specific types and extracts required fields and comment. Use the -c switch to scan for network containers, ohterwise defaults to networks.
 
 .Parameter Containers  
-    Alias is "c". This changes the script to digest networkcontainer entries instead of network entries.
+    Alias is "c". This changes the script to Parse networkcontainer entries instead of network entries.
 
 .Example 
-    Digest-IPAMNetworks -Path "C:\temp\Allnetworks.csv"
-    Digest-IPAMNetworks -Path "C:\temp\Allnetworks.csv" -c
-    Digest-IPAMNetworks -Path "C:\temp\Allnetworks.csv" -c | export-csv networkcontainers.csv
+    Parse-IPAMNetworks -Path "C:\temp\Allnetworks.csv"
+    Parse-IPAMNetworks -Path "C:\temp\Allnetworks.csv" -c
+    Parse-IPAMNetworks -Path "C:\temp\Allnetworks.csv" -c | export-csv networkcontainers.csv
 
 .Notes 
     Updated: 2017-07-05
