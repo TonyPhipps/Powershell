@@ -10,9 +10,9 @@ FUNCTION Parse-IPAMNetworks {
     Alias is "c". This changes the script to Parse networkcontainer entries instead of network entries.
 
 .Example 
-    Parse-IPAMNetworks -Path "C:\temp\Allnetworks.csv"
-    Parse-IPAMNetworks -Path "C:\temp\Allnetworks.csv" -c
-    Parse-IPAMNetworks -Path "C:\temp\Allnetworks.csv" -c | export-csv networkcontainers.csv
+    Get-Content C:\temp\Allnetworks.csv | Parse-IPAMNetworks
+    Get-Content C:\temp\Allnetworks.csv | Parse-IPAMNetworks -c
+    Get-Content C:\temp\Allnetworks.csv | Parse-IPAMNetworks -c | export-csv networkcontainers.csv
 
 .Notes 
     Updated: 2017-07-05
@@ -33,7 +33,7 @@ FUNCTION Parse-IPAMNetworks {
 
     PARAM(
     	[Parameter(ValueFromPipeline=$True, Position = 0)]
-		$Entry,
+		$Path,
         [Parameter(Position = 1)]
         [Alias("containers")]
         [switch]$c
@@ -45,13 +45,13 @@ FUNCTION Parse-IPAMNetworks {
 
     PROCESS{
         if($c){
-            $Entry | Where-Object { ($_ -like "networkcontainer,*") } | ConvertFrom-String -Delimiter "," -PropertyNames header-networkcontainer, address*, netmask*, 4, 5, 6, 7, comment | Select-Object header-networkcontainer, address*, netmask*, comment
+            $Path | Where-Object { ($_ -like "networkcontainer,*") } | ConvertFrom-String -Delimiter "," -PropertyNames header-networkcontainer, address*, netmask*, 4, 5, 6, 7, comment | Select-Object header-networkcontainer, address*, netmask*, comment
 
         }
 
         else
         {
-            $Entry | Where-Object { ($_ -like "network,*") } | ConvertFrom-String -Delimiter "," -PropertyNames header-network, address*, netmask*, 4, 5, 6, 7, 8, comment | Select-Object header-network, address*, netmask*, comment
+            $Path | Where-Object { ($_ -like "network,*") } | ConvertFrom-String -Delimiter "," -PropertyNames header-network, address*, netmask*, 4, 5, 6, 7, 8, comment | Select-Object header-network, address*, netmask*, comment
         };
     };
 
