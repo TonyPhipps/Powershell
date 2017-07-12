@@ -41,7 +41,7 @@ FUNCTION Get-SCCMComputer {
         $SCCMServer="Domain.com"
     );
 
-	BEGIN{
+    BEGIN{
 
 	}
 
@@ -81,7 +81,7 @@ FUNCTION Get-SCCMComputer {
         }
 
         
-        $SMS_R_System = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select IsVirtualMachine, LastLogonTimestamp, LastLogonUserDomain, LastLogonUserName, MACAddresses, OperatingSystemNameandVersion, ResourceNames from SMS_R_System where name='$ThisComputer'" | select IsVirtualMachine, LastLogonTimestamp, LastLogonUserDomain, LastLogonUserName, MACAddresses, OperatingSystemNameandVersion, ResourceNames
+        $SMS_R_System = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select IsVirtualMachine, LastLogonTimestamp, LastLogonUserDomain, LastLogonUserName, MACAddresses, OperatingSystemNameandVersion, ResourceNames, IPAddresses, IPSubnets from SMS_R_System where name='$ThisComputer'" | select IsVirtualMachine, LastLogonTimestamp, LastLogonUserDomain, LastLogonUserName, MACAddresses, OperatingSystemNameandVersion, ResourceNames, IPAddresses, IPSubnets
         $SMS_G_System_Computer_System = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select Manufacturer, Model, Domain, SystemType, UserName from SMS_G_System_Computer_System where name='$ThisComputer'" | select Manufacturer, Model, Domain, SystemType, UserName
     
         Try{
@@ -92,11 +92,13 @@ FUNCTION Get-SCCMComputer {
                 LastLogonTimestamp = $sms_r_system.LastLogonTimestamp
                 LastLogonUserDomain = $sms_r_system.LastLogonUserDomain
                 LastLogonUserName = $sms_r_system.LastLogonUserName
-                MACAddresses = [system.String]::Join(" ", $sms_r_system.MACAddresses)
+                IPAddresses = $sms_r_system.IPAddresses -join " "
+                IPSubnets = $sms_r_system.IPSubnets -join " "
+                MACAddresses = $sms_r_system.MACAddresses -join " "
                 Manufacturer = $SMS_G_System_Computer_System.Manufacturer
                 Model = $SMS_G_System_Computer_System.Model
                 OperatingSystemNameandVersion = $sms_r_system.OperatingSystemNameandVersion
-                ResourceNames = [system.String]::Join(" ", $sms_r_system.ResourceNames)
+                ResourceNames = $sms_r_system.ResourceNames -join " "
                 SystemType = $SMS_G_System_Computer_System.SystemType
                 UserName = $SMS_G_System_Computer_System.UserName
             }
@@ -119,4 +121,3 @@ FUNCTION Get-SCCMComputer {
 
 	}
 }
-
