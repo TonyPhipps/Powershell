@@ -1,13 +1,13 @@
 FUNCTION Get-SCCMComputer {
 <#
 .Synopsis 
-	Queries SCCM for a given hostname or IP address.
+	Queries SCCM for a given hostname, FQDN, or IP address.
 
 .Description 
-    Queries SCCM for a given hostname or IP address.
+    Queries SCCM for a given hostname, FQDN, or IP address.
 
 .Parameter Computer  
-    Computer can be a single hostname, IP address, or a piped in object with "Name, IP" fields.
+    Computer can be a single hostname, FQDN, or IP address.
 
 .Example 
     Get-SCCMComputer 
@@ -16,7 +16,7 @@ FUNCTION Get-SCCMComputer {
     Get-SCCMComputer SomeHostName.domain.com
 
 .Notes 
-    Updated: 2017-06-29
+    Updated: 2017-07-13
     LEGAL: Copyright (C) 2017  Anthony Phipps
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -49,47 +49,27 @@ FUNCTION Get-SCCMComputer {
 
         $SCCMNameSpace="root\sms\site_$SiteName"
         
-        if ($Computer.GetType().Name -eq "PSCustomObject"){ # Are we being fed an object?
-            
-            if ($Computer.Name -ne ""){
-                $ThisComputer = $Computer.Name
-            }
-            
-            elseif ($Computer.IP -ne ""){ # If only IP field is filled out, derive hostname
-                $FQDN = [System.Net.Dns]::GetHostByAddress($Computer.IP).Hostname
-                $FQDNSplit = $FQDN.Split(".")
-                $ThisComputer = $FQDNSplit[0]
-            }
-            
-            else{
-                Write-Error "No Name or IP Found"
-            }
+                
+        if ($Computer -match "\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"){ # is this an IP address?
+            $fqdn = [System.Net.Dns]::GetHostByAddress($Computer).Hostname
+            $fqdnsplit = $fqdn.Split(".")
+            $ThisComputer = $fqdnsplit[0]
         }
         
-        else{ # We are being fed a string.
-        
-            if ($Computer -match "\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"){ # is this an IP address?
-                $fqdn = [System.Net.Dns]::GetHostByAddress($Computer).Hostname
-                $fqdnsplit = $fqdn.Split(".")
-                $ThisComputer = $fqdnsplit[0]
-            }
-        
-            else{ # Convert any FQDN into just hostname
-                $ComputerSplit = $Computer.Split(".")
-                $ThisComputer = $ComputerSplit[0]
-            }
+        else{ # Convert any FQDN into just hostname
+            $ThisComputer = $Computer.Split(".")[0]
         }
 
-        
-        $SMS_R_System = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select IsVirtualMachine, LastLogonTimestamp, LastLogonUserDomain, LastLogonUserName, MACAddresses, OperatingSystemNameandVersion, ResourceNames, IPAddresses, IPSubnets from SMS_R_System where name='$ThisComputer'" | select IsVirtualMachine, LastLogonTimestamp, LastLogonUserDomain, LastLogonUserName, MACAddresses, OperatingSystemNameandVersion, ResourceNames, IPAddresses, IPSubnets
-        $SMS_G_System_Computer_System = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select Manufacturer, Model, Domain, SystemType, UserName from SMS_G_System_Computer_System where name='$ThisComputer'" | select Manufacturer, Model, Domain, SystemType, UserName
-    
+        $SMS_R_System = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select IsVirtualMachine, LastLogonTimestamp, LastLogonUserDomain, LastLogonUserName, MACAddresses, OperatingSystemNameandVersion, ResourceNames, IPAddresses, IPSubnets, AgentTime, ResourceID, CPUType, DistinguishedName from SMS_R_System where name='$ThisComputer'"
+        $ResourceID = $SMS_R_System.ResourceID # Needed since -query seems to lack support for calling $SMS_R_System.ResourceID directly.
+        $SMS_G_System_Computer_System = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select ResourceID, Manufacturer, Model, Domain, SystemType, UserName, CurrentTimeZone, DomainRole, NumberOfProcessors, TimeStamp from SMS_G_System_Computer_System where ResourceID='$ResourceID'"
+
         Try{
             $output = [PSCustomObject]@{
                 Name = $ThisComputer
                 Domain = $SMS_G_System_Computer_System.Domain
                 IsVirtualMachine = $sms_r_system.IsVirtualMachine
-                LastLogonTimestamp = $sms_r_system.LastLogonTimestamp
+                LastLogonTimestamp = $sms_r_system.LastLogonTimestamp.Split(".")[0]
                 LastLogonUserDomain = $sms_r_system.LastLogonUserDomain
                 LastLogonUserName = $sms_r_system.LastLogonUserName
                 IPAddresses = $sms_r_system.IPAddresses -join " "
@@ -98,14 +78,24 @@ FUNCTION Get-SCCMComputer {
                 Manufacturer = $SMS_G_System_Computer_System.Manufacturer
                 Model = $SMS_G_System_Computer_System.Model
                 OperatingSystemNameandVersion = $sms_r_system.OperatingSystemNameandVersion
-                ResourceNames = $sms_r_system.ResourceNames -join " "
+                ResourceNames = $sms_r_system.ResourceNames[0]
                 SystemType = $SMS_G_System_Computer_System.SystemType
                 UserName = $SMS_G_System_Computer_System.UserName
+                LastSCCMHeartBeat = $SMS_R_System.AgentTime[3].Split(".")[0]
+                ResourceID = $SMS_R_System.ResourceID
+                CPUType = $SMS_R_System.CPUType
+                DistinguishedName = $SMS_R_System.DistinguishedName
+                CurrentTimeZone = $SMS_G_System_Computer_System.CurrentTimeZone
+                DomainRole = $SMS_G_System_Computer_System.DomainRole
+                NumberOfProcessors = $SMS_G_System_Computer_System.NumberOfProcessors
+                TimeStamp = $SMS_G_System_Computer_System.TimeStamp.Split(".")[0]
             }
         }
         Catch{
         }
-    
+    };
+
+    END{
         if ([bool]($output.PSobject.Properties.Name -match "SystemType")){ # If SCCM query worked
             Write-Output $output;
             $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}    
@@ -113,11 +103,6 @@ FUNCTION Get-SCCMComputer {
         else{
             Write-Error "$ThisComputer not found"
         }
-        
-        
-    };
-
-    END{
-
 	}
 }
+
