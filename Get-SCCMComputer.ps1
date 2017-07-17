@@ -11,9 +11,10 @@ FUNCTION Get-SCCMComputer {
 
 .Example 
     Get-SCCMComputer 
-    import-csv C:\hosts.csv | Get-SCCMComputer
-    Get-SCCMComputer $env:computername
     Get-SCCMComputer SomeHostName.domain.com
+    Get-Content C:\hosts.csv | Get-SCCMComputer
+    Get-SCCMComputer $env:computername
+    Get-ADComputer -filter * | Select -ExpandProperty Name | Get-SCCMComputer
 
 .Notes 
     Updated: 2017-07-17
@@ -33,12 +34,12 @@ FUNCTION Get-SCCMComputer {
 #>
 
     PARAM(
-    	[Parameter(ValueFromPipeline=$True)]
-		$Computer,
+    	[Parameter(ValueFromPipeline=$True, ValueFromPipelineByPropertyName=$True)]
+        $Computer,
         [Parameter()]
         $SiteName="A1",
         [Parameter()]
-        $SCCMServer="Domain.com",
+        $SCCMServer="domain.com",
         [Parameter()]
         [Alias("e")]
         [switch] $ErrorLog
@@ -46,14 +47,15 @@ FUNCTION Get-SCCMComputer {
 
 	BEGIN{
         $SCCMNameSpace="root\sms\site_$SiteName"
+
+        $datetime = Get-Date -Format "yyyy-MM-dd_hh.mm.ss.ff"
 	}
 
     PROCESS{        
                 
         if ($Computer -match "\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"){ # is this an IP address?
             $fqdn = [System.Net.Dns]::GetHostByAddress($Computer).Hostname
-            $fqdnsplit = $fqdn.Split(".")
-            $ThisComputer = $fqdnsplit[0]
+            $ThisComputer = $fqdn.Split(".")[0]
         }
         
         else{ # Convert any FQDN into just hostname
@@ -112,13 +114,12 @@ FUNCTION Get-SCCMComputer {
         Catch{
              Write-Warning -Message "$ThisComputer not found."
              if ($ErrorLog){
-                $datetime = Get-Date -Format "yyyy-MM-dd_hh.mm.ss.ff"
                 Add-Content -Path .\Get-SCCMComputer_errors_$datetime.txt -Value ("$ThisComputer");
              }
-
         }
     };
 
     END{
 	};
 };
+
