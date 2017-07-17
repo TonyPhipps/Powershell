@@ -16,7 +16,7 @@ FUNCTION Get-SCCMComputer {
     Get-SCCMComputer SomeHostName.domain.com
 
 .Notes 
-    Updated: 2017-07-13
+    Updated: 2017-07-17
     LEGAL: Copyright (C) 2017  Anthony Phipps
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -33,22 +33,22 @@ FUNCTION Get-SCCMComputer {
 #>
 
     PARAM(
-    	[Parameter(
-			ValueFromPipeline=$True)]
+    	[Parameter(ValueFromPipeline=$True)]
 		$Computer,
-        $IP,
+        [Parameter()]
         $SiteName="A1",
-        $SCCMServer="Domain.com"
+        [Parameter()]
+        $SCCMServer="Domain.com",
+        [Parameter()]
+        [Alias("e")]
+        [switch] $ErrorLog
     );
 
-    BEGIN{
-
+	BEGIN{
+        $SCCMNameSpace="root\sms\site_$SiteName"
 	}
 
-    PROCESS{
-
-        $SCCMNameSpace="root\sms\site_$SiteName"
-        
+    PROCESS{        
                 
         if ($Computer -match "\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"){ # is this an IP address?
             $fqdn = [System.Net.Dns]::GetHostByAddress($Computer).Hostname
@@ -60,29 +60,32 @@ FUNCTION Get-SCCMComputer {
             $ThisComputer = $Computer.Split(".")[0]
         }
 
-        $SMS_R_System = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select IsVirtualMachine, LastLogonTimestamp, LastLogonUserDomain, LastLogonUserName, MACAddresses, OperatingSystemNameandVersion, ResourceNames, IPAddresses, IPSubnets, AgentTime, ResourceID, CPUType, DistinguishedName from SMS_R_System where name='$ThisComputer'"
-        $ResourceID = $SMS_R_System.ResourceID # Needed since -query seems to lack support for calling $SMS_R_System.ResourceID directly.
-        $SMS_G_System_Computer_System = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select ResourceID, Manufacturer, Model, Domain, SystemType, UserName, CurrentTimeZone, DomainRole, NumberOfProcessors, TimeStamp from SMS_G_System_Computer_System where ResourceID='$ResourceID'"
-        $SMS_G_System_SYSTEM_ENCLOSURE = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select ResourceID, SerialNumber, ChassisTypes from SMS_G_System_SYSTEM_ENCLOSURE where ResourceID='$ResourceID'"
-        $SMS_G_System_PC_BIOS = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select ResourceID, Manufacturer, Name, SMBIOSBIOSVersion, ReleaseDate from SMS_G_System_PC_BIOS where ResourceID='$ResourceID'"
-
         Try{
+            $SMS_R_System = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select IsVirtualMachine, LastLogonTimestamp, LastLogonUserDomain, LastLogonUserName, MACAddresses, OperatingSystemNameandVersion, ResourceNames, IPAddresses, IPSubnets, AgentTime, ResourceID, CPUType, DistinguishedName from SMS_R_System where name='$ThisComputer'"
+            $ResourceID = $SMS_R_System.ResourceID # Needed since -query seems to lack support for calling $SMS_R_System.ResourceID directly.
+            $SMS_G_System_Computer_System = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select ResourceID, Manufacturer, Model, Domain, SystemType, UserName, CurrentTimeZone, DomainRole, NumberOfProcessors, TimeStamp from SMS_G_System_Computer_System where ResourceID='$ResourceID'"
+            $SMS_G_System_SYSTEM_ENCLOSURE = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select ResourceID, SerialNumber, ChassisTypes from SMS_G_System_SYSTEM_ENCLOSURE where ResourceID='$ResourceID'"
+            $SMS_G_System_PC_BIOS = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select ResourceID, Manufacturer, Name, SMBIOSBIOSVersion, ReleaseDate from SMS_G_System_PC_BIOS where ResourceID='$ResourceID'"
+            $SMS_G_System_OPERATING_SYSTEM = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select InstallDate, LastBootUpTime, Caption, CSDVersion from SMS_G_System_OPERATING_SYSTEM where ResourceID='$ResourceID'"
+        
+
+
             $output = [PSCustomObject]@{
                 Name = $ThisComputer
                 Domain = $SMS_G_System_Computer_System.Domain
                 DistinguishedName = $SMS_R_System.DistinguishedName
-                ResourceNames = $sms_r_system.ResourceNames[0]
-                IsVirtualMachine = $sms_r_system.IsVirtualMachine
-                LastLogonTimestamp = $sms_r_system.LastLogonTimestamp.Split(".")[0]
-                LastLogonUserDomain = $sms_r_system.LastLogonUserDomain
-                LastLogonUserName = $sms_r_system.LastLogonUserName
-                IPAddresses = $sms_r_system.IPAddresses -join " "
-                IPSubnets = $sms_r_system.IPSubnets -join " "
-                MACAddresses = $sms_r_system.MACAddresses -join " "
+                ResourceNames = $SMS_R_System.ResourceNames[0]
+                IsVirtualMachine = $SMS_R_System.IsVirtualMachine
+                LastLogonTimestamp = $SMS_R_System.LastLogonTimestamp.Split(".")[0]
+                LastLogonUserDomain = $SMS_R_System.LastLogonUserDomain
+                LastLogonUserName = $SMS_R_System.LastLogonUserName
+                IPAddresses = $SMS_R_System.IPAddresses -join " "
+                IPSubnets = $SMS_R_System.IPSubnets -join " "
+                MACAddresses = $SMS_R_System.MACAddresses -join " "
                 ResourceID = $SMS_R_System.ResourceID
                 CPUType = $SMS_R_System.CPUType
                 LastSCCMHeartBeat = $SMS_R_System.AgentTime[3].Split(".")[0]
-                OperatingSystemNameandVersion = $sms_r_system.OperatingSystemNameandVersion
+                OperatingSystemNameandVersion = $SMS_R_System.OperatingSystemNameandVersion
                 Manufacturer = $SMS_G_System_Computer_System.Manufacturer
                 Model = $SMS_G_System_Computer_System.Model
                 SystemType = $SMS_G_System_Computer_System.SystemType
@@ -97,19 +100,25 @@ FUNCTION Get-SCCMComputer {
                 BIOSName = $SMS_G_System_PC_BIOS.Name
                 BIOSVersion = $SMS_G_System_PC_BIOS.SMBIOSBIOSVersion
                 BIOSReleaseDate = $SMS_G_System_PC_BIOS.ReleaseDate.Split(".")[0]
+                InstallDate = $SMS_G_System_OPERATING_SYSTEM.InstallDate
+                LastBootUpTime = $SMS_G_System_OPERATING_SYSTEM.LastBootUpTime
+                Caption = $SMS_G_System_OPERATING_SYSTEM.Caption
+                CSDVersion = $SMS_G_System_OPERATING_SYSTEM.CSDVersion
             }
+
+            Write-Output $output;
+            $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}    
         }
         Catch{
+             Write-Warning -Message "$ThisComputer not found."
+             if ($ErrorLog){
+                $datetime = Get-Date -Format "yyyy-MM-dd_hh.mm.ss.ff"
+                Add-Content -Path .\Get-SCCMComputer_errors_$datetime.txt -Value ("$ThisComputer");
+             }
+
         }
     };
 
     END{
-        if ([bool]($output.PSobject.Properties.Name -match "SystemType")){ # If SCCM query worked
-            Write-Output $output;
-            $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}    
-        }
-        else{
-            Write-Error "$ThisComputer not found"
-        }
-	}
-}
+	};
+};
