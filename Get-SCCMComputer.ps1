@@ -59,7 +59,7 @@ FUNCTION Get-SCCMComputer {
         }
         
         else{ # Convert any FQDN into just hostname
-            $ThisComputer = $Computer.Split(".")[0]
+            $ThisComputer = $Computer.Split(".")[0].Replace('"', '')
         }
 
         Try{
@@ -108,14 +108,17 @@ FUNCTION Get-SCCMComputer {
                 CSDVersion = $SMS_G_System_OPERATING_SYSTEM.CSDVersion
             }
 
+            Write-Verbose -Message "$ThisComputer found."
+            
             Write-Output $output;
             $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}    
         }
         Catch{
-             Write-Warning -Message "$ThisComputer not found."
-             if ($ErrorLog){
+            Write-Verbose -Message "$ThisComputer NOT found."
+
+            if ($ErrorLog){
                 Add-Content -Path .\Get-SCCMComputer_errors_$datetime.txt -Value ("$ThisComputer");
-             }
+            }
         }
     };
 
