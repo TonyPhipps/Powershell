@@ -116,7 +116,9 @@ FUNCTION Get-SCCMComputer {
                 $output.DistinguishedName = $SMS_R_System.DistinguishedName
                 $output.ResourceNames = $SMS_R_System.ResourceNames[0]
                 $output.IsVirtualMachine = $SMS_R_System.IsVirtualMachine
-                $output.LastLogonTimestamp = $SMS_R_System.LastLogonTimestamp.Split(".")[0]
+                if ($SMS_R_System.LastLogonTimestamp) { # Sometimes fails
+                    $output.LastLogonTimestamp = $SMS_R_System.LastLogonTimestamp.Split(".")[0]
+                }
                 $output.LastLogonUserDomain = $SMS_R_System.LastLogonUserDomain
                 $output.LastLogonUserName = $SMS_R_System.LastLogonUserName
                 $output.IPAddresses = $SMS_R_System.IPAddresses -join " "
@@ -124,7 +126,9 @@ FUNCTION Get-SCCMComputer {
                 $output.MACAddresses = $SMS_R_System.MACAddresses -join " "
                 $output.ResourceID = $SMS_R_System.ResourceID
                 $output.CPUType = $SMS_R_System.CPUType
-                $output.LastSCCMHeartBeat = $SMS_R_System.AgentTime[3].Split(".")[0]
+                if ($SMS_R_System.AgentTime[3]) { # Sometimes fails
+                    $output.LastSCCMHeartBeat = $SMS_R_System.AgentTime[3].Split(".")[0]
+                }
                 $output.OperatingSystemNameandVersion = $SMS_R_System.OperatingSystemNameandVersion
             };
 
