@@ -156,8 +156,8 @@ FUNCTION Get-SCCMComputer {
             };
 
             if ($SMS_G_System_OPERATING_SYSTEM){
-                $output.InstallDate = $SMS_G_System_OPERATING_SYSTEM.InstallDate
-                $output.LastBootUpTime = $SMS_G_System_OPERATING_SYSTEM.LastBootUpTime
+                $output.InstallDate = $SMS_G_System_OPERATING_SYSTEM.InstallDate.Split(".")[0]
+                $output.LastBootUpTime = $SMS_G_System_OPERATING_SYSTEM.LastBootUpTime.Split(".")[0]
                 $output.Caption = $SMS_G_System_OPERATING_SYSTEM.Caption
                 $output.CSDVersion = $SMS_G_System_OPERATING_SYSTEM.CSDVersion
             };
