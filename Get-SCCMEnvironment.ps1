@@ -17,7 +17,7 @@ FUNCTION Get-SCCMEnvironment {
     Get-ADComputer -filter * | Select -ExpandProperty Name | Get-SCCMEnvironment
 
 .Notes 
-    Updated: 2017-07-19
+    Updated: 2017-07-20
     LEGAL: Copyright (C) 2017  Anthony Phipps
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -57,56 +57,65 @@ FUNCTION Get-SCCMEnvironment {
     PROCESS{        
                 
         if ($Computer -match "\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"){ # is this an IP address?
+            
             $fqdn = [System.Net.Dns]::GetHostByAddress($Computer).Hostname;
             $ThisComputer = $fqdn.Split(".")[0];
         }
         
         else{ # Convert any FQDN into just hostname
+            
             $ThisComputer = $Computer.Split(".")[0].Replace('"', '');
         };
 
-
+            $output = [PSCustomObject]@{
+                Name = $ThisComputer
+                ResourceNames = ""
+                Username = ""
+                SystemVariable = ""
+                VariableValue = ""
+                Caption = ""
+                Description = ""        
+                Timestamp = ""
+            }
 
             $SMS_R_System = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select ResourceNames, ResourceID from SMS_R_System where name='$ThisComputer'";
             $ResourceID = $SMS_R_System.ResourceID; # Needed since -query seems to lack support for calling $SMS_R_System.ResourceID directly.
             $SMS_G_System_ENVIRONMENT = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select Name, VariableValue, SystemVariable, Username, Timestamp, Caption, Description from SMS_G_System_ENVIRONMENT where ResourceID='$ResourceID'";
 
             if ($SMS_G_System_ENVIRONMENT){
+                
                 $SMS_G_System_ENVIRONMENT | ForEach-Object {
                 
-                    $output = [PSCustomObject]@{
-                        Name = $ThisComputer
-                        ResourceNames = ""
-                        VariableValue = ""
-                        SystemVariable = ""
-                        Username = ""
-                        Timestamp = ""
-                        Caption = ""
-                        Description = ""        
-                    }
-
-                    if ($SMS_R_System){
-                        $output.ResourceNames = $SMS_R_System.ResourceNames[0]
-                    };
+                    $output.ResourceNames = $SMS_R_System.ResourceNames[0]
 
                     $output.VariableValue = $_.VariableValue;
                     $output.SystemVariable = $_.SystemVariable;
                     $output.Username = $_.Username;
                     $output.Timestamp = $_.Timestamp.Split(".")[0];
-                    $output.Caption = $_.Caption;
-                    $output.Description = $_.Description;
+                    
+                    if ($_.Caption.Split("\")[2]){ # These values have variable \'s present until the relevant content.
+                        $output.Caption = $_.Caption.Split("\")[2];
+                        $output.Description = $_.Description.Split("\")[2];
+                    }
+                    else{
+                        $output.Caption = $_.Caption.Split("\")[1];
+                        $output.Description = $_.Description.Split("\")[1];
+                    };
+
 
                     return $output;
-
                     $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}; 
                 };
+            }
+            else {
+
+                return $output;
+                $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}; 
             };
-            
 
             $elapsed = $stopwatch.Elapsed;
             $total = $total+1;
             
-
             Write-Verbose -Message "System $total `t $ThisComputer `t Time Elapsed: $elapsed";
 
     };
