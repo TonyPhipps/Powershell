@@ -1,4 +1,4 @@
-FUNCTION Get-SCCMEnvironment {
+FUNCTION Get-SCCMEnvironments {
 <#
 .Synopsis 
     Queries SCCM for a given hostname, FQDN, or IP address.
@@ -10,11 +10,11 @@ FUNCTION Get-SCCMEnvironment {
     Computer can be a single hostname, FQDN, or IP address.
 
 .Example 
-    Get-SCCMEnvironment 
-    Get-SCCMEnvironment SomeHostName.domain.com
-    Get-Content C:\hosts.csv | Get-SCCMEnvironment
-    Get-SCCMEnvironment $env:computername
-    Get-ADComputer -filter * | Select -ExpandProperty Name | Get-SCCMEnvironment
+    Get-SCCMEnvironments 
+    Get-SCCMEnvironments SomeHostName.domain.com
+    Get-Content C:\hosts.csv | Get-SCCMEnvironments
+    Get-SCCMEnvironments $env:computername
+    Get-ADComputer -filter * | Select -ExpandProperty Name | Get-SCCMEnvironments
 
 .Notes 
     Updated: 2017-07-20
