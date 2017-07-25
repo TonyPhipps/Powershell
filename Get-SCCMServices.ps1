@@ -9,6 +9,14 @@ FUNCTION Get-SCCMServices {
 .Parameter Computer  
     Computer can be a single hostname, FQDN, or IP address.
 
+.Parameter CIM
+    Use Get-CIMInstance rather than Get-WMIObject. CIM cmdlets use WSMAN (WinRM)
+    to connect to remote machines, and has better standardized output (e.g. 
+    datetime format). CIM cmdlets require the querying user to be a member of 
+    Administrators or WinRMRemoteWMIUsers_ on the target system. Get-WMIObject 
+    is the default due to lower permission requirements, but can be blocked by 
+    firewalls in some environments.
+
 .Example 
     Get-SCCMServices 
     Get-SCCMServices SomeHostName.domain.com
@@ -39,7 +47,9 @@ FUNCTION Get-SCCMServices {
         [Parameter()]
         $SiteName="A1",
         [Parameter()]
-        $SCCMServer="server.domain.com"
+        $SCCMServer="server.domain.com",
+        [Parameter()]
+        [switch]$CIM
     );
 
 	BEGIN{
@@ -52,7 +62,7 @@ FUNCTION Get-SCCMServices {
         $stopwatch.Start();
 
         $total = 0;
-	}
+	};
 
     PROCESS{        
                 
@@ -67,81 +77,90 @@ FUNCTION Get-SCCMServices {
             $ThisComputer = $Computer.Split(".")[0].Replace('"', '');
         };
 
-            $output = [PSCustomObject]@{
-                Name = $ThisComputer
-                ResourceNames = ""
-                AcceptPause = ""
-                AcceptStop = ""
-                Caption = ""
-                CheckPoint = ""
-                Description = ""
-                DesktopInteract = ""
-                DisplayName = ""
-                ErrorControl = ""
-                ExitCode = ""
-                InstallDate = ""
-                ServiceName = ""
-                PathName = ""
-                ProcessId = ""
-                ServiceSpecificExitCode = ""
-                ServiceType = ""
-                Started = ""
-                StartMode = ""
-                StartName = ""
-                State = ""
-                Status = ""
-                WaitHint = ""
-                Timestamp = ""
-            }
+        $output = [PSCustomObject]@{
+            Name = $ThisComputer
+            ResourceNames = ""
+            AcceptPause = ""
+            AcceptStop = ""
+            Caption = ""
+            CheckPoint = ""
+            Description = ""
+            DesktopInteract = ""
+            DisplayName = ""
+            ErrorControl = ""
+            ExitCode = ""
+            InstallDate = ""
+            ServiceName = ""
+            PathName = ""
+            ProcessId = ""
+            ServiceSpecificExitCode = ""
+            ServiceType = ""
+            Started = ""
+            StartMode = ""
+            StartName = ""
+            State = ""
+            Status = ""
+            WaitHint = ""
+            Timestamp = ""
+        };
+
+        if ($CIM){
+
+            $SMS_R_System = Get-CIMInstance -namespace $SCCMNameSpace -computer $SCCMServer -query "select ResourceNames, ResourceID from SMS_R_System where name='$ThisComputer'";
+            $ResourceID = $SMS_R_System.ResourceID; # Needed since -query seems to lack support for calling $SMS_R_System.ResourceID directly.
+            $SMS_G_System_SERVICE = Get-CIMInstance -namespace $SCCMNameSpace -computer $SCCMServer -query "select AcceptPause, AcceptStop, Caption, CheckPoint, Description, DesktopInteract, DisplayName, ErrorControl, ExitCode, InstallDate, Name, PathName, ProcessId, ServiceSpecificExitCode, ServiceType, Started, StartMode, StartName, State, Status, WaitHint, Timestamp from SMS_G_System_SERVICE where ResourceID='$ResourceID'";
+        }
+        else{
 
             $SMS_R_System = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select ResourceNames, ResourceID from SMS_R_System where name='$ThisComputer'";
             $ResourceID = $SMS_R_System.ResourceID; # Needed since -query seems to lack support for calling $SMS_R_System.ResourceID directly.
             $SMS_G_System_SERVICE = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select AcceptPause, AcceptStop, Caption, CheckPoint, Description, DesktopInteract, DisplayName, ErrorControl, ExitCode, InstallDate, Name, PathName, ProcessId, ServiceSpecificExitCode, ServiceType, Started, StartMode, StartName, State, Status, WaitHint, Timestamp from SMS_G_System_SERVICE where ResourceID='$ResourceID'";
+        };
 
-            if ($SMS_G_System_SERVICE){
+        if ($SMS_G_System_SERVICE){
                 
-                $SMS_G_System_SERVICE | ForEach-Object {
+            $SMS_G_System_SERVICE | ForEach-Object {
                 
-                    $output.ResourceNames = $SMS_R_System.ResourceNames[0]
+                $output.ResourceNames = $SMS_R_System.ResourceNames[0]
 
-                    $output.AcceptPause = $_.AcceptPause;
-                    $output.AcceptStop = $_.AcceptStop;
-                    $output.Caption = $_.Caption;
-                    $output.CheckPoint = $_.CheckPoint;
-                    $output.Description = $_.Description;
-                    $output.DesktopInteract = $_.DesktopInteract;
-                    $output.DisplayName = $_.DisplayName;
-                    $output.ErrorControl = $_.ErrorControl;
-                    $output.ExitCode = $_.ExitCode;
-                    $output.InstallDate = $_.InstallDate;
-                    $output.ServiceName = $_.Name;
-                    $output.PathName = $_.PathName;
-                    $output.ProcessId = $_.ProcessId;
-                    $output.ServiceSpecificExitCode = $_.ServiceSpecificExitCode;
-                    $output.ServiceType = $_.ServiceType;
-                    $output.Started = $_.Started;
-                    $output.StartMode = $_.StartMode;
-                    $output.StartName = $_.StartName;
-                    $output.State = $_.State;
-                    $output.Status = $_.Status;
-                    $output.WaitHint = $_.WaitHint;
+                $output.AcceptPause = $_.AcceptPause;
+                $output.AcceptStop = $_.AcceptStop;
+                $output.Caption = $_.Caption;
+                $output.CheckPoint = $_.CheckPoint;
+                $output.Description = $_.Description;
+                $output.DesktopInteract = $_.DesktopInteract;
+                $output.DisplayName = $_.DisplayName;
+                $output.ErrorControl = $_.ErrorControl;
+                $output.ExitCode = $_.ExitCode;
+                $output.InstallDate = $_.InstallDate;
+                $output.ServiceName = $_.Name;
+                $output.PathName = $_.PathName;
+                $output.ProcessId = $_.ProcessId;
+                $output.ServiceSpecificExitCode = $_.ServiceSpecificExitCode;
+                $output.ServiceType = $_.ServiceType;
+                $output.Started = $_.Started;
+                $output.StartMode = $_.StartMode;
+                $output.StartName = $_.StartName;
+                $output.State = $_.State;
+                $output.Status = $_.Status;
+                $output.WaitHint = $_.WaitHint;
                     
-                    $output.Timestamp = $_.Timestamp.Split(".")[0];
+                $output.Timestamp = $_.Timestamp;
                     
-                    return $output;
-                    $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}; 
-                };
-            }
-            else {
-
                 return $output;
                 $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}; 
             };
+        }
+        else{
 
-            $elapsed = $stopwatch.Elapsed;
-            $total = $total+1;
+            return $output;
+            $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}; 
+        };
+
+        $elapsed = $stopwatch.Elapsed;
+        $total = $total+1;
             
-            Write-Verbose -Message "System $total `t $ThisComputer `t Time Elapsed: $elapsed";
+        Write-Verbose -Message "System $total `t $ThisComputer `t Time Elapsed: $elapsed";
 
     };
 
@@ -150,5 +169,4 @@ FUNCTION Get-SCCMServices {
         Write-Verbose "Total Systems: $total `t Total time elapsed: $elapsed";
 	};
 };
-
 
