@@ -9,6 +9,14 @@ FUNCTION Get-SCCMConsoleUsers {
 .Parameter Computer  
     Computer can be a single hostname, FQDN, or IP address.
 
+.Parameter CIM
+    Use Get-CIMInstance rather than Get-WMIObject. CIM cmdlets use WSMAN (WinRM)
+    to connect to remote machines, and has better standardized output (e.g. 
+    datetime format). CIM cmdlets require the querying user to be a member of 
+    Administrators or WinRMRemoteWMIUsers_ on the target system. Get-WMIObject 
+    is the default due to lower permission requirements, but can be blocked by 
+    firewalls in some environments.
+
 .Example 
     Get-SCCMConsoleUsers 
     Get-SCCMConsoleUsers SomeHostName.domain.com
@@ -17,7 +25,7 @@ FUNCTION Get-SCCMConsoleUsers {
     Get-ADComputer -filter * | Select -ExpandProperty Name | Get-SCCMConsoleUsers
 
 .Notes 
-    Updated: 2017-07-20
+    Updated: 2017-07-25
     LEGAL: Copyright (C) 2017  Anthony Phipps
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,7 +47,9 @@ FUNCTION Get-SCCMConsoleUsers {
         [Parameter()]
         $SiteName="A1",
         [Parameter()]
-        $SCCMServer="server.domain.com"
+        $SCCMServer="server.domain.com",
+        [Parameter()]
+        [switch]$CIM
     );
 
 	BEGIN{
@@ -67,48 +77,56 @@ FUNCTION Get-SCCMConsoleUsers {
             $ThisComputer = $Computer.Split(".")[0].Replace('"', '');
         };
 
-            $output = [PSCustomObject]@{
-                Name = $ThisComputer
-                ResourceNames = ""
-                GroupID = ""
-                LastConsoleUse = ""
-                NumberOfConsoleLogons = ""
-                SystemConsoleUser = ""
-                TotalUserConsoleMinutes = ""
-                TimeStamp = ""
-            };
+        $output = [PSCustomObject]@{
+            Name = $ThisComputer
+            ResourceNames = ""
+            GroupID = ""
+            LastConsoleUse = ""
+            NumberOfConsoleLogons = ""
+            SystemConsoleUser = ""
+            TotalUserConsoleMinutes = ""
+            TimeStamp = ""
+        };
+            
+        if ($CIM){
 
+            $SMS_R_System = Get-CIMInstance -namespace $SCCMNameSpace -computer $SCCMServer -query "select ResourceNames, ResourceID from SMS_R_System where name='$ThisComputer'";
+            $ResourceID = $SMS_R_System.ResourceID; # Needed since -query seems to lack support for calling $SMS_R_System.ResourceID directly.
+            $SMS_G_System_SYSTEM_CONSOLE_USER = Get-CIMInstance -namespace $SCCMNameSpace -computer $SCCMServer -query "select GroupID, LastConsoleUse, NumberOfConsoleLogons, SystemConsoleUser, TimeStamp, TotalUserConsoleMinutes from SMS_G_System_SYSTEM_CONSOLE_USER where ResourceID='$ResourceID'";
+        }
+        else{
             $SMS_R_System = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select ResourceNames, ResourceID from SMS_R_System where name='$ThisComputer'";
             $ResourceID = $SMS_R_System.ResourceID; # Needed since -query seems to lack support for calling $SMS_R_System.ResourceID directly.
             $SMS_G_System_SYSTEM_CONSOLE_USER = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select GroupID, LastConsoleUse, NumberOfConsoleLogons, SystemConsoleUser, TimeStamp, TotalUserConsoleMinutes from SMS_G_System_SYSTEM_CONSOLE_USER where ResourceID='$ResourceID'";
+        };
 
-            if ($SMS_G_System_SYSTEM_CONSOLE_USER){
+        if ($SMS_G_System_SYSTEM_CONSOLE_USER){
                 
-                $SMS_G_System_SYSTEM_CONSOLE_USER | ForEach-Object {
+            $SMS_G_System_SYSTEM_CONSOLE_USER | ForEach-Object {
               
-                    $output.ResourceNames = $SMS_R_System.ResourceNames[0];
+                $output.ResourceNames = $SMS_R_System.ResourceNames[0];
 
-                    $output.LastConsoleUse = $_.LastConsoleUse.Split(".")[0];
-                    $output.NumberOfConsoleLogons = $_.NumberOfConsoleLogons;
-                    $output.SystemConsoleUser = $_.SystemConsoleUser;
-                    $output.GroupID = $_.GroupID; # does not appear to map to the GroupID in SMS_G_System_LocalGroupMembers
-                    $output.TotalUserConsoleMinutes = $_.TotalUserConsoleMinutes;
-                    $output.Timestamp = $_.Timestamp.Split(".")[0];
-
-                    return $output;
-                    $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}; 
-                };
-            }
-            else {
+                $output.LastConsoleUse = $_.LastConsoleUse;
+                $output.NumberOfConsoleLogons = $_.NumberOfConsoleLogons;
+                $output.SystemConsoleUser = $_.SystemConsoleUser;
+                $output.GroupID = $_.GroupID; # does not appear to map to the GroupID in SMS_G_System_LocalGroupMembers
+                $output.TotalUserConsoleMinutes = $_.TotalUserConsoleMinutes;
+                $output.Timestamp = $_.Timestamp;
 
                 return $output;
                 $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}; 
             };
+        }
+        else {
 
-            $elapsed = $stopwatch.Elapsed;
-            $total = $total+1;
+            return $output;
+            $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}; 
+        };
+
+        $elapsed = $stopwatch.Elapsed;
+        $total = $total+1;
             
-            Write-Verbose -Message "System $total `t $ThisComputer `t Time Elapsed: $elapsed";
+        Write-Verbose -Message "System $total `t $ThisComputer `t Time Elapsed: $elapsed";
 
     };
 
@@ -117,4 +135,5 @@ FUNCTION Get-SCCMConsoleUsers {
         Write-Verbose "Total Systems: $total `t Total time elapsed: $elapsed";
 	};
 };
+
 
