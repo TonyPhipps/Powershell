@@ -9,6 +9,14 @@ FUNCTION Get-SCCMUSBDevices {
 .Parameter Computer  
     Computer can be a single hostname, FQDN, or IP address.
 
+.Parameter CIM
+    Use Get-CIMInstance rather than Get-WMIObject. CIM cmdlets use WSMAN (WinRM)
+    to connect to remote machines, and has better standardized output (e.g. 
+    datetime format). CIM cmdlets require the querying user to be a member of 
+    Administrators or WinRMRemoteWMIUsers_ on the target system. Get-WMIObject 
+    is the default due to lower permission requirements, but can be blocked by 
+    firewalls in some environments.
+
 .Example 
     Get-USBDevices 
     Get-USBDevices SomeHostName.domain.com
@@ -17,7 +25,7 @@ FUNCTION Get-SCCMUSBDevices {
     Get-ADComputer -filter * | Select -ExpandProperty Name | Get-USBDevices
 
 .Notes 
-    Updated: 2017-07-24
+    Updated: 2017-07-25
     LEGAL: Copyright (C) 2017  Anthony Phipps
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,7 +47,9 @@ FUNCTION Get-SCCMUSBDevices {
         [Parameter()]
         $SiteName="A1",
         [Parameter()]
-        $SCCMServer="server.domain.com"
+        $SCCMServer="server.domain.com",
+        [Parameter()]
+        [switch]$CIM
     );
 
 	BEGIN{
@@ -67,61 +77,70 @@ FUNCTION Get-SCCMUSBDevices {
             $ThisComputer = $Computer.Split(".")[0].Replace('"', '');
         };
 
-            $output = [PSCustomObject]@{
-                Name = $ThisComputer
-                ResourceNames = ""
-                Caption = ""
-                ClassGuid = ""
-                CreationClassName = ""
-                Description = ""
-                DeviceID = ""
-                Manufacturer = ""
-                DeviceName = ""
-                PNPDeviceID = ""
-                Service = ""
-                Status = ""
-                SystemCreationClassName = ""
-                Timestamp = ""
-            }
+        $output = [PSCustomObject]@{
+            Name = $ThisComputer
+            ResourceNames = ""
+            Caption = ""
+            ClassGuid = ""
+            CreationClassName = ""
+            Description = ""
+            DeviceID = ""
+            Manufacturer = ""
+            DeviceName = ""
+            PNPDeviceID = ""
+            Service = ""
+            Status = ""
+            SystemCreationClassName = ""
+            Timestamp = ""
+        }
 
-            $SMS_R_System = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select ResourceNames, ResourceID from SMS_R_System where name='$ThisComputer'";
+        if ($CIM){
+            
+            $SMS_R_System = Get-CIMInstance -namespace $SCCMNameSpace -computer $SCCMServer -query "select ResourceNames, ResourceID from SMS_R_System where name='$ThisComputer'";
             $ResourceID = $SMS_R_System.ResourceID; # Needed since -query seems to lack support for calling $SMS_R_System.ResourceID directly.
-            $SMS_G_System_USB_DEVICE = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select Caption, ClassGuid, CreationClassName, Description, DeviceID, Manufacturer, Name, PNPDeviceID, Service, Status, SystemCreationClassName, TimeStamp from SMS_G_System_USB_DEVICE where ResourceID='$ResourceID'";
+            $SMS_G_System_USB_DEVICE = Get-CIMInstance -namespace $SCCMNameSpace -computer $SCCMServer -query "select Caption, ClassGuid, CreationClassName, Description, DeviceID, Manufacturer, Name, PNPDeviceID, Service, Status, SystemCreationClassName, TimeStamp from SMS_G_System_USB_DEVICE where ResourceID='$ResourceID'";
+        }
+        else{
+            
+            $SMS_R_System = Get-CIMInstance -namespace $SCCMNameSpace -computer $SCCMServer -query "select ResourceNames, ResourceID from SMS_R_System where name='$ThisComputer'";
+            $ResourceID = $SMS_R_System.ResourceID; # Needed since -query seems to lack support for calling $SMS_R_System.ResourceID directly.
+            $SMS_G_System_USB_DEVICE = Get-CIMInstance -namespace $SCCMNameSpace -computer $SCCMServer -query "select Caption, ClassGuid, CreationClassName, Description, DeviceID, Manufacturer, Name, PNPDeviceID, Service, Status, SystemCreationClassName, TimeStamp from SMS_G_System_USB_DEVICE where ResourceID='$ResourceID'";
+        };
 
-            if ($SMS_G_System_USB_DEVICE){
+        if ($SMS_G_System_USB_DEVICE){
                 
-                $SMS_G_System_USB_DEVICE | ForEach-Object {
+            $SMS_G_System_USB_DEVICE | ForEach-Object {
                 
-                    $output.ResourceNames = $SMS_R_System.ResourceNames[0]
+                $output.ResourceNames = $SMS_R_System.ResourceNames[0]
 
-                    $output.Caption = $_.Caption;
-                    $output.ClassGuid = $_.ClassGuid;
-                    $output.CreationClassName = $_.CreationClassName;
-                    $output.Description = $_.Description;
-                    $output.DeviceID = $_.DeviceID;
-                    $output.Manufacturer = $_.Manufacturer;
-                    $output.DeviceName = $_.Name;
-                    $output.PNPDeviceID = $_.PNPDeviceID;
-                    $output.Service = $_.Service;
-                    $output.Status = $_.Status;
-                    $output.SystemCreationClassName = $_.SystemCreationClassName;
+                $output.Caption = $_.Caption;
+                $output.ClassGuid = $_.ClassGuid;
+                $output.CreationClassName = $_.CreationClassName;
+                $output.Description = $_.Description;
+                $output.DeviceID = $_.DeviceID;
+                $output.Manufacturer = $_.Manufacturer;
+                $output.DeviceName = $_.Name;
+                $output.PNPDeviceID = $_.PNPDeviceID;
+                $output.Service = $_.Service;
+                $output.Status = $_.Status;
+                $output.SystemCreationClassName = $_.SystemCreationClassName;
                     
-                    $output.Timestamp = $_.Timestamp.Split(".")[0];
+                $output.Timestamp = $_.Timestamp;
                     
-                    return $output;
-                    $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}; 
-                };
-            }
-            else {
-
                 return $output;
                 $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}; 
             };
+        }
+        else {
 
-            $elapsed = $stopwatch.Elapsed;
-            $total = $total+1;
+            return $output;
+            $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}; 
+        };
+
+        $elapsed = $stopwatch.Elapsed;
+        $total = $total+1;
             
-            Write-Verbose -Message "System $total `t $ThisComputer `t Time Elapsed: $elapsed";
+        Write-Verbose -Message "System $total `t $ThisComputer `t Time Elapsed: $elapsed";
 
     };
 
