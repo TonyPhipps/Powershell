@@ -8,6 +8,14 @@ FUNCTION Get-SCCMEnvironments {
 
 .Parameter Computer  
     Computer can be a single hostname, FQDN, or IP address.
+    
+.Parameter CIM
+    Use Get-CIMInstance rather than Get-WMIObject. CIM cmdlets use WSMAN (WinRM)
+    to connect to remote machines, and has better standardized output (e.g. 
+    datetime format). CIM cmdlets require the querying user to be a member of 
+    Administrators or WinRMRemoteWMIUsers_ on the target system. Get-WMIObject 
+    is the default due to lower permission requirements, but can be blocked by 
+    firewalls in some environments.
 
 .Example 
     Get-SCCMEnvironments 
@@ -17,7 +25,7 @@ FUNCTION Get-SCCMEnvironments {
     Get-ADComputer -filter * | Select -ExpandProperty Name | Get-SCCMEnvironments
 
 .Notes 
-    Updated: 2017-07-20
+    Updated: 2017-07-25
     LEGAL: Copyright (C) 2017  Anthony Phipps
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,7 +47,9 @@ FUNCTION Get-SCCMEnvironments {
         [Parameter()]
         $SiteName="A1",
         [Parameter()]
-        $SCCMServer="server.domain.com"
+        $SCCMServer="server.domain.com",
+        [Parameter()]
+        [switch]$CIM
     );
 
 	BEGIN{
@@ -67,56 +77,64 @@ FUNCTION Get-SCCMEnvironments {
             $ThisComputer = $Computer.Split(".")[0].Replace('"', '');
         };
 
-            $output = [PSCustomObject]@{
-                Name = $ThisComputer
-                ResourceNames = ""
-                Username = ""
-                SystemVariable = ""
-                VariableValue = ""
-                Caption = ""
-                Description = ""        
-                Timestamp = ""
-            }
+        $output = [PSCustomObject]@{
+            Name = $ThisComputer
+            ResourceNames = ""
+            Username = ""
+            SystemVariable = ""
+            VariableValue = ""
+            Caption = ""
+            Description = ""        
+            Timestamp = ""
+        }
 
+        if ($CIM){
+
+            $SMS_R_System = Get-CIMInstance -namespace $SCCMNameSpace -computer $SCCMServer -query "select ResourceNames, ResourceID from SMS_R_System where name='$ThisComputer'";
+            $ResourceID = $SMS_R_System.ResourceID; # Needed since -query seems to lack support for calling $SMS_R_System.ResourceID directly.
+            $SMS_G_System_ENVIRONMENT = Get-CIMInstance -namespace $SCCMNameSpace -computer $SCCMServer -query "select Name, VariableValue, SystemVariable, Username, Timestamp, Caption, Description from SMS_G_System_ENVIRONMENT where ResourceID='$ResourceID'";
+        }
+        else{
             $SMS_R_System = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select ResourceNames, ResourceID from SMS_R_System where name='$ThisComputer'";
             $ResourceID = $SMS_R_System.ResourceID; # Needed since -query seems to lack support for calling $SMS_R_System.ResourceID directly.
             $SMS_G_System_ENVIRONMENT = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select Name, VariableValue, SystemVariable, Username, Timestamp, Caption, Description from SMS_G_System_ENVIRONMENT where ResourceID='$ResourceID'";
+        }
 
-            if ($SMS_G_System_ENVIRONMENT){
+        if ($SMS_G_System_ENVIRONMENT){
                 
-                $SMS_G_System_ENVIRONMENT | ForEach-Object {
+            $SMS_G_System_ENVIRONMENT | ForEach-Object {
                 
-                    $output.ResourceNames = $SMS_R_System.ResourceNames[0]
+                $output.ResourceNames = $SMS_R_System.ResourceNames[0]
 
-                    $output.VariableValue = $_.VariableValue;
-                    $output.SystemVariable = $_.SystemVariable;
-                    $output.Username = $_.Username;
-                    $output.Timestamp = $_.Timestamp.Split(".")[0];
+                $output.VariableValue = $_.VariableValue;
+                $output.SystemVariable = $_.SystemVariable;
+                $output.Username = $_.Username;
+                $output.Timestamp = $_.Timestamp;
                     
-                    if ($_.Caption.Split("\")[2]){ # These values have variable \'s present until the relevant content.
-                        $output.Caption = $_.Caption.Split("\")[2];
-                        $output.Description = $_.Description.Split("\")[2];
-                    }
-                    else{
-                        $output.Caption = $_.Caption.Split("\")[1];
-                        $output.Description = $_.Description.Split("\")[1];
-                    };
-
-
-                    return $output;
-                    $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}; 
+                if ($_.Caption.Split("\")[2]){ # These values have variable \'s present until the relevant content.
+                    $output.Caption = $_.Caption.Split("\")[2];
+                    $output.Description = $_.Description.Split("\")[2];
+                }
+                else{
+                    $output.Caption = $_.Caption.Split("\")[1];
+                    $output.Description = $_.Description.Split("\")[1];
                 };
-            }
-            else {
+
 
                 return $output;
                 $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}; 
             };
+        }
+        else {
 
-            $elapsed = $stopwatch.Elapsed;
-            $total = $total+1;
+            return $output;
+            $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}; 
+        };
+
+        $elapsed = $stopwatch.Elapsed;
+        $total = $total+1;
             
-            Write-Verbose -Message "System $total `t $ThisComputer `t Time Elapsed: $elapsed";
+        Write-Verbose -Message "System $total `t $ThisComputer `t Time Elapsed: $elapsed";
 
     };
 
@@ -125,4 +143,5 @@ FUNCTION Get-SCCMEnvironments {
         Write-Verbose "Total Systems: $total `t Total time elapsed: $elapsed";
 	};
 };
+
 
