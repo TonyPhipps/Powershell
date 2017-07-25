@@ -106,7 +106,7 @@ FUNCTION Get-SCCMEnvironments {
                 
                 $output.ResourceNames = $SMS_R_System.ResourceNames[0]
 
-                $output.VariableValue = $_.VariableValue;
+                $output.VariableValue = $_.VariableValue; # "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" contains remainder of values above 255 characters!
                 $output.SystemVariable = $_.SystemVariable;
                 $output.Username = $_.Username;
                 $output.Timestamp = $_.Timestamp;
