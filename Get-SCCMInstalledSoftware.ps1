@@ -9,6 +9,14 @@ FUNCTION Get-SCCMInstalledSoftware {
 .Parameter Computer  
     Computer can be a single hostname, FQDN, or IP address.
 
+.Parameter CIM
+    Use Get-CIMInstance rather than Get-WMIObject. CIM cmdlets use WSMAN (WinRM)
+    to connect to remote machines, and has better standardized output (e.g. 
+    datetime format). CIM cmdlets require the querying user to be a member of 
+    Administrators or WinRMRemoteWMIUsers_ on the target system. Get-WMIObject 
+    is the default due to lower permission requirements, but can be blocked by 
+    firewalls in some environments.
+
 .Example 
     Get-SCCMInstalledSoftware 
     Get-SCCMInstalledSoftware SomeHostName.domain.com
@@ -17,7 +25,7 @@ FUNCTION Get-SCCMInstalledSoftware {
     Get-ADComputer -filter * | Select -ExpandProperty Name | Get-SCCMInstalledSoftware
 
 .Notes 
-    Updated: 2017-07-24
+    Updated: 2017-07-25
     LEGAL: Copyright (C) 2017  Anthony Phipps
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,7 +47,9 @@ FUNCTION Get-SCCMInstalledSoftware {
         [Parameter()]
         $SiteName="A1",
         [Parameter()]
-        $SCCMServer="server.domain.com"
+        $SCCMServer="server.domain.com",
+        [Parameter()]
+        [switch]$CIM
     );
 
 	BEGIN{
@@ -67,72 +77,81 @@ FUNCTION Get-SCCMInstalledSoftware {
             $ThisComputer = $Computer.Split(".")[0].Replace('"', '');
         };
 
-            $output = [PSCustomObject]@{
-                Name = $ThisComputer
-                ResourceNames = ""
-                ARPDisplayName = ""
-                InstallDate = ""
-                InstallDirectoryValidation = ""
-                InstalledLocation = ""
-                InstallSource = ""
-                InstallType = ""
-                Language = ""
-                LocalPackage = ""
-                OSComponent = ""
-                ProductName = ""
-                ProductVersion = ""
-                Publisher = ""
-                RegisteredUser = ""
-                ServicePack = ""
-                UninstallString = ""
-                VersionMajor = ""
-                VersionMinor = ""
-                Timestamp = ""
-            }
+        $output = [PSCustomObject]@{
+            Name = $ThisComputer
+            ResourceNames = ""
+            ARPDisplayName = ""
+            InstallDate = ""
+            InstallDirectoryValidation = ""
+            InstalledLocation = ""
+            InstallSource = ""
+            InstallType = ""
+            Language = ""
+            LocalPackage = ""
+            OSComponent = ""
+            ProductName = ""
+            ProductVersion = ""
+            Publisher = ""
+            RegisteredUser = ""
+            ServicePack = ""
+            UninstallString = ""
+            VersionMajor = ""
+            VersionMinor = ""
+            Timestamp = ""
+        };
 
+        if ($CIM){
+            
+            $SMS_R_System = Get-CIMInstance -namespace $SCCMNameSpace -computer $SCCMServer -query "select ResourceNames, ResourceID from SMS_R_System where name='$ThisComputer'";
+            $ResourceID = $SMS_R_System.ResourceID; # Needed since -query seems to lack support for calling $SMS_R_System.ResourceID directly.
+            $SMS_G_System_INSTALLED_SOFTWARE = Get-CIMInstance -namespace $SCCMNameSpace -computer $SCCMServer -query "select ARPDisplayName, InstallDate, InstallDirectoryValidation, InstalledLocation, InstallSource, InstallType, Language, LocalPackage, OSComponent, ProductName, ProductVersion, Publisher, RegisteredUser, ServicePack, TimeStamp, UninstallString, VersionMajor, VersionMinor from SMS_G_System_INSTALLED_SOFTWARE where ResourceID='$ResourceID'";
+        }
+        else{
+            
             $SMS_R_System = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select ResourceNames, ResourceID from SMS_R_System where name='$ThisComputer'";
             $ResourceID = $SMS_R_System.ResourceID; # Needed since -query seems to lack support for calling $SMS_R_System.ResourceID directly.
             $SMS_G_System_INSTALLED_SOFTWARE = Get-WmiObject -namespace $SCCMNameSpace -computer $SCCMServer -query "select ARPDisplayName, InstallDate, InstallDirectoryValidation, InstalledLocation, InstallSource, InstallType, Language, LocalPackage, OSComponent, ProductName, ProductVersion, Publisher, RegisteredUser, ServicePack, TimeStamp, UninstallString, VersionMajor, VersionMinor from SMS_G_System_INSTALLED_SOFTWARE where ResourceID='$ResourceID'";
-
-            if ($SMS_G_System_INSTALLED_SOFTWARE){
+        };
+            
+        if ($SMS_G_System_INSTALLED_SOFTWARE){
                 
-                $SMS_G_System_INSTALLED_SOFTWARE | ForEach-Object {
+            $SMS_G_System_INSTALLED_SOFTWARE | ForEach-Object {
                 
-                    $output.ResourceNames = $SMS_R_System.ResourceNames[0]
+                $output.ResourceNames = $SMS_R_System.ResourceNames[0]
 
-                    $output.ARPDisplayName = $_.ARPDisplayName;
-                    if ($_.InstallDate){ $output.InstallDate = $_.InstallDate.Split(".")[0];};
-                    $output.InstallDirectoryValidation = $_.InstallDirectoryValidation;
-                    $output.InstalledLocation = $_.InstalledLocation;
-                    $output.InstallSource = $_.InstallSource;
-                    $output.InstallType = $_.InstallType;
-                    $output.Language = $_.Language;
-                    $output.LocalPackage = $_.LocalPackage;
-                    $output.OSComponent = $_.OSComponent;
-                    $output.ProductName = $_.ProductName;
-                    $output.Publisher = $_.Publisher;
-                    $output.RegisteredUser = $_.RegisteredUser;
-                    $output.ServicePack = $_.ServicePack;
-                    $output.UninstallString = $_.UninstallString;
-                    $output.VersionMajor = $_.VersionMajor;
-                    $output.VersionMinor = $_.VersionMinor;
+                $output.ARPDisplayName = $_.ARPDisplayName;
+                $output.InstallDate = $_.InstallDate;
+                $output.InstallDirectoryValidation = $_.InstallDirectoryValidation;
+                $output.InstalledLocation = $_.InstalledLocation;
+                $output.InstallSource = $_.InstallSource;
+                $output.InstallType = $_.InstallType;
+                $output.Language = $_.Language;
+                $output.LocalPackage = $_.LocalPackage;
+                $output.OSComponent = $_.OSComponent;
+                $output.ProductName = $_.ProductName;
+                $output.Publisher = $_.Publisher;
+                $output.RegisteredUser = $_.RegisteredUser;
+                $output.ServicePack = $_.ServicePack;
+                $output.UninstallString = $_.UninstallString;
+                $output.VersionMajor = $_.VersionMajor;
+                $output.VersionMinor = $_.VersionMinor;
 
-                    $output.Timestamp = $_.Timestamp.Split(".")[0];
+                $output.Timestamp = $_.Timestamp;
                     
-                    return $output;
-                    $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}; 
-                };
-            }
-            else {
-
                 return $output;
                 $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}; 
             };
+        }
+        else {
 
-            $elapsed = $stopwatch.Elapsed;
-            $total = $total+1;
+            return $output;
+            $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}; 
+        };
+
+        $elapsed = $stopwatch.Elapsed;
+        $total = $total+1;
             
-            Write-Verbose -Message "System $total `t $ThisComputer `t Time Elapsed: $elapsed";
+        Write-Verbose -Message "System $total `t $ThisComputer `t Time Elapsed: $elapsed";
 
     };
 
