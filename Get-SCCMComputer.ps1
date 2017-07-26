@@ -25,7 +25,7 @@ FUNCTION Get-SCCMComputer {
     Get-ADComputer -filter * | Select -ExpandProperty Name | Get-SCCMComputer
 
 .Notes 
-    Updated: 2017-07-25
+    Updated: 2017-07-26
     LEGAL: Copyright (C) 2017  Anthony Phipps
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -67,14 +67,12 @@ FUNCTION Get-SCCMComputer {
     PROCESS{        
                 
         if ($Computer -match "\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"){ # is this an IP address?
-            
-            $fqdn = [System.Net.Dns]::GetHostByAddress($Computer).Hostname;
-            $ThisComputer = $fqdn;
+            $fqdn = [System.Net.Dns]::GetHostByAddress($Computer).Hostname
+            $ThisComputer = $fqdn.Split(".")[0]
         }
-
+        
         else{ # Convert any FQDN into just hostname
-            
-            $ThisComputer = $Computer.Replace('"', '');
+            $ThisComputer = $Computer.Split(".")[0].Replace('"', '')
         };
 
         $output = [PSCustomObject]@{
