@@ -12,6 +12,9 @@ FUNCTION Get-Processes {
 .Parameter Services  
     Includes Services associated with each Process ID. Slows processing per system by a small amount while service are pulled.
 
+.Parameter DLLs  
+    Includes DLLs associated with each Process ID.
+
 .Example 
     Get-Processes 
     Get-Processes SomeHostName.domain.com
@@ -40,7 +43,10 @@ FUNCTION Get-Processes {
     	[Parameter(ValueFromPipeline=$True, ValueFromPipelineByPropertyName=$True)]
         $Computer,
         [Parameter()]
-        [switch]$Services
+        [switch]$Services,
+        [Parameter()]
+        [switch]$DLLs
+
     );
 
 	BEGIN{
@@ -74,6 +80,7 @@ FUNCTION Get-Processes {
             MainWindowTitle = ""
             MaxWorkingSet = ""
             MinWorkingSet = ""
+            ModuleCount = ""
             Modules = ""
             DisplayName = ""
             NonpagedSystemMemorySize = ""
@@ -149,7 +156,10 @@ FUNCTION Get-Processes {
                 $output.MainWindowTitle = $_.MainWindowTitle;
                 $output.MaxWorkingSet = $_.MaxWorkingSet;
                 $output.MinWorkingSet = $_.MinWorkingSet;
-                $output.Modules = @($_.Modules).Count;
+                $output.ModuleCount = @($_.Modules).Count;
+                if ($DLLs) {
+                    $output.Modules = @($_.Modules | Select-Object -ExpandProperty Filename) -join "; ";
+                };
                 $output.DisplayName = $_.Name;
                 $output.NonpagedSystemMemorySize = $_.NonpagedSystemMemorySize;
                 $output.NonpagedSystemMemorySize64 = $_.NonpagedSystemMemorySize64;
@@ -182,7 +192,10 @@ FUNCTION Get-Processes {
                 $output.VirtualMemorySize64 = $_.VirtualMemorySize64;
                 $output.WorkingSet = $_.WorkingSet;
                 $output.WorkingSet64 = $_.WorkingSet64;
-                $output.Services = $ThisServices.Name -Join "; "; 
+
+                if ($Services){
+                    $output.Services = $ThisServices.Name -Join "; "; 
+                };
 
 
                 return $output;
