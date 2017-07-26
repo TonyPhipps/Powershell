@@ -10,7 +10,7 @@ FUNCTION Get-Processes {
     Computer can be a single hostname, FQDN, or IP address.
 
 .Parameter Services  
-    Includes Services associated with each Process ID. Slows processing per item.
+    Includes Services associated with each Process ID. Slows processing per system by a small amount while service are pulled.
 
 .Example 
     Get-Processes 
@@ -113,20 +113,26 @@ FUNCTION Get-Processes {
             
         };
 
-        $Processes = Get-Process -ComputerName $Computer
+        $Processes = Get-Process -ComputerName $Computer;
+        $CIM_Processes = Get-CIMinstance -class Win32_Process -ComputerName $Computer;
+        if ($Services){
+            $CIM_Services = Get-CIMinstance -class Win32_Service -ComputerName $Computer;
+        }
         
         if ($Processes){
             
             $Processes | ForEach-Object {
                 $ProcessID = $_.Id;
 
-                $Win32_Process = Get-CIMinstance -class Win32_Process -ComputerName $Computer -Filter "ProcessID = $ProcessID";
+                
                 if ($Services){
-                    $Win32_Service = Get-CIMinstance -class Win32_Service -ComputerName $Computer -Filter "ProcessID = $ProcessID";
+                
+                    $ThisServices = $CIM_Services | Where-Object ProcessID -eq $ProcessID;
                 };
-                $CommandLine = $Win32_Process.CommandLine;
-                $ProcessOwner = Invoke-CimMethod -InputObject $Win32_Process -MethodName GetOwner | select Domain, User;
-
+                
+                $CommandLine = $CIM_Processes | Where-Object ProcessID -eq $ProcessID | Select-Object -ExpandProperty CommandLine;
+                $ProcessOwner = $CIM_Processes | Where-Object ProcessID -eq $ProcessID | Invoke-CimMethod -MethodName GetOwner | select Domain, User;
+                
                 $output.BasePriority = $_.BasePriority;
                 $output.CPU = $_.CPU;
                 $output.CommandLine = $CommandLine;
@@ -176,13 +182,14 @@ FUNCTION Get-Processes {
                 $output.VirtualMemorySize64 = $_.VirtualMemorySize64;
                 $output.WorkingSet = $_.WorkingSet;
                 $output.WorkingSet64 = $_.WorkingSet64;
-                if ($Win32_Service){
-                    $output.Services = $Win32_Service.Name -Join "; "; 
-                };
+                $output.Services = $ThisServices.Name -Join "; "; 
+
 
                 return $output;
                 $output.PsObject.Members | ForEach-Object {$output.PsObject.Members.Remove($_.Name)}; 
                 $ProcessOwner.PsObject.Members | ForEach-Object {$ProcessOwner.PsObject.Members.Remove($_.Name)}; 
+                $CommandLine.PsObject.Members | ForEach-Object {$CommandLine.PsObject.Members.Remove($_.Name)}; 
+                $ThisServices.PsObject.Members | ForEach-Object {$ThisServices.PsObject.Members.Remove($_.Name)}; 
             };
         }
         else {
