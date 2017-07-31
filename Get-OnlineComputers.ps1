@@ -41,53 +41,52 @@ Function Get-OnlineComputers() {
 
 
 	PARAM(
-		[Parameter(
-			ValueFromPipeline=$True,
-			ValueFromPipelineByPropertyName=$True)]
-		$Computer,
+        [Parameter(
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)]
+        $Computer,
         [Parameter()]
         $Fails
 	);
 
 	
 	BEGIN{
-        $datetime = Get-Date -Format "yyyy-MM-dd_hh.mm.ss.ff";
-        Write-Verbose "Started at $datetime"
+		$datetime = Get-Date -Format "yyyy-MM-dd_hh.mm.ss.ff";
+		Write-Verbose "Started at $datetime"
 
-        $stopwatch = New-Object System.Diagnostics.Stopwatch;
-        $stopwatch.Start();
+		$stopwatch = New-Object System.Diagnostics.Stopwatch;
+		$stopwatch.Start();
 
-        $total = 0;
+		$total = 0;
 	};
 
 	PROCESS{
 
-        $Computer = $Computer.Replace('"', '');  # get rid of quotes, if present
-        $PingResults = $null;
+		$Computer = $Computer.Replace('"', '');  # get rid of quotes, if present
+		$PingResults = $null;
 
-        $PingResults = Test-Connection -Computername $Computer -Count 1 -BufferSize 16 -TimeToLive 10 -Quiet;
+		$PingResults = Test-Connection -Computername $Computer -Count 1 -BufferSize 16 -TimeToLive 10 -Quiet;
 
 
 		if ($PingResults){
-            return $Computer;
-        }
+		    return $Computer;
+		}
 		else{
-            if ($Fails) { # -Fails switch was used
-                Add-Content -Path $Fails -Value ("$Computer");
-            };
+			if ($Fails) { # -Fails switch was used
+				Add-Content -Path $Fails -Value ("$Computer");
+			};
 		};
 
-        $elapsed = $stopwatch.Elapsed;
-        $total = $total+1;
-            
-        Write-Verbose -Message "System $total `t $ThisComputer `t Time Elapsed: $elapsed";
+		$elapsed = $stopwatch.Elapsed;
+		$total = $total+1;
+
+		Write-Verbose -Message "System $total `t $ThisComputer `t Time Elapsed: $elapsed";
 	};
-	
 	
 	END{
 		
-        $elapsed = $stopwatch.Elapsed;
-        Write-Verbose "Total Systems: $total `t Total time elapsed: $elapsed";
+		$elapsed = $stopwatch.Elapsed;
+		Write-Verbose "Total Systems: $total `t Total time elapsed: $elapsed";
 	};
 };
 
