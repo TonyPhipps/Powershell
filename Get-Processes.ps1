@@ -1,4 +1,4 @@
-    FUNCTION Get-Processes {
+FUNCTION Get-Processes {
     <#
     .Synopsis 
         Gets the processes applied to a given system.
@@ -13,7 +13,7 @@
         Includes Services associated with each Process ID. Slows processing per system by a small amount while service are pulled.
 
     .Parameter DLLs  
-        Includes DLLs associated with each Process ID.
+        Includes DLLs associated with each Process ID. Note that DLLs cannot be pulled on remote systems due to lack of support in Get-Process.
 
     .Parameter Fails  
         Provide a path to save failed systems to.
@@ -26,7 +26,7 @@
         Get-ADComputer -filter * | Select -ExpandProperty Name | Get-Processes
 
     .Notes 
-        Updated: 2017-07-28
+        Updated: 2017-07-31
         LEGAL: Copyright (C) 2017  Anthony Phipps
         This program is free software: you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -55,10 +55,9 @@
         );
 
 	    BEGIN{
-            $outputFails = @();
 
             $datetime = Get-Date -Format "yyyy-MM-dd_hh.mm.ss.ff";
-            Write-Verbose "Started at $datetime"
+            Write-Host "Started at $datetime"
 
             $stopwatch = New-Object System.Diagnostics.Stopwatch;
             $stopwatch.Start();
@@ -102,7 +101,7 @@
                         $CommandLine = $null;
                         $CommandLine = $CIM_Processes | Where-Object ProcessID -eq $ProcessID | Select-Object -ExpandProperty CommandLine;
                         $ProcessOwner = $null;
-                        $ProcessOwner = $CIM_Processes | Where-Object ProcessID -eq $ProcessID | Invoke-CimMethod -MethodName GetOwner | select Domain, User;
+                        $ProcessOwner = $CIM_Processes | Where-Object ProcessID -eq $ProcessID | Invoke-CimMethod -MethodName GetOwner | Select-Object Domain, User;
                     };
 
                     $output = $null;
@@ -138,7 +137,7 @@
                         StartTime = $_.StartTime;
                         Threads = @($_.Threads).Count;
                         TotalProcessorTime = $_.TotalProcessorTime;
-                        UserName = if ($ProcessOwner.User) {$ProcessOwner.Domain+"\"+$ProcessOwner.User;}else{""};
+                        UserName = if ($ProcessOwner.User) {$ProcessOwner.Domain+"\"+$ProcessOwner.User;};
                         <#
                         NonpagedSystemMemorySize = $_.NonpagedSystemMemorySize;
                         NonpagedSystemMemorySize64 = $_.NonpagedSystemMemorySize64;
@@ -160,8 +159,8 @@
                         WorkingSet = $_.WorkingSet;
                         WorkingSet64 = $_.WorkingSet64;
                         #>
-                        Services = if ($ThisServices) {$ThisServices.PathName -Join "; ";}else{""};
-                        DLLs = if ($DLLs -AND $CIM_Processes) {$_.Modules.Filename -join "; ";}else{""};
+                        Services = if ($ThisServices) {$ThisServices.PathName -Join "; ";};
+                        DLLs = if ($DLLs) {$_.Modules.Filename -join "; ";};
                     };
                 
                     return $output; 
@@ -185,16 +184,16 @@
             };
          
             $elapsed = $stopwatch.Elapsed;
-            $total = $total++;
+            $total = $total+1;
             
-            Write-Verbose -Message "System $total `t $ThisComputer `t Time Elapsed: $elapsed";
+            Write-Host -Message "System $total `t $ThisComputer `t Time Elapsed: $elapsed";
 
         };
 
         END{
             $elapsed = $stopwatch.Elapsed;
 
-            Write-Verbose "Total Systems: $total `t Total time elapsed: $elapsed";
+            Write-Host "Total Systems: $total `t Total time elapsed: $elapsed";
 	    };
     };
 
