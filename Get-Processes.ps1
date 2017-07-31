@@ -57,7 +57,7 @@ FUNCTION Get-Processes {
 	    BEGIN{
 
             $datetime = Get-Date -Format "yyyy-MM-dd_hh.mm.ss.ff";
-            Write-Host "Started at $datetime"
+            Write-Information -MessageData "Started at $datetime" -InformationAction Continue;
 
             $stopwatch = New-Object System.Diagnostics.Stopwatch;
             $stopwatch.Start();
@@ -70,7 +70,7 @@ FUNCTION Get-Processes {
             $Computer = $Computer.Replace('"', '');  # get rid of quotes, if present
 
             $Processes = $null;
-            $Processes = Get-Process -ComputerName $Computer;
+            $Processes = Invoke-Command -ComputerName $Computer -ScriptBlock {Get-Process -IncludeUserName};
      
         
             if ($Processes){ # The system was reachable, and Get-Process worked
@@ -98,10 +98,9 @@ FUNCTION Get-Processes {
                     };
                 
                     if ($CIM_Processes){ # If CIM process collection worked, pull commandline and owner information
+
                         $CommandLine = $null;
                         $CommandLine = $CIM_Processes | Where-Object ProcessID -eq $ProcessID | Select-Object -ExpandProperty CommandLine;
-                        $ProcessOwner = $null;
-                        $ProcessOwner = $CIM_Processes | Where-Object ProcessID -eq $ProcessID | Invoke-CimMethod -MethodName GetOwner | Select-Object Domain, User;
                     };
 
                     $output = $null;
@@ -137,7 +136,7 @@ FUNCTION Get-Processes {
                         StartTime = $_.StartTime;
                         Threads = @($_.Threads).Count;
                         TotalProcessorTime = $_.TotalProcessorTime;
-                        UserName = if ($ProcessOwner.User) {$ProcessOwner.Domain+"\"+$ProcessOwner.User;};
+                        UserName = $_.UserName;
                         <#
                         NonpagedSystemMemorySize = $_.NonpagedSystemMemorySize;
                         NonpagedSystemMemorySize64 = $_.NonpagedSystemMemorySize64;
@@ -160,7 +159,7 @@ FUNCTION Get-Processes {
                         WorkingSet64 = $_.WorkingSet64;
                         #>
                         Services = if ($ThisServices) {$ThisServices.PathName -Join "; ";};
-                        DLLs = if ($DLLs) {$_.Modules.Filename -join "; ";};
+                        DLLs = if ($DLLs -AND $_.Modules) {$_.Modules.Replace('System.Diagnostics.ProcessModule (', '').Replace(')', '') -join "; ";};
                     };
                 
                     return $output; 
@@ -186,14 +185,14 @@ FUNCTION Get-Processes {
             $elapsed = $stopwatch.Elapsed;
             $total = $total+1;
             
-            Write-Host -Message "System $total `t $ThisComputer `t Time Elapsed: $elapsed";
+            Write-Information -MessageData "System $total `t $ThisComputer `t Time Elapsed: $elapsed" -InformationAction Continue;
 
         };
 
         END{
             $elapsed = $stopwatch.Elapsed;
 
-            Write-Host "Total Systems: $total `t Total time elapsed: $elapsed";
+            Write-Information -MessageData "Total Systems: $total `t Total time elapsed: $elapsed" -InformationAction Continue;
 	    };
     };
 
