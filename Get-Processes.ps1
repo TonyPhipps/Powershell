@@ -26,7 +26,7 @@ FUNCTION Get-Processes {
         Get-ADComputer -filter * | Select -ExpandProperty Name | Get-Processes
 
     .Notes 
-        Updated: 2017-07-31
+        Updated: 2017-08-01
         LEGAL: Copyright (C) 2017  Anthony Phipps
         This program is free software: you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -70,8 +70,21 @@ FUNCTION Get-Processes {
             $Computer = $Computer.Replace('"', '');  # get rid of quotes, if present
 
             $Processes = $null;
-            $Processes = Invoke-Command -ComputerName $Computer -ScriptBlock {Get-Process -IncludeUserName};
-     
+            
+            
+             #Try with -IncludeUserName, then fallback to older version, then fallback to not using Invoke-Command
+            
+			$Processes = Invoke-Command -ComputerName $Computer -ScriptBlock {Get-Process -IncludeUserName};
+            
+            If ($Processes -eq $null){
+            
+                $Processes = Invoke-Command -ComputerName $Computer -ScriptBlock {Get-Process};
+            };
+
+            If ($Processes -eq $null){
+                $Processes = Get-Process -ComputerName $Computer;
+            };
+            
         
             if ($Processes){ # The system was reachable, and Get-Process worked
         
@@ -101,6 +114,11 @@ FUNCTION Get-Processes {
 
                         $CommandLine = $null;
                         $CommandLine = $CIM_Processes | Where-Object ProcessID -eq $ProcessID | Select-Object -ExpandProperty CommandLine;
+
+                        if ($_.UserName -eq $null){
+                            $ProcessOwner = $null;
+                            $ProcessOwner = $CIM_Processes | Where-Object ProcessID -eq $ProcessID | Invoke-CimMethod -MethodName GetOwner | Select-Object Domain, User;
+                        };
                     };
 
                     $output = $null;
@@ -117,8 +135,7 @@ FUNCTION Get-Processes {
                         Handle = $_.Handle;
                         HandleCount = $_.HandleCount;
                         Id = $_.Id;
-                        MachineName = $_.MachineName;
-                        MainModule = $_.MainModule;
+                        MainModule = if ($_.MainModule) {$_.MainModule.Replace('System.Diagnostics.ProcessModule (', '').Replace(')', '');};
                         MainWindowHandle = $_.MainWindowHandle;
                         MainWindowTitle = $_.MainWindowTitle;
                         ModuleCount = @($_.Modules).Count;
@@ -136,8 +153,13 @@ FUNCTION Get-Processes {
                         StartTime = $_.StartTime;
                         Threads = @($_.Threads).Count;
                         TotalProcessorTime = $_.TotalProcessorTime;
-                        UserName = $_.UserName;
-                        <#
+                        UserName = if ($_.UserName) {$_.UserName} elseif ($ProcessOwner.User) {$ProcessOwner.Domain+"\"+$ProcessOwner.User;};
+                        Services = if ($ThisServices) {$ThisServices.PathName -Join "; ";};
+                        DLLs = if ($DLLs -AND $_.Modules) {$_.Modules.Replace('System.Diagnostics.ProcessModule (', '').Replace(')', '') -join "; ";};
+						
+						<#
+                        UserName = if ($ProcessOwner.User) {$ProcessOwner.Domain+"\"+$ProcessOwner.User;};
+                        MachineName = $_.MachineName;
                         NonpagedSystemMemorySize = $_.NonpagedSystemMemorySize;
                         NonpagedSystemMemorySize64 = $_.NonpagedSystemMemorySize64;
                         MaxWorkingSet = $_.MaxWorkingSet;
@@ -158,8 +180,6 @@ FUNCTION Get-Processes {
                         WorkingSet = $_.WorkingSet;
                         WorkingSet64 = $_.WorkingSet64;
                         #>
-                        Services = if ($ThisServices) {$ThisServices.PathName -Join "; ";};
-                        DLLs = if ($DLLs -AND $_.Modules) {$_.Modules.Replace('System.Diagnostics.ProcessModule (', '').Replace(')', '') -join "; ";};
                     };
                 
                     return $output; 
