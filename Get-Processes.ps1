@@ -70,32 +70,42 @@ FUNCTION Get-Processes {
             $Computer = $Computer.Replace('"', '');  # get rid of quotes, if present
 
             $Processes = $null;
-            
+            $Mode = $null;
             
              #Try with -IncludeUserName, then fallback to older version, then fallback to not using Invoke-Command
             
-			$Processes = Invoke-Command -ComputerName $Computer -ScriptBlock {Get-Process -IncludeUserName};
+			$Processes = Invoke-Command -ComputerName $Computer -ScriptBlock {Get-Process -IncludeUserName} -ErrorAction SilentlyContinue;
             
             If ($Processes -eq $null){
             
-                $Processes = Invoke-Command -ComputerName $Computer -ScriptBlock {Get-Process};
-            };
+                $Processes = Invoke-Command -ComputerName $Computer -ScriptBlock {Get-Process} -ErrorAction SilentlyContinue;
+				
+				If ($Processes -eq $null){
 
-            If ($Processes -eq $null){
-                $Processes = Get-Process -ComputerName $Computer;
-            };
+					$Processes = Get-Process -ComputerName $Computer -ErrorAction SilentlyContinue;
+					$Mode = "3";
+				}
+				else{
+					$Mode = "2";
+				};
+            }
+			else{
+				$Mode = "1";
+			};
+
+            
             
         
             if ($Processes){ # The system was reachable, and Get-Process worked
         
                 if ($Services){ # The -services switch was selected, so pull service info
                     $CIM_Services = $null;
-                    $CIM_Services = Get-CIMinstance -class Win32_Service -Filter "Caption LIKE '%'" -ComputerName $Computer;
+                    $CIM_Services = Get-CIMinstance -class Win32_Service -Filter "Caption LIKE '%'" -ComputerName $Computer -ErrorAction SilentlyContinue;
                     # Odd filter explanation: http://itknowledgeexchange.techtarget.com/powershell/cim-session-oddity/
                 };
             
                 $CIM_Processes = $null;
-                $CIM_Processes = Get-CIMinstance -class Win32_Process -Filter "Caption LIKE '%'" -ComputerName $Computer;
+                $CIM_Processes = Get-CIMinstance -class Win32_Process -Filter "Caption LIKE '%'" -ComputerName $Computer -ErrorAction SilentlyContinue;
 
                 $Processes | ForEach-Object { # Work on each process provided in $Processes array
 
@@ -103,11 +113,10 @@ FUNCTION Get-Processes {
                     $ProcessID = $_.Id;
 
                 
-                    if ($Services -AND $ProcessID -ne ""){ # The -services switch was selected, so pull service info on this process
+                    if ($Services -AND $CIM_Services){ # The -services switch was selected, so pull service info on this process
                     
                         $ThisServices = $null;
                         $ThisServices = $CIM_Services | Where-Object ProcessID -eq $ProcessID;
-                    
                     };
                 
                     if ($CIM_Processes){ # If CIM process collection worked, pull commandline and owner information
@@ -117,7 +126,7 @@ FUNCTION Get-Processes {
 
                         if ($_.UserName -eq $null){
                             $ProcessOwner = $null;
-                            $ProcessOwner = $CIM_Processes | Where-Object ProcessID -eq $ProcessID | Invoke-CimMethod -MethodName GetOwner | Select-Object Domain, User;
+                            $ProcessOwner = $CIM_Processes | Where-Object ProcessID -eq $ProcessID | Invoke-CimMethod -MethodName GetOwner -ErrorAction SilentlyContinue | Select-Object Domain, User;
                         };
                     };
 
@@ -125,6 +134,7 @@ FUNCTION Get-Processes {
                     $output = [PSCustomObject]@{
 
                         Computer = $Computer;
+						Mode = $Mode;
                         BasePriority = $_.BasePriority;
                         CPU = $_.CPU;
                         CommandLine = $CommandLine;
@@ -135,7 +145,7 @@ FUNCTION Get-Processes {
                         Handle = $_.Handle;
                         HandleCount = $_.HandleCount;
                         Id = $_.Id;
-                        MainModule = if ($_.MainModule) {$_.MainModule.Replace('System.Diagnostics.ProcessModule (', '').Replace(')', '');};
+                        MainModule = if ($_.MainModule){ if ($_.MainModule.GetType().Name -eq "String") {$_.MainModule.Replace('System.Diagnostics.ProcessModule (', '').Replace(')', '');}else {($_.MainModule)};};
                         MainWindowHandle = $_.MainWindowHandle;
                         MainWindowTitle = $_.MainWindowTitle;
                         ModuleCount = @($_.Modules).Count;
@@ -195,7 +205,39 @@ FUNCTION Get-Processes {
                             
                     $output = $null;
                     $output = [PSCustomObject]@{
-                        Computer = $Computer
+                        Computer = $Computer;
+						Mode = "";
+						BasePriority = "";
+                        CPU = "";
+                        CommandLine = "";
+                        Company = "";
+                        Description = "";
+                        EnableRaisingEvents = "";
+                        FileVersion = "";
+                        Handle = "";
+                        HandleCount = "";
+                        Id = "";
+                        MainModule = "";
+                        MainWindowHandle = "";
+                        MainWindowTitle = "";
+                        ModuleCount = "";
+                        DisplayName = "";
+                        Path = "";
+                        PriorityBoostEnabled = "";
+                        PriorityClass = "";
+                        PrivilegedProcessorTime = "";
+                        ProcessName = "";
+                        ProcessorAffinity = "";
+                        Product = "";
+                        ProductVersion = "";
+                        Responding = "";
+                        SessionId = "";
+                        StartTime = "";
+                        Threads = "";
+                        TotalProcessorTime = "";
+                        UserName = "";
+                        Services = "";
+                        DLLs = "";
                     };
 
                     return $output;
