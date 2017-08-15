@@ -29,7 +29,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ####################################################################################
 
-Function PipeGet-Win32_Share() {
+Function Get-Shares() {
 	[cmdletbinding()]
 
 
@@ -53,7 +53,7 @@ Function PipeGet-Win32_Share() {
 			Get-WmiObject -class Win32_Share -ComputerName $INPUT -ErrorAction Stop | Select-Object PSComputerName, Name, Path, Description;
 		}
 		CATCH{
-			Add-Content -Path .\PipeGet-Win32_Share_errors.txt -Value ("$INPUT");
+			Add-Content -Path .\Get-Shares_errors.txt -Value ("$INPUT");
 		}
 	};
 	
