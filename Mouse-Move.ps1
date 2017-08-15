@@ -1,5 +1,5 @@
-$Minutes = 60;$
-myShell = New-Object -com "Wscript.Shell";
+$Minutes = 60;
+$myShell = New-Object -com "Wscript.Shell";
 
 for ($i = 0; $i -lt $minutes; $i++) {
 
