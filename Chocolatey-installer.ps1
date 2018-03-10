@@ -1,4 +1,6 @@
-﻿choco install libreoffice -y
+﻿Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+
+choco install libreoffice -y
 
 # choco install firefox -y
 choco install filezilla -y
@@ -7,7 +9,7 @@ choco install putty -y
 
 
 choco install keepass -y
-choco install malwarebytes -y
+#choco install malwarebytes -y
 choco install sysinternals -y
 choco install nmap -y
 choco install cpu-z -y
@@ -25,7 +27,7 @@ choco install visualstudiocode -y
 
 choco install spideroakone -y
 
-choco install steam -y
+#choco install steam -y
 
 choco install inkscape -y
 choco install audacity -y
@@ -37,7 +39,7 @@ choco install greenshot -y
 choco install ffmpeg -y
 choco install shotcut -y
 
-choco install blender -y
+#choco install blender -y
 
 
 # Setup Chocolatey update scheduled task
