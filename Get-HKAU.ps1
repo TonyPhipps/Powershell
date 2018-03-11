@@ -1,18 +1,18 @@
 ﻿$UserKeys =
             # Need a loop to parse HKU to gather below keys for each user on the system
-            "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunServicesOnce",
-            "HKEY_CURRENT_USER\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\RunServicesOnce",
-            "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunServices",
-            "HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\Shell",
-            "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run",
-            "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce",
-            "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run",
-            "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run",
-            "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run32",            
-            "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder",
-            "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders",
-            "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders",
-            "HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\Windows\load"
+            "\Software\Microsoft\Windows\CurrentVersion\RunServicesOnce",
+            "\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\RunServicesOnce",
+            "\Software\Microsoft\Windows\CurrentVersion\RunServices",
+            "\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\Shell",
+            "\Software\Microsoft\Windows\CurrentVersion\Run",
+            "\Software\Microsoft\Windows\CurrentVersion\RunOnce",
+            "\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run",
+            "\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run",
+            "\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run32",            
+            "\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder",
+            "\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders",
+            "\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders",
+            "\Software\Microsoft\Windows NT\CurrentVersion\Windows\load"
 
 
 # Load every user registry hive on a system and perform actions therein
@@ -46,7 +46,7 @@ $UserArray = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersio
 
     foreach ($Key in $UserKeys){
 
-        $Key = "Registry::" + $Key
+        $Key = "Registry::HKEY_USERS\$($User.SID)" + $Key
 
         if (Test-Path $Key){
 
