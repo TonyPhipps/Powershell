@@ -5,25 +5,27 @@ choco install libreoffice -y
 # choco install firefox -y
 choco install filezilla -y
 choco install citrix-receiver -y
-choco install putty -y
-
+choco install javaruntime -y
 
 choco install keepass -y
 #choco install malwarebytes -y
-choco install sysinternals -y
-choco install nmap -y
+
 choco install cpu-z -y
 choco install speccy -y
 choco install nirlauncher -y
 choco install speedfan -y
 choco install wincdemu -y
 choco install 7zip -y
-choco install wireshark -y
+choco install putty -y
 
 choco install notepadplusplus -y
-choco install javaruntime -y
 choco install git -y
 choco install visualstudiocode -y
+
+choco install sysinternals -y
+choco install nmap -y
+choco install docker -y
+choco install wireshark -y
 
 choco install spideroakone -y
 
