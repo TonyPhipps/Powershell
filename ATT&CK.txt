@@ -1,0 +1,28 @@
+Mitre ATT&CK Notes
+
+
+Hashes 
+    Persistence - Accessibility Features (https://attack.mitre.org/wiki/Technique/T1015)
+        C:\Windows\System32\osk.exe
+        C:\Windows\System32\Magnify.exe
+        C:\Windows\System32\Narrator.exe
+        C:\Windows\System32\DisplaySwitch.exe
+        C:\Windows\System32\AtBroker.exe
+        C:\Windows\System32\sethc.exe
+        C:\Windows\System32\utilman.exe
+
+Registry
+    Persistence - AppInit DLLs (https://attack.mitre.org/wiki/Technique/T1103)
+        [value]HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows\AppInit_DLLs
+        [value]HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows NT\CurrentVersion\Windows\AppInit_DLLs
+    Persistence - Authentication Package (https://attack.mitre.org/wiki/Technique/T1131)
+        [value]HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\Authentication Packages
+
+Event IDs
+    Create Account (https://attack.mitre.org/wiki/Technique/T1136)
+        Event ID 4720
+
+File/Folder Names
+    Hidden Files and Directories (https://attack.mitre.org/wiki/Technique/T1158)
+        files marked as hidden/system/read only in user Directories
+        
