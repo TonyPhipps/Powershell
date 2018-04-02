@@ -8,6 +8,9 @@
 # https://msdnshared.blob.core.windows.net/media/2017/10/Spotting_the_Adversary_with_Windows_Event_Log_Monitoring.pdf
 
 
+# Use one of these arrays to filter a list of events:
+# Where-Object ({ $SecurityEvents -match $_.EventID })
+
 $SecurityEvents = 
     1102, # The audit log was cleared
     4618, # A monitored security event pattern has occurred.
