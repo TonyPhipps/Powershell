@@ -13,36 +13,37 @@
 
 $SecurityEvents = 
     1102, # The audit log was cleared
-    4618, # A monitored security event pattern has occurred.
+    4618, # A monitored security event pattern has occurred
     4624, # An account was successfully logged on
     4625, # Failed Login
     4648, # Logon was Attempted with Explicit Credentials
-    4649, # A replay attack was detected.
+    4649, # A replay attack was detected
+    4657, # A registry value was modified
     4672, # Special privileges assigned to new logon
     4673, # A privileged service was called
     4688, # A new process has been created
     4697, # A service was installed in the system
     4698, # scheduled task creation
-    4714, # Encrypted data recovery policy was changed.
-    4715, # The audit policy (SACL) on an object was changed.
+    4714, # Encrypted data recovery policy was changed
+    4715, # The audit policy (SACL) on an object was changed
     4719, # System audit policy was changed.
     4720, # A user account was created
-    4724, # An attempt was made to reset an account's password.
-    4727, # A security-enabled global group was created.
+    4724, # An attempt was made to reset an account's password
+    4727, # A security-enabled global group was created
     4728, # A member was added to a security-enabled global group
     4732, # A member was added to a security-enabled local group
-    4735, # A security-enabled local group was changed.
-    4737, # A security-enabled global group was changed.
+    4735, # A security-enabled local group was changed
+    4737, # A security-enabled global group was changed
     4738, # A user account was changed
     4740, # Account locked out
-    4754, # A security-enabled universal group was created.
-    4755, # A security-enabled universal group was changed.
+    4754, # A security-enabled universal group was created
+    4755, # A security-enabled universal group was changed
     4776, # Successful /Failed Account Authentication
-    4907, # Auditing settings on object were changed.
-    4908, # Special Groups Logon table modified.
-    4912, # Per User Audit Policy was changed.
-    4946, # A change has been made to Windows Firewall exception list. A rule was added)
-    4964, # Special groups have been assigned to a new logon.
+    4907, # Auditing settings on object were changed
+    4908, # Special Groups Logon table modified
+    4912, # Per User Audit Policy was changed
+    4946, # A change has been made to Windows Firewall exception list
+    4964, # Special groups have been assigned to a new logon
     5142, # A network share object was added
     5447 # A Windows Filtering Platform filter has been changed
     
