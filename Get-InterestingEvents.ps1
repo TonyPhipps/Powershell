@@ -73,3 +73,6 @@ $KernelPnP  = # Microsoft-Windows-Kernel-PnP/Device Configuration
 
 $TaskSchedulerOperational =  # Microsoft-Windows-TaskScheduler/Operational
     106 # Task Scheduled
+
+$PowershellOperational = # Microsoft-Windows-Powershell/Operational
+    4104 # Scriptblock executed    
