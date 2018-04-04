@@ -24,6 +24,7 @@ $SecurityEvents =
     4688, # A new process has been created
     4697, # A service was installed in the system
     4698, # scheduled task creation
+    4702, # A scheduled task was updated
     4714, # Encrypted data recovery policy was changed
     4715, # The audit policy (SACL) on an object was changed
     4719, # System audit policy was changed.
@@ -49,11 +50,13 @@ $SecurityEvents =
     
 $SystemEvents = 
     104, # Event Log was Cleared 
-    7030, # System, Service Creation Errors
-    7034, # System, service terminated unexpectedly
+    7030, # Service Creation Errors
+    7024, # Service terminated with service-specific error
+    7031, # Service terminated unexpectedly, corrective action taken
+    7034, # Service terminated unexpectedly
     7036, # The [Service Name] service entered the [Status] state
     7040, # The service state has changed
-    7045 # System, A service was installed in the system
+    7045 # A service was installed in the system
 
 $SysmonEvents = 
     1, # Process Create
