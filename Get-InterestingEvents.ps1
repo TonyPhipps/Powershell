@@ -72,7 +72,9 @@ $KernelPnP  = # Microsoft-Windows-Kernel-PnP/Device Configuration
     410 # New Mass Storage Installation
 
 $TaskSchedulerOperational =  # Microsoft-Windows-TaskScheduler/Operational
-    106 # Task Scheduled
+    106, # Task Scheduled
+    141 # Task Removed
+    200 # Task Executed
 
 $PowershellOperational = # Microsoft-Windows-Powershell/Operational
     4104 # Scriptblock executed    
