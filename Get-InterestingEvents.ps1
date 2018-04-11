@@ -77,4 +77,8 @@ $TaskSchedulerOperational =  # Microsoft-Windows-TaskScheduler/Operational
     200 # Task Executed
 
 $PowershellOperational = # Microsoft-Windows-Powershell/Operational
-    4104 # Scriptblock executed    
+    4103, # Pipeline executed
+    4104, # Scriptblock executed
+    40962, # PowerShell Console Startup
+    24577 # Powershell script ran
+    
