@@ -1,6 +1,8 @@
 # Option 1
 # Shortest route
 winrm quickconfig -y
+# or
+Enable-PSRemoting –Force
 
 # Option 2
 # Same as above, but more "manual"
