@@ -1,4 +1,4 @@
-function Get-DuplicateItems {
+function Get-DuplicateFiles {
     <#
     .SYNOPSIS
         Performs a search for duplicate files in a given directory.
@@ -12,15 +12,15 @@ function Get-DuplicateItems {
         Default starting directory is $ENV:USERPROFILE.
 
     .EXAMPLE
-        Get-DuplicateItems -Verbose
+        Get-DuplicateFiles -Verbose
         Provides start time, time taken, and total files scanned.
 
     .EXAMPLE
-        Get-DuplicateItems -Path "C:\Temp" -FullReport
+        Get-DuplicateFiles -Path "C:\Temp" -FullReport
         Returns all files checked, including originals. A Status property will contain Original or Duplicate.
 
     .EXAMPLE
-        Get-DuplicateItems "C:\Users\MyProfile" | Where-Object {$_.Status -eq "Duplicate"} | Remove-Item
+        Get-DuplicateFiles "C:\Users\MyProfile" | Where-Object {$_.Status -eq "Duplicate"} | Remove-Item
         Removes duplicate items found.
 
     .NOTES
