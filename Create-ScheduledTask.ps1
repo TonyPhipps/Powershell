@@ -1,6 +1,7 @@
 # Registers a scheduled task which launches a powershell script.
 
-$Action = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument 'C:\PowershellScript.ps1'
+$Action = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument '-ExecutionPolicy Bypass -Windowstyle Hidden -File "C:\Users\Daft\Documents\threcon.ps1"'
+
 
 # Repeat Daily
 $Trigger = New-ScheduledTaskTrigger -Daily -At 10am
