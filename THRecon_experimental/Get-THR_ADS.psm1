@@ -22,7 +22,7 @@ function Get-THR_ADS {
     .EXAMPLE
         $Targets = Get-ADComputer -filter * | Select -ExpandProperty Name
         ForEach ($Target in $Targets) {
-            Invoke-Command -ComputerName $Computer -ScriptBlock ${Function:Get-THR_ADS} -ArgumentList "C:\Temp" | 
+            Invoke-Command -ComputerName $Target -ScriptBlock ${Function:Get-THR_ADS} -ArgumentList "C:\Temp" | 
             Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID | 
             Export-Csv -NoTypeInformation "c:\temp\results\$Target_ADS.csv"
         }

@@ -15,7 +15,7 @@ function Get-THR_Processes {
     .EXAMPLE
         $Targets = Get-ADComputer -filter * | Select -ExpandProperty Name
         ForEach ($Target in $Targets) {
-            Invoke-Command -ComputerName $Computer -ScriptBlock ${Function:Get-THR_Processes} | 
+            Invoke-Command -ComputerName $Target -ScriptBlock ${Function:Get-THR_Processes} | 
             Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID | 
             Export-Csv -NoTypeInformation "c:\temp\results\$Target_processes.csv"
         }
