@@ -10,9 +10,6 @@ function Get-THR_ADS {
         Set-Content -Path $file -Value 'Nobody here but us chickens!'
         Add-Content -Path $file -Value 'Super secret squirrel stuff' -Stream 'secretStream'
 
-    .PARAMETER Computer  
-        Computer can be a single hostname, FQDN, or IP address.
-
     .PARAMETER Path  
         Specify a path to search for alternate data streams in. Default is c:\users
 

@@ -6,9 +6,6 @@ function Get-THR_Processes {
     .DESCRIPTION 
         Gets the processes applied to a given system, including usernames.
 
-    .PARAMETER Computer  
-        Computer can be a single hostname, FQDN, or IP address.
-
     .EXAMPLE
         Get-THR_Processes
         
