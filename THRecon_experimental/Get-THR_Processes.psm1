@@ -49,7 +49,7 @@ function Get-THR_Processes {
 
     )
 
-	begin{
+    begin{
 
         $DateScanned = Get-Date -Format u
         Write-Verbose ("Started {0} at {1}" -f $MyInvocation.MyCommand.Name, $DateScanned)
