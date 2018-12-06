@@ -1,5 +1,5 @@
-$Source = "\target\c$\users\"
-$Destination = "\mysystem\c$\temp\results\"
+$Source = "\\target\c$\users\"
+$Destination = "\\mysystem\c$\temp\results\"
 
 $InternetExplorer = '*\AppData\Local\Microsoft\Windows\INetCache'
 $InternetExplorerVirtualized = '*Virtualized*'
