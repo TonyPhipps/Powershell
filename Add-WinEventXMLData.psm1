@@ -133,7 +133,7 @@ Function Add-WinEventXMLData {
         }
         elseif ($EventXML.Event.EventData.Data[0].Name) {
                 
-            Write-Verbose "Event Type: Generic"
+            Write-Verbose "Event Type: Microsoft-Windows-Security-Auditing or similar"
             $EventXMLFields = $EventXML.Event.EventData.Data
 
             For ( $i = 0; $i -lt $EventXMLFields.count; $i++ ) {
