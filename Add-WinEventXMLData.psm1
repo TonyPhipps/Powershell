@@ -18,6 +18,10 @@ Function Add-WinEventXMLData {
         System.Diagnostics.Eventing.Reader.EventLogRecord
     
     .EXAMPLE
+        Attempt to parse an exported .evtx file
+        Get-WinEvent -Path .\eventsfile.evtx | Add-WinEventXMLData | export-csv .\eventsfile.csv -NoTypeInformation
+
+    .EXAMPLE
         Get Windows Applocker events and XML fields.
         Get-WinEvent -FilterhashTable @{ LogName="Microsoft-Windows-AppLocker/EXE and DLL" ID="8002","8003","8004" } -MaxEvents 10 | 
             Add-WinEventXMLData | 
@@ -47,7 +51,7 @@ Function Add-WinEventXMLData {
             Select-Object *
 
     .NOTES
-        Updated: 2018-02-07
+        Updated: 2019-11-21
 
         Contributing Authors:
             Anthony Phipps
@@ -67,7 +71,8 @@ Function Add-WinEventXMLData {
         along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
     .LINK
-       https://github.com/TonyPhipps/THRecon
+        https://github.com/TonyPhipps/Powershell
+        https://blogs.technet.microsoft.com/ashleymcglone/2015/08/31/forensics-automating-active-directory-account-lockout-search-with-powershell-an-example-of-deep-xml-filtering-of-event-logs-across-multiple-servers-in-parallel/
     
     .FUNCTIONALITY
         Computers
@@ -115,6 +120,15 @@ Function Add-WinEventXMLData {
 
             $EventXMLFields | ForEach-Object {
                 $output | Add-Member -MemberType NoteProperty -Name $_.Name -Value $EventXML.Event.UserData.CbsPackageChangeState.($_.Name)
+            }
+        }
+        elseif ($EventXML.Event.UserData.EventXML) {
+                
+            Write-Verbose "Event Type: Microsoft-Windows-TerminalServices-SessionBroker-Client or similar"
+            $EventXMLFields = $EventXML.Event.UserData.EventXML | Get-Member | Where-Object {$_.Membertype -eq "Property"} |  Select-Object Name
+
+            $EventXMLFields | ForEach-Object {
+                $output | Add-Member -MemberType NoteProperty -Name $_.Name -Value $EventXML.Event.UserData.EventXML.($_.Name) -Force
             }
         }
         elseif ($EventXML.Event.EventData.Data[0].Name) {
