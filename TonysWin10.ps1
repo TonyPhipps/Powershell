@@ -142,7 +142,7 @@
     Set-RegProperty "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo\Enabled" "DWORD" 0
     
     # Privacy: SmartScreen Filter for Store Apps: Disable
-	Set-RegProperty "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppHost\EnableWebContentEvaluation" "DWORD" 0
+    Set-RegProperty "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppHost\EnableWebContentEvaluation" "DWORD" 0
 
 
 
@@ -150,17 +150,20 @@
 
     New-PSDrive -Name HKCR -PSProvider Registry -Root HKEY_CLASSES_ROOT -ErrorAction SilentlyContinue | Out-Null
 
+    # Allow accessing anonymous shares on other systems
+    Set-RegProperty "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters\AllowInsecureGuestAuth" "DWORD" 1
+    
     # Adjust Screen Saver Password Protected Grace Period (10sec)
     Set-RegProperty "HKLM:Software\Microsoft\Windows NT\CurrentVersion\Winlogon\ScreenSaverGracePeriod" "DWORD" 10
 
     # Disable Cortana Taskbar Tidbits
     Set-RegProperty "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search\AllowCortana" "DWORD" 0
     Set-RegProperty "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search\AllowCortana" "DWORD" 0
-    Set-RegProperty "SOFTWARE\Microsoft\Personalization\Settings\AcceptedPrivacyPolicy" "DWORD" 0
-    Set-RegProperty "SOFTWARE\Microsoft\Windows\CurrentVersion\SettingSync\Groups\Language\Enabled" "DWORD" 0
-    Set-RegProperty "SOFTWARE\Microsoft\InputPersonalization\RestrictImplicitTextCollection" "DWORD" 1
-    Set-RegProperty "SOFTWARE\Microsoft\InputPersonalization\RestrictImplicitInkCollection" "DWORD" 1
-    Set-RegProperty "SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore\HarvestContacts" "DWORD" 0
+    Set-RegProperty "HKLM:\SOFTWARE\Microsoft\Personalization\Settings\AcceptedPrivacyPolicy" "DWORD" 0
+    Set-RegProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\SettingSync\Groups\Language\Enabled" "DWORD" 0
+    Set-RegProperty "HKLM:\SOFTWARE\Microsoft\InputPersonalization\RestrictImplicitTextCollection" "DWORD" 1
+    Set-RegProperty "HKLM:\SOFTWARE\Microsoft\InputPersonalization\RestrictImplicitInkCollection" "DWORD" 1
+    Set-RegProperty "HKLM:\SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore\HarvestContacts" "DWORD" 0
 
     # Disable Fast Startup
     Set-RegProperty "HKLM:SYSTEM\CurrentControlSet\Control\Session Manager\Power\HiberbootEnabled" "DWORD" 0
