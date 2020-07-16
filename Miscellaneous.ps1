@@ -16,3 +16,8 @@ $key = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\EventLog\EventForwarding\Subsc
 $value = "1"
 $data = (Get-ItemProperty -path $key).$value
 $data
+
+# Run an encoded command
+$Command = 'Get-Service BITS' 
+$Encoded = [convert]::ToBase64String([System.Text.encoding]::Unicode.GetBytes($command)) 
+powershell.exe -encoded $Encoded
