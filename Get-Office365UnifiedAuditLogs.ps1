@@ -5,7 +5,7 @@
 # https://gallery.technet.microsoft.com/office/PowerShell-Script-to-4081ec0f
 #ConnectO365Services.ps1 -MFA
 
-# Option 2: Install Microsoft Exchange Online Powershell Module, then open PS using the new shortcut and run these commands
+# Option 2: for single-factor authentication, follow these steps
 # https://docs.microsoft.com/en-us/powershell/exchange/exchange-online-powershell-v2?view=exchange-ps#install-and-maintain-the-exo-v2-module
 # https://docs.microsoft.com/en-us/powershell/exchange/connect-to-exchange-online-powershell?view=exchange-ps
 #Install-Module ExchangeOnlineManagement
