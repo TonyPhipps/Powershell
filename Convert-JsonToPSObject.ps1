@@ -1,11 +1,6 @@
-# Does NOT cover nested JSON objects
-
-$file = ""
-$file_json = Get-Content $file
-$file_objects = @()
-
-foreach ($line in $file_json){
-    $file_objects += $line | ConvertFrom-Json
-}
-
-$file_objects
+$file = "file.json"
+$json = Get-Content $file | ConvertFrom-Json
+$json
+# Note that some json nests the records deeper into the array. For example:
+$records = $json._embedded.records
+$records
