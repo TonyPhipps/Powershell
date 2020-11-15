@@ -47,3 +47,11 @@ Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies
 # Enable WinRM Option 4
 ## Run winrm quickconfig on a remote system
 PsExec.exe -s \\SomeComputer -accepteula powershell -ExecutionPolicy ByPass -nologo -command "& winrm quickconfig -y"
+
+# Convert .json file to PowerShell objects
+$file = "file.json"
+$json = Get-Content $file | ConvertFrom-Json
+$json
+## Note that some json nests the records deeper into the array. For example:
+$records = $json._embedded.records
+$records
