@@ -85,3 +85,12 @@ $Action2 = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument '-Executi
 $Trigger2 = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionDuration (New-TimeSpan -Days (365 * 20)) -RepetitionInterval  (New-TimeSpan -Minutes 60)
 $Principal = New-ScheduledTaskPrincipal -UserID "NT AUTHORITY\SYSTEM" -RunLevel Highest
 Register-ScheduledTask -Action $Action2 -Trigger $Trigger2 -Principal $Principal -TaskName "Powershell Command" -Description "Elevated!"
+
+
+# Get BitLocker Keys
+ForEach ($Volume in Get-BitLockerVolume) {
+    $Volume | Add-Member -MemberType NoteProperty -Name Key -Value (($Volume).KeyProtector.RecoveryPassword[1])
+    $Volume | Select-Object *
+}
+
+
