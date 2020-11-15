@@ -1,3 +1,5 @@
+# Renames .jpg files to the date they were taken, according to EXIF metadata
+
 Get-ChildItem C:\temp\test\*.jpg | ForEach-Object {
 
     $FileName = $_.FullName
