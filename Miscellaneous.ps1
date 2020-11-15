@@ -21,3 +21,10 @@ $data
 $Command = 'Get-Service BITS' 
 $Encoded = [convert]::ToBase64String([System.Text.encoding]::Unicode.GetBytes($command)) 
 powershell.exe -encoded $Encoded
+
+# Drives Reference
+Get-Disk
+Get-Partition -DiskNumber 1
+Remove-Partition -DiskNumber 1 -PartitionNumber 1
+New-Partition -DiskNumber 1 -UseMaximumSize -AssignDriveLetter
+Format-Volume -DriveLetter F -FileSystem NTFS -NewFileSystemLabel "Label"
