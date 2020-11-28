@@ -26,7 +26,7 @@ If (!(Test-Path $OutPath))
     New-Item -ItemType Directory -Path $OutDir -ErrorAction SilentlyContinue | Out-Null
    }
 
-$UnifiedAuditLog = Search-UnifiedAuditLog -UserIds $userSMTP -StartDate $StartDate -EndDate $EndDate -SessionCommand ReturnLargeSet
+$UnifiedAuditLog = Search-UnifiedAuditLog -UserIds $userSMTP -StartDate $StartDate -EndDate $EndDate -SessionCommand ReturnLargeSet -ResultSize 5000
 $UnifiedAuditLog | Select-Object CreationDate, UserIDs, Operations, AuditData | Export-Csv -Path $OutPath -NoTypeInformation -Append
 
 dir $OutPath
