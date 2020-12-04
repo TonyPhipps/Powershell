@@ -2,6 +2,7 @@
 # https://docs.microsoft.com/en-us/microsoft-365/compliance/search-the-audit-log-in-security-and-compliance?view=o365-worldwide
 # https://docs.microsoft.com/en-us/powershell/module/exchange/search-unifiedauditlog?view=exchange-ps
 # https://docs.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema#auditlogrecordtype
+# https://docs.microsoft.com/en-us/microsoft-365/compliance/export-view-audit-log-records?view=o365-worldwide
 
 # Prereq Option 1: Use ConnectO365Services or another means to establish a connection to Exchange Online using MFA
 # https://gallery.technet.microsoft.com/office/PowerShell-Script-to-4081ec0f
