@@ -17,9 +17,8 @@
 #Connect-ExchangeOnline -Credential $UserCredential -ShowProgress $true
 
 $OutDir = "C:\Logs"
-$OutPath = "$OutDir\UnifiedAuditLog.csv"
-$StartDate = "08/01/2020 00:00"
-$EndDate = "10/26/2020 23:59"
+$StartDate = "01/01/2020 00:00"
+$EndDate = "12/31/2020 23:59"
 
 # Set the user you wish to gather data for
 $userSMTP = "user@domain.com"
