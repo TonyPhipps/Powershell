@@ -23,7 +23,7 @@ $EndDate = "12/31/2020 23:59"
 # Set the user you wish to gather data for
 $userSMTP = "user@domain.com"
 
-If (!(Test-Path $OutPath))
+If (!(Test-Path $OutDir))
    {
     New-Item -ItemType Directory -Path $OutDir -ErrorAction SilentlyContinue | Out-Null
    }
