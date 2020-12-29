@@ -110,3 +110,6 @@ $base64_string = "VABoAGkAcwAgAGkAcwAgAGEAIABzAGUAYwByAGUAdAAgAGEAbgBkACAAcwBoAG
 $URL = "http://tinyurl.com/KindleWireless"
 (Invoke-WebRequest -Uri $URL -MaximumRedirection 0 -ErrorAction Ignore).Headers.Location
 
+
+# Merge CSV files
+Get-ChildItem *.csv | select name -ExpandProperty name | Import-Csv | export-csv -NoTypeInformation merged.csv
