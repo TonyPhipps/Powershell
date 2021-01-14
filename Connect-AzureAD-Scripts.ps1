@@ -29,5 +29,6 @@ Get-AzureAdAuditSigninLogs -top 1 -filter "userprincipalname eq '$UPN'" | select
 Get-AzureADServicePrincipal -All:$True | Select-Object AppId, Displayname | Sort-Object DisplayName | export-csv -NoTypeInformation principal-appid.csv
 
 
-# Sign out a user from all active sessions
+# Sign out a user from all active sessions and disable account
 Get-AzureADUser -SearchString user@contoso.com | Revoke-AzureADUserAllRefreshToken 
+Get-AzureADUser -SearchString user@contoso.com | Disable-ADAccount
