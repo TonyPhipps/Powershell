@@ -1,6 +1,7 @@
 # Install-Module -Name Msonline
 # Install-Module -Name AzureADPreview -AllowClobber
 
+# Connect to AzureAD
 $UserCredential = Get-Credential
 Connect-MsolService -Credential $UserCredential
 Connect-AzureAD -Credential $UserCredential
@@ -26,3 +27,7 @@ Get-AzureAdAuditSigninLogs -top 1 -filter "userprincipalname eq '$UPN'" | select
 
 # Create a lookup table for ResourceAppId GUID's
 Get-AzureADServicePrincipal -All:$True | Select-Object AppId, Displayname | Sort-Object DisplayName | export-csv -NoTypeInformation principal-appid.csv
+
+
+# Sign out a user from all active sessions
+Get-AzureADUser -SearchString user@contoso.com | Revoke-AzureADUserAllRefreshToken 
