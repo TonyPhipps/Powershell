@@ -28,7 +28,7 @@ If (!(Test-Path $OutDir))
     New-Item -ItemType Directory -Path $OutDir -ErrorAction SilentlyContinue | Out-Null
    }
 $RecordTypes = (
-    "AeD",
+	"AeD",
 	"AipDiscover",
 	"AipFileDeleted",
 	"AipHeartBeat",
