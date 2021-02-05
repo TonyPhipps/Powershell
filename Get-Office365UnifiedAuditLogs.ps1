@@ -16,9 +16,12 @@
 #$UserCredential = Get-Credential
 #Connect-ExchangeOnline -Credential $UserCredential -ShowProgress $true
 
+# Note
+# Splitting out recordtypes is one of many workarounds to the 5000 result limit.
+
 $OutDir = "C:\Logs"
-$StartDate = "01/01/2020 00:00"
-$EndDate = "12/31/2020 23:59"
+$StartDate = (Get-Date).AddDays(-365)
+$EndDate = get-date
 
 # Set the user you wish to gather data for
 $userSMTP = "user@domain.com"
