@@ -1,3 +1,7 @@
+# Connect to Exchange Online
+$UserCredential = Get-Credential
+Connect-ExchangeOnline -Credential $UserCredential -ShowProgress $true
+
 # Get Litigation Hold Status
 Get-Mailbox user@tdomain.com | Format-List *lit*
 
