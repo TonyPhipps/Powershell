@@ -19,9 +19,6 @@ Get-MailboxPlan | Set-MailboxPlan -RecipientLimits 50
 Set-TransportConfig -MaxRecipientEnvelopeLimit 50
 
 # Get UnifiedAuditLog, last 365 days
-$UserCredential = Get-Credential
-Connect-ExchangeOnline -Credential $UserCredential -ShowProgress $true
-
 $mailbox="tony@company.com"
 $StartDate = (Get-Date).AddDays(-365)
 $EndDate = get-date
