@@ -1,23 +1,14 @@
-# References
-# https://docs.microsoft.com/en-us/microsoft-365/compliance/search-the-audit-log-in-security-and-compliance?view=o365-worldwide
-# https://docs.microsoft.com/en-us/powershell/module/exchange/search-unifiedauditlog?view=exchange-ps
-# https://docs.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema#auditlogrecordtype
-# https://docs.microsoft.com/en-us/microsoft-365/compliance/export-view-audit-log-records?view=o365-worldwide
-
-# Prereq Option 1: Use ConnectO365Services or another means to establish a connection to Exchange Online using MFA
-# https://gallery.technet.microsoft.com/office/PowerShell-Script-to-4081ec0f
-#ConnectO365Services.ps1 -MFA
-
-# Prereq Option 2: for single-factor authentication, follow these steps
-# https://docs.microsoft.com/en-us/powershell/exchange/exchange-online-powershell-v2?view=exchange-ps#install-and-maintain-the-exo-v2-module
-# https://docs.microsoft.com/en-us/powershell/exchange/connect-to-exchange-online-powershell?view=exchange-ps
+# Setup
+#Uninstall-Module ExchangeOnlineManagement
 #Install-Module ExchangeOnlineManagement
-#Import-Module ExchangeOnlineManagement
+
+# Single Factor
 #$UserCredential = Get-Credential
 #Connect-ExchangeOnline -Credential $UserCredential -ShowProgress $true
 
-# Note
-# Splitting out recordtypes is one of many workarounds to the 5000 result limit.
+# MFA
+Import-Module ExchangeOnlineManagement
+Connect-EXOPSSession -UserPrincipalName user@email.com
 
 $OutDir = "C:\Logs"
 $StartDate = (Get-Date).AddDays(-365)
@@ -30,6 +21,8 @@ If (!(Test-Path $OutDir))
    {
     New-Item -ItemType Directory -Path $OutDir -ErrorAction SilentlyContinue | Out-Null
    }
+   
+# Note: Splitting out recordtypes is one of many workarounds to the 5000 result limit.
 $RecordTypes = (
 	"AeD",
 	"AipDiscover",
