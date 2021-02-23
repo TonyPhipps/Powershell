@@ -2,6 +2,12 @@
 $UserCredential = Get-Credential
 Connect-ExchangeOnline -Credential $UserCredential -ShowProgress $true
 
+# Connect to Exchange Online with MFA
+Uninstall-Module ExchangeOnlineManagement
+Install-Module ExchangeOnlineManagement
+Import-Module ExchangeOnlineManagement
+Connect-EXOPSSession -UserPrincipalName user@email.com
+
 # Get Litigation Hold Status
 Get-Mailbox user@tdomain.com | Format-List *lit*
 
