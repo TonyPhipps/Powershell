@@ -1,4 +1,5 @@
 # Setup
+# https://outlook.office365.com/ecp > Hybrid > "The Exchange Online PowerShell Module..." > Configure > Install
 #Uninstall-Module ExchangeOnlineManagement
 #Install-Module ExchangeOnlineManagement
 
