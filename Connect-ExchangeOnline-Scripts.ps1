@@ -33,3 +33,12 @@ $StartDate = (Get-Date).AddDays(-365)
 $EndDate = get-date
 $UnifiedAuditLog = Search-UnifiedAuditLog -UserIds $mailbox -StartDate $StartDate -EndDate $EndDate -SessionCommand ReturnLargeSet -ResultSize 5000
 $UnifiedAuditLog | Select-Object CreationDate, UserIDs, Operations, AuditData | Export-Csv ($mailbox + "_UnifiedAuditLog.csv") -NoTypeInformation
+
+
+# Get MessageTrace
+$userSMTP = "user@email.com"
+$Trace = @()
+$Trace += Get-MessageTrace -RecipientAddress $userSMTP -StartDate 02/17/2021 -EndDate 02/23/2021
+$Trace += Get-MessageTrace -RecipientAddress $userSMTP -StartDate 02/17/2021 -EndDate 02/23/2021
+$Trace | Select-Object Received, MessageTraceId, Size, SenderAddress, FromIP, RecipientAddress, ToIP, Subject, Status | Export-Csv -NoTypeInformation ("C:\logs\" + $userSMTP.Split('@')[0] + "_messagetrace.csv")
+
