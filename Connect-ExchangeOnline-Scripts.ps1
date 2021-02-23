@@ -1,11 +1,14 @@
-# Connect to Exchange Online
-$UserCredential = Get-Credential
-Connect-ExchangeOnline -Credential $UserCredential -ShowProgress $true
-
 # Connect to Exchange Online with MFA
+# https://outlook.office365.com/ecp > Hybrid > "The Exchange Online PowerShell Module..." > Configure > Install
 Uninstall-Module ExchangeOnlineManagement
 Install-Module ExchangeOnlineManagement
 Import-Module ExchangeOnlineManagement
+
+# Connect to Exchange Online (Single Factor)
+$UserCredential = Get-Credential
+Connect-ExchangeOnline -Credential $UserCredential -ShowProgress $true
+
+# Connect to Exchange Online (MFA)
 Connect-EXOPSSession -UserPrincipalName user@email.com
 
 # Get Litigation Hold Status
