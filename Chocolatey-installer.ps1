@@ -1,47 +1,45 @@
 ﻿Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
 
-choco install libreoffice -y
-
-# choco install firefox -y
-choco install filezilla -y
-choco install citrix-receiver -y
-choco install javaruntime -y
-
+choco install steam -y
+choco install firefox -y
 choco install keepass -y
-#choco install malwarebytes -y
-
-choco install cpu-z -y
-choco install speccy -y
-choco install nirlauncher -y
-choco install speedfan -y
-choco install wincdemu -y
-choco install 7zip -y
-choco install putty -y
-
+choco install chromium -y
+choco install vscode -y
 choco install notepadplusplus -y
 choco install git -y
-choco install visualstudiocode -y
-
-choco install sysinternals -y
-choco install nmap -y
-choco install docker -y
-choco install wireshark -y
-
 choco install spideroakone -y
-
-#choco install steam -y
-
 choco install inkscape -y
-choco install audacity -y
 choco install vlc -y
 choco install irfanview -y
 choco install irfanviewplugins -y
-choco install gimp -y
 choco install greenshot -y
-choco install ffmpeg -y
-choco install shotcut -y
+choco install 7zip -y
+choco install libreoffice -y
+choco install citrix-receiver -y
+choco install javaruntime -y
+choco install audacity -y
+choco install gimp -y
 
+# Security
+choco install nmap -y
+choco install wireshark -y
+
+# Admin tools
+choco install sysinternals -y
+choco install speedfan -y
+choco install wincdemu -y
+choco install cpu-z -y
+choco install speccy -y
+choco install nirlauncher -y
+
+# Speciality
+#choco install docker -y
+#choco install putty -y
+#choco install ffmpeg -y
+#choco install shotcut -y
 #choco install blender -y
+
+
 
 
 # Setup Chocolatey update scheduled task
