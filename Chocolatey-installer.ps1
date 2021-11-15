@@ -16,6 +16,8 @@ choco install 7zip -y
 choco install libreoffice -y
 choco install citrix-receiver -y
 choco install javaruntime -y
+choco install veracrypt -y
+
 
 # Media
 choco install audacity -y

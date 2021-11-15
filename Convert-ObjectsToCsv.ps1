@@ -6,7 +6,7 @@
     .DESCRIPTION
         Combine objects into a single csv without losing fields absent from the first object parsed. 
         Due to the requirement to parse all objects in the array to build the columns list, this is not designed 
-        to work with the pipeline. Originally written to merge event log objects after having their deper XML 
+        to work with the pipeline. Originally written to merge event log objects after having their deeper XML 
         added as properties with Add-WinEventXMLData.
     
     .PARAMETER ObjectArray
