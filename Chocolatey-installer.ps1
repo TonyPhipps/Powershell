@@ -17,6 +17,7 @@ choco install libreoffice -y
 choco install citrix-receiver -y
 choco install javaruntime -y
 choco install veracrypt -y
+choco install discord -y
 
 
 # Media
