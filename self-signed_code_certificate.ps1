@@ -12,10 +12,10 @@ CertStoreLocation = 'Cert:\CurrentUser\My' }
 $CodeSigningCert = New-SelfSignedCertificate @Params
 
 # Export public key
-Export-Certificate -FilePath public_cert.cer -Cert $CodeSigningCert
+Export-Certificate -Cert $CodeSigningCert -FilePath public_cert.cer
 
 # Import public key to trusted root
-Import-Certificate -FilePath public_cert.cer -CertStoreLocation Cert:\CurrentUser\Root
+Import-Certificate -CertStoreLocation Cert:\CurrentUser\Root -FilePath public_cert.cer
 Get-ChildItem Cert:\CurrentUser\Root
 
 # Export private key
