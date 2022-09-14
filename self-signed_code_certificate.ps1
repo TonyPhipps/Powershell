@@ -1,3 +1,5 @@
+# Demonstrates how to create a self-signed code signing cert, add it to the trusted root certs, and sign a file with it.
+
 $Params = @{    
 Subject           = "CN=Test Code Signing"
 Type              = "CodeSigningCert"    
