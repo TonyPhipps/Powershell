@@ -15,8 +15,8 @@ $CodeSigningCert = New-SelfSignedCertificate @Params
 Export-Certificate -FilePath public_cert.cer -Cert $CodeSigningCert
 
 # Import public key to trusted root
-Import-Certificate -FilePath public_cert.cer -CertStoreLocation Cert:\CurrentUser\Root
-Get-ChildItem Cert:\CurrentUser\Root
+Import-Certificate -FilePath public_cert.cer -CertStoreLocation Cert:\CurrentUser\My
+Get-ChildItem Cert:\CurrentUser\My
 
 # Export private key
 $pwd = read-host -assecurestring
@@ -26,3 +26,7 @@ Export-PfxCertificate -cert $CodeSigningCert -FilePath private_cert.pfx -Passwor
 $file = 'C:\file.ps1'
 Set-AuthenticodeSignature -Certificate (Get-PfxCertificate private_cert.pfx) -FilePath $file
 
+# Remove from key store (cleanup)
+Get-ChildItem Cert:\CurrentUser\My |
+Where-Object { $_.Subject -match 'Code Signing' } |
+Remove-Item
