@@ -1,7 +1,7 @@
 # Demonstrates how to create a self-signed code signing cert, add it to the trusted root certs, and sign a file with it.
 
 $Params = @{    
-Subject           = "CN=Test Code Signing"
+Subject           = "CN=Code Signing"
 Type              = "CodeSigningCert"    
 KeySpec           = "Signature"     
 KeyUsage          = "DigitalSignature"    
@@ -9,14 +9,20 @@ FriendlyName      = "Test code signing"
 NotAfter          = [datetime]::now.AddYears(5)    
 CertStoreLocation = 'Cert:\CurrentUser\My' }
 
-$TestCodeSigningCert = New-SelfSignedCertificate @Params
+$CodeSigningCert = New-SelfSignedCertificate @Params
 
-Export-Certificate -FilePath exported_cert.cer -Cert $TestCodeSigningCert
-Import-Certificate -FilePath exported_cert.cer -CertStoreLocation Cert:\CurrentUser\Root
+# Export public key
+Export-Certificate -FilePath public_cert.cer -Cert $CodeSigningCert
 
+# Import public key to trusted root
+Import-Certificate -FilePath public_cert.cer -CertStoreLocation Cert:\CurrentUser\Root
+Get-ChildItem Cert:\CurrentUser\Root
 
-$file = 'c:\path\to\file.ps1'
-Set-AuthenticodeSignature -Certificate $TestCodeSigningCert -FilePath $file
+# Export private key
+$pwd = read-host -assecurestring
+Export-PfxCertificate -cert $CodeSigningCert -FilePath private_cert.pfx -Password $pwd
 
-
+# Apply cert to file
+$file = 'C:\file.ps1'
+Set-AuthenticodeSignature -Certificate (Get-PfxCertificate private_cert.pfx) -FilePath $file
 
