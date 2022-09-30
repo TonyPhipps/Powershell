@@ -12,11 +12,11 @@ Get-ChildItem *.jpg | ForEach-Object {
         $DateTakenRaw = $pic.GetPropertyItem(36867).Value
         $DateTakenString = [System.Text.Encoding]::ASCII.GetString($DateTakenRaw)
         $DateTakenParsed = [datetime]::ParseExact($DateTakenString, "yyyy:MM:dd HH:mm:ss`0", $Null)
-        $pic.Dispose()
         Write-Verbose $DateTakenParsed
     }
     catch {}
     finally {
+        $pic.Dispose()
         if ($DateTakenRaw) {
 
             $NewName = ("{0:yyyy-MM-dd_HH-mm-ss}_{1}{2}" -f $DateTakenParsed, $_.Length, $_.Extension)
