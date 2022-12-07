@@ -113,3 +113,8 @@ $URL = "http://tinyurl.com/KindleWireless"
 
 # Merge CSV files
 Get-ChildItem *.csv | select name -ExpandProperty name | Import-Csv | export-csv -NoTypeInformation merged.csv
+
+
+# Change the Network Profile Associated with a Network Connection (e.g. Public, Private, etc.)
+Get-NetConnectionProfile
+Set-NetConnectionProfile -Name "Unidentified network" -NetworkCategory Private
