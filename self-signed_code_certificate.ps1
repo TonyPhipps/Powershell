@@ -1,12 +1,12 @@
 # Demonstrates how to create a self-signed code signing cert, add it to the trusted root certs, and sign a file with it.
 
 $Params = @{    
-Subject           = "CN=Code Signing"
-Type              = "CodeSigningCert"    
-KeySpec           = "Signature"     
-KeyUsage          = "DigitalSignature"    
-FriendlyName      = "Test code signing"    
-NotAfter          = [datetime]::now.AddYears(5)    
+Subject           = "Code Signing"
+Type              = "CodeSigningCert"
+KeySpec           = "Signature"
+KeyUsage          = "DigitalSignature"
+FriendlyName      = "Test code signing"
+NotAfter          = [datetime]::now.AddYears(5)
 CertStoreLocation = 'Cert:\CurrentUser\My' }
 
 $CodeSigningCert = New-SelfSignedCertificate @Params
@@ -30,3 +30,6 @@ Set-AuthenticodeSignature -Certificate (Get-PfxCertificate private_cert.pfx) -Fi
 Get-ChildItem Cert:\CurrentUser\Root |
 Where-Object { $_.Subject -match 'Code Signing' } |
 Remove-Item
+
+# https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_signing
+# https://www.digicert.com/support/resources/faq/code-signing-trust/what-are-code-signing-best-practices
