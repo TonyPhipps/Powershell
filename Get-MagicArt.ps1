@@ -1,7 +1,9 @@
-$file_in = Get-Content -Path "D:\GoogleDrive\Tony\Projects\Magic\art\sets_2.txt"
+$file_in = Get-Content -Path "D:\GoogleDrive\Tony\Projects\Magic\art\sets_mtgpics.txt"
 $url_start = "https://www.mtgpics.com/pics/art/"
 $url_end = ".jpg"
 $output = "D:\GoogleDrive\Tony\Projects\Magic\art"
+
+$downloaded = 0
 
 foreach($set in $file_in) {
     $set = $set.ToLower()
@@ -27,9 +29,17 @@ foreach($set in $file_in) {
         $url = $url_start + $set + "/" + $card + $url_end
         $file = ($output + "\" + $set + "\" + $card + $url_end)
 
-        if (-not(Test-Path -Path $file -PathType Leaf)) {
+        $regex = $file -match "(.+\d+)"
+        $testpath = $Matches.1 + "*"
 
-            try { Invoke-WebRequest $url -OutFile $file }
+        if (-not(Test-Path -Path $testpath -PathType Leaf)) {
+
+            try { 
+                Invoke-WebRequest $url -OutFile $file
+                ++$downloaded
+
+                write-host "$url downloaded!"
+            }
             catch { Write-Verbose "$set - $card not found." }
         }
     }
