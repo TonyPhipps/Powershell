@@ -12,9 +12,9 @@ Get-ChildItem $path -Filter *.bak -Recurse |
         $content = $content -replace("&gt;",">")
         $content = $content -replace("&quot;",'"')
 
-        $matches = $content | Select-String -Pattern "<rawsyslogmsg>(.*?)</rawsyslogmsg>"
-        $matches = $matches.Matches
-        $values = foreach ($match in $matches){
+        $matchlist = $content | Select-String -Pattern "<rawsyslogmsg>(.*?)</rawsyslogmsg>"
+        $matchlist = $matchlist.Matches
+        $values = foreach ($match in $matchlist){
             $value = $match.groups[1].value
             $value = $value.replace("&lt;","<")
             $value = $value.replace("&gt;",">")
@@ -29,11 +29,11 @@ Get-ChildItem $path -Filter *.bak -Recurse |
 # Opens a file and executes regex-based find and replace
 $log = "C:\test.txt"
 
-$matches = Select-String -path $log -Pattern "<stuff>(.*)</stuff>" -Encoding unicode
+$matchlist = Select-String -path $log -Pattern "<stuff>(.*)</stuff>" -Encoding unicode
 
-$matches = $matches.matches
+$matchlist = $matchlist.matches
 
-$values = foreach ($match in $matches){
+$values = foreach ($match in $matchlist){
     $value = $match.groups[1].value
     $value = $value.replace("&lt;","<")
     $value = $value.replace("&gt;",">")

@@ -1,6 +1,6 @@
 Get-ChildItem "D:\GoogleDrive\Tony\Projects\Magic\art\dom\*.jpg" | ForEach-Object {
     $directory = $_.Directory.ToString()
-    $basename = $_.BaseName.ToString() 
+    $basename = $_.BaseName.ToString()
     $extension = $_.Extension.ToString()
 
     $file = $directory + "\" + $basename + $extension
