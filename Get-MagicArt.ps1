@@ -1,11 +1,11 @@
-$file_in = Get-Content -Path "D:\GoogleDrive\Tony\Projects\Magic\art\sets_mtgpics.txt"
+$setslist = Get-Content -Path "D:\GoogleDrive\Tony\Projects\Magic\art\sets_mtgpics.txt"
 $url_start = "https://www.mtgpics.com/pics/art/"
 $url_end = ".jpg"
 $output = "D:\GoogleDrive\Tony\Projects\Magic\art"
 
 $downloaded = 0
 
-foreach($set in $file_in) {
+foreach($set in $setslist) {
     $set = $set.ToLower()
 
     write-host "Checking for first card of set $set"
@@ -44,3 +44,5 @@ foreach($set in $file_in) {
         }
     }
 }
+
+write-host "Downloaded $downloaded new cards!"
