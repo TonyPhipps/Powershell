@@ -12,17 +12,17 @@ foreach($set in $setslist) {
             
     $testurl = "https://www.mtgpics.com/card?ref=" + $set + "001"
 
-     if ((Invoke-WebRequest $testurl -UseBasicParsing).Content -notmatch "(Wrong ref or number.)|(No card found.)") {
+    if ((Invoke-WebRequest $testurl -UseBasicParsing).Content -notmatch "(Wrong ref or number.)|(No card found.)") {
         Write-Host "Set $set found."
         if (-not(Test-Path -Path "$output\$set")){
             New-Item -Path "$output\$set" -ItemType Directory
         }
-     }
-     else {
+    }
+    else {
         write-host "Set $set not found (based on $testurl)."
         $set >> set_errors.txt
         continue
-     }
+    }
 
     for ($i = 1 ; $i -le 1000 ; $i++){
         $card = '{0:d3}' -f $i
