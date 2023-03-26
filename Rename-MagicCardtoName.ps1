@@ -18,6 +18,7 @@ Get-ChildItem "D:\GoogleDrive\Tony\Projects\Magic\art\*" -Recurse -Filter *.jpg 
             "7th" {$set = "7ed"}
             "8th" {$set = "8ed"}
             "9th" {$set = "9ed"}
+            "10m" {$set = "m10"}
         }
 
         if ($basename -match "^\d+$") {
