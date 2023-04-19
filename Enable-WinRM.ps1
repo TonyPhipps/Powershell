@@ -3,6 +3,10 @@ winrm quickconfig -y
 
 # Enable WinRM Option 2
 Enable-PSRemoting –Force
+# Note: if you get an error like 
+#     "WinRM firewall exception will not work since one of	the network connection types on this machine is set to Public. Change the network connection type to either Domain or Private and try again."
+# Then you can run this
+#     Set-NetConnectionProfile -InterfaceIndex ((Get-NetConnectionProfile).InterfaceIndex) -NetworkCategory Private
 
 # Enable WinRM Option 3
 ## Start the WinRM service. 
