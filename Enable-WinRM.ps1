@@ -2,7 +2,7 @@
 winrm quickconfig -y
 
 # Enable WinRM Option 2
-Enable-PSRemoting –Force
+Enable-PSRemoting -SkipNetworkProfileCheck -Force
 
 # Enable WinRM Option 3
 ## Start the WinRM service. 
