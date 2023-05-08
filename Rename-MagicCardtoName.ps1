@@ -22,16 +22,34 @@ Get-ChildItem "D:\GoogleDrive\Tony\Projects\Magic\art\*" -Recurse -Filter *.jpg 
             "10m" {$set = "m10"}
             "11m" {$set = "m11"}
             "12m" {$set = "m12"}
+            "13m" {$set = "m13"}
+            "14m" {$set = "m14"}
+            "15m" {$set = "m15"}
+            "13c" {$set = "c13"}
+            "14c" {$set = "c14"}
+            "15c" {$set = "c15"}
+            "16c" {$set = "c16"}
+            "17c" {$set = "c17"}
+            "aki" {$set = "akh"}
+            "25m" {$set = "a25"}
+            # "a22" {$set = "ymid"} numbers mismatch
+            "alr" {$set = "arb"}
+            # "alp" {$set = "lea"} numbers mismatch
+            "ant" {$set = "atq"}
+            "apo" {$set = "apc"}
+            "ara" {$set = "arn"}
+
         }
 
-        if ($basename -match "^\d+$") {
+        if ($basename -match "^\d+([\s-]+)?$") {
 
             $card = $basename
+            $card = $card -replace " - ", ""
            
             $url = ("https://scryfall.com/card/" + $set + "/" + $card + "/")
             
             $response = $null
-            $response = Invoke-WebRequest $url -UseBasicParsing
+            $response = try{ Invoke-WebRequest $url -UseBasicParsing} catch{ write-host $url }
     
             if ($response) {
     
@@ -42,9 +60,7 @@ Get-ChildItem "D:\GoogleDrive\Tony\Projects\Magic\art\*" -Recurse -Filter *.jpg 
     
                 write-host "$set -- $card -- $title"
                 Rename-Item -Path $file -NewName ($card + " - " + $title + $extension)
-            } else {
-                $url
-            }
+            } #else { $url }
         }    
 }
 
