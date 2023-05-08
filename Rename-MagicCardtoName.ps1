@@ -3,6 +3,7 @@ Get-ChildItem "D:\GoogleDrive\Tony\Projects\Magic\art\*" -Recurse -Filter *.jpg 
         $directory = $_.Directory.ToString()
         $basename = $_.BaseName.ToString()
         $extension = $_.Extension.ToString()
+        $Matches = $null
 
         $file = $directory + "\" + $basename + $extension
         
@@ -19,6 +20,8 @@ Get-ChildItem "D:\GoogleDrive\Tony\Projects\Magic\art\*" -Recurse -Filter *.jpg 
             "8th" {$set = "8ed"}
             "9th" {$set = "9ed"}
             "10m" {$set = "m10"}
+            "11m" {$set = "m11"}
+            "12m" {$set = "m12"}
         }
 
         if ($basename -match "^\d+$") {
@@ -26,7 +29,7 @@ Get-ChildItem "D:\GoogleDrive\Tony\Projects\Magic\art\*" -Recurse -Filter *.jpg 
             $card = $basename
            
             $url = ("https://scryfall.com/card/" + $set + "/" + $card + "/")
-    
+            
             $response = $null
             $response = Invoke-WebRequest $url -UseBasicParsing
     
@@ -39,6 +42,8 @@ Get-ChildItem "D:\GoogleDrive\Tony\Projects\Magic\art\*" -Recurse -Filter *.jpg 
     
                 write-host "$set -- $card -- $title"
                 Rename-Item -Path $file -NewName ($card + " - " + $title + $extension)
+            } else {
+                $url
             }
         }    
 }
