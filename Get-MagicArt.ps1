@@ -25,6 +25,9 @@ foreach($set in $setslist) {
     }
 
     for ($i = 1 ; $i -le 1000 ; $i++){
+        $percentage=($i/1000)*100
+        Write-Progress -Activity "Download in Progress" -Status "($percentage % Complete)" -PercentComplete $percentage
+
         $card = '{0:d3}' -f $i
         $url = $url_start + $set + "/" + $card + $url_end
         $file = ($output + "\" + $set + "\" + $card + $url_end)
