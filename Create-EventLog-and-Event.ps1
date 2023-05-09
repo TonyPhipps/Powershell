@@ -3,31 +3,59 @@
 # https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/write-eventlog
 # https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/remove-eventlog
 
-function Prepare-EventLog{
+function Deploy-EventLog{
 [CmdletBinding()]
 	param(
         [Parameter()]
-		[string]$logname,		
+		[string]$LogName,		
 
         [Parameter()]
-		[string]$source,
+		[string]$Source,
 
         [Parameter()]
-		[string]$file
+		[string]$EventID,
+
+        [Parameter()]
+		[string]$EntryType,
+
+        [Parameter()]
+		[string]$Category,
+
+        [Parameter()]
+		[string]$Message,
+
+        [Parameter()]
+		[string]$RawData
 	)
 
-    if (Get-EventLog -list | Where-Object {$_.logdisplayname -eq $logname}) {
+    if ($RawData){
+        [byte[]]$RawData = $RawData.split(",")
+    }
+
+    if (Get-EventLog -list | Where-Object {$_.logdisplayname -eq $LogName}) {
+        
         Write-Verbose ("Log '{0}' already exists..." -f $source)
+
     } else { 
+        
         Write-Verbose "The log does not already exist."
-        New-EventLog -source $source -LogName $logname -MessageResourceFile $file
-        Write-Verbose ("Log '{0}' created!" -f $source)
+        New-EventLog -LogName $LogName -Source $Source
+        Write-Verbose ("Log '{0}' created!" -f $LogName)
+    }
+
+    if (Get-EventLog -list | Where-Object {$_.logdisplayname -eq $LogName}) {
+        
+        Write-Verbose ("Log '{0}' already exists..." -f $Source)
+        Write-EventLog -LogName $LogName -Source $Source -EventID $EventID -EntryType $EntryType -Category $Category -Message $Message -RawData $RawData
+
+    } else { 
+        
+        Write-Verbose "The log does not already exist, and could not be created."
     }
 }
 
-Prepare-EventLog -logname "TestLog" -source "TestApp" -file "C:\Test\TestApp.dll"
-
-Write-EventLog -LogName "TestLog" -Source "TestApp" -EventID 1 -EntryType Information -Category 1 -Message "MyApp added a user-requested feature to the display." -RawData 10,20
-Write-EventLog -LogName "TestLog" -Source "TestApp" -EventID 1 -EntryType Information -Category 1 -Message "Just a Message, no binary data needed!"
+Deploy-EventLog -logname "TestLog" -source "TestApp" -EventID 1 -EntryType "Information" -Category 1 -Message "MyApp added a user-requested feature to the display." -RawData "10,20"
+Deploy-EventLog -logname "TestLog" -source "TestApp" -EventID 2 -EntryType "Information" -Category 4 -Message "An event without RawData!"
+Deploy-EventLog -logname "TestLog" -source "TestApp" -EntryType "Information" -Message "An event with the bare basics."
 
 Remove-EventLog -LogName "TestLog"
