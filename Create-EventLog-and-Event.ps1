@@ -28,5 +28,6 @@ function Prepare-EventLog{
 Prepare-EventLog  -logname "TestLog" -source "TestApp" -file "C:\Test\TestApp.dll"
 
 Write-EventLog -LogName "TestLog" -Source "TestApp" -EventID 1 -EntryType Information -Category 1 -Message "MyApp added a user-requested feature to the display." -RawData 10,20
+Write-EventLog -LogName "TestLog" -Source "TestApp" -EventID 1 -EntryType Information -Category 1 -Message "Just a Message, no binary data needed!"
 
 Remove-EventLog -LogName "TestLog"
