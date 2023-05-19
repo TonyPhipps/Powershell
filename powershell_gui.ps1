@@ -28,31 +28,31 @@ $global:File            = ".\file.txt"
 $iconPath               = "{0}\icon.ico" -f $PSScriptRoot
 $url                    = "https://github.com/favicon.ico"
 Invoke-WebRequest -Uri $url -OutFile $iconPath
-$Icon					= New-Object system.drawing.icon ($iconPath)
+$Icon                   = New-Object system.drawing.icon ($iconPath)
 
-$LocalForm				= New-Object system.Windows.Forms.Form -Property @{
-    text				= "Window Title"
-    BackColor			= "#ffffff"
-    ClientSize			= "720, 600"
-    MinimumSize			= '300, 300'
-    Icon				= $Icon
+$LocalForm              = New-Object system.Windows.Forms.Form -Property @{
+    text                = "Window Title"
+    BackColor           = "#ffffff"
+    ClientSize          = "720, 600"
+    MinimumSize         = '300, 300'
+    Icon                = $Icon
 }
 
-$TitleLbl				= New-Object system.Windows.Forms.Label -Property @{
-    Text				= "The Title text"
-    Font				= "Microsoft Sans Serif, 13"
-    Width				= $LocalForm.Width - 24
-    Height				= 24
-    Location			= '16, 24'
+$TitleLbl                = New-Object system.Windows.Forms.Label -Property @{
+    Text                = "The Title text"
+    Font                = "Microsoft Sans Serif, 13"
+    Width                = $LocalForm.Width - 24
+    Height                = 24
+    Location            = '16, 24'
 }
 
-$DescriptionLbl			= New-Object system.Windows.Forms.Label -Property @{
-    Text				= "The description text"
-    Font				= "Microsoft Sans Serif, 10"
-    Width				= $LocalForm.Width - 24
-    Height				= 50
+$DescriptionLbl            = New-Object system.Windows.Forms.Label -Property @{
+    Text                = "The description text"
+    Font                = "Microsoft Sans Serif, 10"
+    Width                = $LocalForm.Width - 24
+    Height                = 50
     Location            = New-Object System.Drawing.Point(16, ($TitleLbl.Bottom + 8))
-    Anchor				= [System.Windows.Forms.AnchorStyles]::Top `
+    Anchor                = [System.Windows.Forms.AnchorStyles]::Top `
                             -bor [System.Windows.Forms.AnchorStyles]::Left
 }
 
@@ -64,10 +64,10 @@ $Checkbox               = New-Object System.Windows.Forms.Checkbox  -Property @{
 }
 
 $SelectedFolderLbl      = New-Object System.Windows.Forms.Label -Property @{
-    Text				= "Folder: "
-    Font				= "Microsoft Sans Serif, 10"
-    Width				= 50
-    Height				= 24
+    Text                = "Folder: "
+    Font                = "Microsoft Sans Serif, 10"
+    Width                = 50
+    Height                = 24
     Location            = New-Object System.Drawing.Point(16, ($Checkbox.Bottom + 8))
 }
 
@@ -79,22 +79,22 @@ $SelectedFolderTxt      = New-Object System.Windows.Forms.TextBox -Property @{
     #Enabled             = $false
 }
 
-$SelectFolderBtn		= New-Object system.Windows.Forms.Button -Property @{
-    Text				= "Change"
-    Font				= "Microsoft Sans Serif, 10"
-    ForeColor			= "#000"
-    BackColor			= "#ffffff"
-    Width				= 120
-    Height				= 24
+$SelectFolderBtn        = New-Object system.Windows.Forms.Button -Property @{
+    Text                = "Change"
+    Font                = "Microsoft Sans Serif, 10"
+    ForeColor            = "#000"
+    BackColor            = "#ffffff"
+    Width                = 120
+    Height                = 24
     Location            = New-Object System.Drawing.Point(($SelectedFolderTxt.Width + 96), ($SelectedFolderLbl.Top - 2))
-    Visible				= $true
+    Visible                = $true
 }
 
 $SelectedFileLbl        = New-Object System.Windows.Forms.Label -Property @{
-    Text				= "File: "
-    Font				= "Microsoft Sans Serif, 10"
-    Width				= 50
-    Height				= 24
+    Text                = "File: "
+    Font                = "Microsoft Sans Serif, 10"
+    Width                = 50
+    Height                = 24
     Location            = New-Object System.Drawing.Point(16, ($SelectedFolderLbl.Bottom + 8))
 }
 
@@ -106,64 +106,64 @@ $SelectedFileTxt        = New-Object System.Windows.Forms.TextBox -Property @{
     #Enabled             = $false
 }
 
-$SelectFileBtn			= New-Object system.Windows.Forms.Button -Property @{
-    Text				= "Change"
-    Font				= "Microsoft Sans Serif, 10"
-    ForeColor			= "#000"
-    BackColor			= "#ffffff"
-    Width				= 120
-    Height				= 24
+$SelectFileBtn            = New-Object system.Windows.Forms.Button -Property @{
+    Text                = "Change"
+    Font                = "Microsoft Sans Serif, 10"
+    ForeColor            = "#000"
+    BackColor            = "#ffffff"
+    Width                = 120
+    Height                = 24
     Location            = New-Object System.Drawing.Point(($SelectedFileTxt.Width + 96), ($SelectedFileLbl.Top - 2))
-    Visible				= $true
+    Visible                = $true
 }
 
-$ExecuteBtn				= New-Object system.Windows.Forms.Button -Property @{
-    Text				= "Start"
-    Font				= "Microsoft Sans Serif, 10"
-    ForeColor			= "#000"
-    BackColor			= "#ffffff"
-    Width				= 90
-    Height				= 30
-    Location			= '260, 500'
-    Anchor 				= [System.Windows.Forms.AnchorStyles]::Bottom`
+$ExecuteBtn                = New-Object system.Windows.Forms.Button -Property @{
+    Text                = "Start"
+    Font                = "Microsoft Sans Serif, 10"
+    ForeColor            = "#000"
+    BackColor            = "#ffffff"
+    Width                = 90
+    Height                = 30
+    Location            = '260, 500'
+    Anchor                 = [System.Windows.Forms.AnchorStyles]::Bottom`
                             -bor [System.Windows.Forms.AnchorStyles]::Right
-    Visible				= $true
+    Visible                = $true
 }
 
-$cancelBtn				= New-Object system.Windows.Forms.Button -Property @{
-    Text				= "Cancel"
-    Font				= "Microsoft Sans Serif, 10"
-    ForeColor			= "#000"
-    BackColor			= "#ffffff"
-    Width				= 90
-    Height				= 30
-    Location			= '350, 500'
-    Anchor 				= [System.Windows.Forms.AnchorStyles]::Bottom`
+$cancelBtn                = New-Object system.Windows.Forms.Button -Property @{
+    Text                = "Cancel"
+    Font                = "Microsoft Sans Serif, 10"
+    ForeColor            = "#000"
+    BackColor            = "#ffffff"
+    Width                = 90
+    Height                = 30
+    Location            = '350, 500'
+    Anchor                 = [System.Windows.Forms.AnchorStyles]::Bottom`
                             -bor [System.Windows.Forms.AnchorStyles]::Right
-    DialogResult		= [System.Windows.Forms.DialogResult]::Cancel
+    DialogResult        = [System.Windows.Forms.DialogResult]::Cancel
 }
 
-$StatusLbl					= New-Object system.Windows.Forms.Label -Property @{
-    Text				= "Status: "
-    Font				= "Microsoft Sans Serif, 10"
-    Width				= 50
-    Height				= 24
+$StatusLbl                    = New-Object system.Windows.Forms.Label -Property @{
+    Text                = "Status: "
+    Font                = "Microsoft Sans Serif, 10"
+    Width                = 50
+    Height                = 24
     Location            = New-Object System.Drawing.Point(16, ($LocalForm.Bottom - 75))
-    Anchor 				= [System.Windows.Forms.AnchorStyles]::Bottom`
+    Anchor                 = [System.Windows.Forms.AnchorStyles]::Bottom`
                             -bor [System.Windows.Forms.AnchorStyles]::Right
 }
 
-$StatusTxt				= New-Object system.Windows.Forms.Label -Property @{
-    Text				= "current status asdfasdf4awrt4awraw;lfoiajse l;kasj fl;kas f ;lkasdf as;ldkfj asd;lkf sad;"
-    Font				= "Microsoft Sans Serif, 10"
-    Width				= ($LocalForm.Width - 50)
-    Height				= 24
+$StatusTxt                = New-Object system.Windows.Forms.Label -Property @{
+    Text                = "current status asdfasdf4awrt4awraw;lfoiajse l;kasj fl;kas f ;lkasdf as;ldkfj asd;lkf sad;"
+    Font                = "Microsoft Sans Serif, 10"
+    Width                = ($LocalForm.Width - 50)
+    Height                = 24
     Location            = New-Object System.Drawing.Point(($StatusLbl.Width + 16), ($LocalForm.Bottom - 75))
-    Anchor 				= [System.Windows.Forms.AnchorStyles]::Bottom`
+    Anchor                 = [System.Windows.Forms.AnchorStyles]::Bottom`
                             -bor [System.Windows.Forms.AnchorStyles]::Right
 }
 
-$LocalForm.CancelButton	= $cancelBtn
+$LocalForm.CancelButton    = $cancelBtn
 
 $LocalForm.controls.AddRange( @(
     $TitleLbl, $DescriptionLbl, $Checkbox, 
