@@ -20,105 +20,172 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
+$global:Folder          = $PSScriptRoot
+$global:File            = $PSScriptRoot.$FileName
+
 #---------------------------------------------------------[Form]--------------------------------------------------------
 
-$iconPath = "{0}\icon.ico" -f $PSScriptRoot
-$url = "https://github.com/favicon.ico"
+$iconPath               = "{0}\icon.ico" -f $PSScriptRoot
+$url                    = "https://github.com/favicon.ico"
 Invoke-WebRequest -Uri $url -OutFile $iconPath
 $Icon					= New-Object system.drawing.icon ($iconPath)
 
 $LocalForm				= New-Object system.Windows.Forms.Form -Property @{
     text				= "Window Title"
     BackColor			= "#ffffff"
-    ClientSize			= "720, 400"
+    ClientSize			= "720, 600"
     MinimumSize			= '300, 300'
-    TopMost				= $false
     Icon				= $Icon
 }
 
-$Title					= New-Object system.Windows.Forms.Label -Property @{
-    text				= "The Title text"
+$TitleLbl				= New-Object system.Windows.Forms.Label -Property @{
+    Text				= "The Title text"
     Font				= "Microsoft Sans Serif, 13"
-    width				= $LocalForm.ClientSize.Width - 24
-    height				= 24
-    AutoSize			= $false
-    location			= New-Object System.Drawing.Point(24,24)
+    Width				= $LocalForm.ClientSize.Width - 24
+    Height				= 24
+    Location			= New-Object System.Drawing.Point(16, 24)
 }
 
-$Description			= New-Object system.Windows.Forms.Label -Property @{
-    text				= "The description text"
+$DescriptionLbl			= New-Object system.Windows.Forms.Label -Property @{
+    Text				= "The description text"
     Font				= "Microsoft Sans Serif, 10"
-    width				= $LocalForm.ClientSize.Width - 24
-    height				= 100
-    AutoSize			= $false
-    location			= New-Object System.Drawing.Point(24, ($Title.Bottom + 24))
+    Width				= $LocalForm.ClientSize.Width - 24
+    Height				= 100
+    Location			= New-Object System.Drawing.Point(16, ($Title.Bottom + 24))
     Anchor				= [System.Windows.Forms.AnchorStyles]::Top `
                             -bor [System.Windows.Forms.AnchorStyles]::Left
 }
 
+$Checkbox               = New-Object System.Windows.Forms.Checkbox  -Property @{
+    Text                = "Checkbox text"
+    Width               = 500
+    Height              = 20
+    Location            = New-Object System.Drawing.Size(16, ($Description.Bottom + 8))
+}
+
+$SelectedFolderLbl      = New-Object System.Windows.Forms.Label -Property @{
+    Text				= "Folder: "
+    Font				= "Microsoft Sans Serif, 10"
+    Width				= $SelectedFolderLbl.Text.Length * 8
+    Height				= $SelectedFolderLbl.Font.Size * 2
+    Location			= New-Object System.Drawing.Point(16, ($Checkbox.Bottom + 8))
+}
+
+$SelectedFolderTxt      = New-Object System.Windows.Forms.TextBox -Property @{
+    Text                = "{0}" -f $Folder
+    Width               = 256
+    Height              = 70
+    Location            = New-Object System.Drawing.Point(($SelectedFolderLbl.Right + 8), ($SelectedFolderLbl.Top))
+    #Enabled             = $false
+}
+
 $SelectFolderBtn		= New-Object system.Windows.Forms.Button -Property @{
-    text				= "Select Folder text"
+    Text				= "Change"
     Font				= "Microsoft Sans Serif, 10"
     ForeColor			= "#000"
     BackColor			= "#ffffff"
-    width				= 120
-    height				= 30
-    location			= New-Object System.Drawing.Point(24, ($Description.Bottom + 24))
+    Width				= 120
+    Height				= 24
+    Location			= New-Object System.Drawing.Point(($SelectedFolderTxt.Right + 8), ($SelectedFolderTxt.Top - 2))
     Visible				= $true
+}
+
+$SelectedFileLbl        = New-Object System.Windows.Forms.Label -Property @{
+    Text				= "File: "
+    Font				= "Microsoft Sans Serif, 10"
+    Width				= $SelectedFolder.Text.Length * 8
+    Height				= $SelectedFile.Font.Size * 2
+    Location			= New-Object System.Drawing.Point(16, ($SelectedFolderLbl.Bottom + 8))
+}
+
+$SelectedFileTxt        = New-Object System.Windows.Forms.TextBox -Property @{
+    Text                = "{0}" -f $File
+    Width               = 256
+    Height              = 70
+    Location            = New-Object System.Drawing.Point(($SelectedFileLbl.Right + 8), ($SelectedFileLbl.Top))
+    #Enabled             = $false
 }
 
 $SelectFileBtn			= New-Object system.Windows.Forms.Button -Property @{
-    text				= "Select File text"
+    Text				= "Select File"
     Font				= "Microsoft Sans Serif, 10"
     ForeColor			= "#000"
     BackColor			= "#ffffff"
-    width				= 120
-    height				= 30
-    location			= New-Object System.Drawing.Point(($SelectFolderBtn.Right + 24), ($Description.Bottom + 24))
+    Width				= 120
+    Height				= 24
+    Location			= New-Object System.Drawing.Point(($SelectedFileTxt.Right + 8), ($SelectedFileTxt.Top - 2))
     Visible				= $true
 }
 
-$Status					= New-Object system.Windows.Forms.Label -Property @{
-    text				= "The status text"
-    Font				= "Microsoft Sans Serif, 10"
-    width				= $LocalForm.ClientSize.Width - 24
-    height				= 30
-    AutoSize			= $false
-    location			= New-Object System.Drawing.Point(24, ($SelectFolderBtn.Bottom + 24))
-    
-}
-
 $ExecuteBtn				= New-Object system.Windows.Forms.Button -Property @{
-    text				= "Start"
+    Text				= "Start"
     Font				= "Microsoft Sans Serif, 10"
     ForeColor			= "#000"
     BackColor			= "#ffffff"
-    width				= 90
-    height				= 30
-    location			= New-Object System.Drawing.Point(260, ($Status.Bottom + 24))
+    Width				= 90
+    Height				= 30
+    Location			= New-Object System.Drawing.Point(260, ($StatusLbl.Top - 48))
     Anchor 				= [System.Windows.Forms.AnchorStyles]::Bottom`
                             -bor [System.Windows.Forms.AnchorStyles]::Right
     Visible				= $true
 }
 
 $cancelBtn				= New-Object system.Windows.Forms.Button -Property @{
-    text				= "Cancel"
+    Text				= "Cancel"
     Font				= "Microsoft Sans Serif, 10"
     ForeColor			= "#000"
     BackColor			= "#ffffff"
-    width				= 90
-    height				= 30
-    location			= New-Object System.Drawing.Point(($ExecuteBtn.Right + 24), ($Status.Bottom + 24))
+    Width				= 90
+    Height				= 30
+    Location			= New-Object System.Drawing.Point(($ExecuteBtn.Right + 24), ($ExecuteBtn.Top))
     Anchor 				= [System.Windows.Forms.AnchorStyles]::Bottom`
                             -bor [System.Windows.Forms.AnchorStyles]::Right
     DialogResult		= [System.Windows.Forms.DialogResult]::Cancel
 }
 
+$StatusLbl					= New-Object system.Windows.Forms.Label -Property @{
+    Text				= "Status"
+    Font				= "Microsoft Sans Serif, 10"
+    Width				= $SelectedFolderLbl.Text.Length * 8
+    Height				= $StatusLbl.Font.Size * 2
+    Location			= New-Object System.Drawing.Point(16, ($LocalForm.Bottom - 72))
+    Anchor 				= [System.Windows.Forms.AnchorStyles]::Bottom`
+                            -bor [System.Windows.Forms.AnchorStyles]::Right
+}
+
+$StatusTxt				= New-Object system.Windows.Forms.Label -Property @{
+    Text				= "current status"
+    Font				= "Microsoft Sans Serif, 10"
+    Width				= $StatusTxt.Text.Length * 8
+    Height				= $StatusTxt.Font.Size * 2
+    Location			= New-Object System.Drawing.Point(($StatusLbl.Right + 8), ($StatusLbl.Top))
+    Anchor 				= [System.Windows.Forms.AnchorStyles]::Bottom`
+                            -bor [System.Windows.Forms.AnchorStyles]::Right
+}
+
 $LocalForm.CancelButton	= $cancelBtn
 
-$LocalForm.controls.AddRange( @($Title, $Description, $SelectFolderBtn, $SelectFileBtn, $Status, $ExecuteBtn, $cancelBtn) )
+$LocalForm.controls.AddRange( @(
+    $TitleLbl, $DescriptionLbl, $Checkbox, 
+    $SelectedFolderLbl, $SelectedFolderTxt, $SelectFolderBtn, 
+    $SelectedFileLbl, $SelectedFileTxt, $SelectFileBtn, 
+    $ExecuteBtn, $cancelBtn,
+    $StatusLbl, $StatusTxt
+) )
 
 #-----------------------------------------------------------[Functions]------------------------------------------------------------
+
+function Checkbox_Click {
+    If ($Checkbox.Checked) {
+        Write-Host "Checked"
+    } Else {
+        Write-Host "Unhecked"
+    }
+}
+
+function SelectFolderTxt_Changed {
+    $global:Folder = $SelectedFolderTxt.Text
+}
 
 function SelectFileBtn_Click {
     $FileDialog = New-Object System.Windows.Forms.OpenFileDialog
@@ -130,19 +197,20 @@ function SelectFileBtn_Click {
 function SelectFolderBtn_Click {
     $FolderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
     $null = $FolderDialog.ShowDialog()
-    $path = $FolderDialog.SelectedPath
-    Write-Host "$path"
+    $global:Folder = $FolderDialog.SelectedPath
 }
 
 function ExecuteBtn_Click { 
-    write-host "Executed"
+    write-host "$global:Folder"
 }
 
 #---------------------------------------------------------[Script]--------------------------------------------------------
 
-$SelectFolderBtn.Add_Click({ SelectFolderBtn_Click })
-$SelectFileBtn.Add_Click({ SelectFileBtn_Click })
-$ExecuteBtn.Add_Click({ ExecuteBtn_Click })
+$Checkbox.Add_CheckStateChanged( {Checkbox_Click} )
+$SelectFolderTxt.Add_CheckStateChanged( {SelectFolderTxt_Changed} )
+$SelectFolderBtn.Add_Click( {SelectFolderBtn_Click} )
+$SelectFileBtn.Add_Click( {SelectFileBtn_Click} )
+$ExecuteBtn.Add_Click( {ExecuteBtn_Click} )
 
 # Get Last Used Settings & Locale
 if (Test-Path "$PSScriptRoot\settings.ini"){
