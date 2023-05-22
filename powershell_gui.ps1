@@ -32,10 +32,12 @@ $Icon                   = New-Object system.drawing.icon ($iconPath)
 
 $LocalForm              = New-Object system.Windows.Forms.Form -Property @{
     text                = "Window Title"
+    Icon                = $Icon
     BackColor           = "#ffffff"
     ClientSize          = "720, 600"
-    MinimumSize         = '300, 300'
-    Icon                = $Icon
+    MinimumSize         = '500, 500'
+    StartPosition       = [System.Windows.Forms.FormStartPosition]::CenterScreen
+    
 }
 
 $TitleLbl               = New-Object system.Windows.Forms.Label -Property @{
@@ -44,6 +46,7 @@ $TitleLbl               = New-Object system.Windows.Forms.Label -Property @{
     Width               = $LocalForm.Width - 24
     Height              = 24
     Location            = '16, 24'
+    Anchor              = "Top, Left, Right"
 }
 
 $DescriptionLbl         = New-Object system.Windows.Forms.Label -Property @{
@@ -52,8 +55,7 @@ $DescriptionLbl         = New-Object system.Windows.Forms.Label -Property @{
     Width               = $LocalForm.Width - 24
     Height              = 50
     Location            = New-Object System.Drawing.Point(16, ($TitleLbl.Bottom + 8))
-    Anchor              = [System.Windows.Forms.AnchorStyles]::Top `
-                            -bor [System.Windows.Forms.AnchorStyles]::Left
+    Anchor              = "Top, Left, Right"
 }
 
 $Checkbox               = New-Object System.Windows.Forms.Checkbox  -Property @{
@@ -117,6 +119,16 @@ $SelectFileBtn          = New-Object system.Windows.Forms.Button -Property @{
     Visible             = $true
 }
 
+$OutputTxt        = New-Object System.Windows.Forms.TextBox -Property @{
+    Text                = ""
+    Multiline           = $true
+    ReadOnly            = $true
+    Width               = ($LocalForm.ClientSize.Width - 24)
+    Height              = 300
+    Location            = New-Object System.Drawing.Point(16, ($SelectedFileLbl.Bottom + 16))
+    Anchor              = "Top, Bottom, Left, Right"
+}
+
 $ExecuteBtn             = New-Object system.Windows.Forms.Button -Property @{
     Text                = "Start"
     Font                = "Microsoft Sans Serif, 10"
@@ -124,22 +136,20 @@ $ExecuteBtn             = New-Object system.Windows.Forms.Button -Property @{
     BackColor           = "#ffffff"
     Width               = 90
     Height              = 30
-    Location            = '260, 500'
-    Anchor              = [System.Windows.Forms.AnchorStyles]::Bottom`
-                            -bor [System.Windows.Forms.AnchorStyles]::Right
+    Location            = New-Object System.Drawing.Point(260, ($OutputTxt.Bottom + 8))
+    Anchor              = "Bottom"
     Visible             = $true
 }
 
-$cancelBtn              = New-Object system.Windows.Forms.Button -Property @{
+$CancelBtn              = New-Object system.Windows.Forms.Button -Property @{
     Text                = "Cancel"
     Font                = "Microsoft Sans Serif, 10"
     ForeColor           = "#000"
     BackColor           = "#ffffff"
     Width               = 90
     Height              = 30
-    Location            = '350, 500'
-    Anchor              = [System.Windows.Forms.AnchorStyles]::Bottom`
-                            -bor [System.Windows.Forms.AnchorStyles]::Right
+    Location            = New-Object System.Drawing.Point(($ExecuteBtn.Right + 8), ($ExecuteBtn.Top))
+    Anchor              = "Bottom"
     DialogResult        = [System.Windows.Forms.DialogResult]::Cancel
 }
 
@@ -148,9 +158,8 @@ $StatusLbl              = New-Object system.Windows.Forms.Label -Property @{
     Font                = "Microsoft Sans Serif, 10"
     Width               = 50
     Height              = 24
-    Location            = New-Object System.Drawing.Point(16, ($LocalForm.Bottom - 75))
-    Anchor              = [System.Windows.Forms.AnchorStyles]::Bottom`
-                            -bor [System.Windows.Forms.AnchorStyles]::Right
+    Location            = New-Object System.Drawing.Point(16, ($ExecuteBtn.Bottom + 8))
+    Anchor              = "Bottom, Left"
 }
 
 $StatusTxt              = New-Object system.Windows.Forms.Label -Property @{
@@ -158,19 +167,30 @@ $StatusTxt              = New-Object system.Windows.Forms.Label -Property @{
     Font                = "Microsoft Sans Serif, 10"
     Width               = ($LocalForm.Width - 50)
     Height              = 24
-    Location            = New-Object System.Drawing.Point(($StatusLbl.Width + 16), ($LocalForm.Bottom - 75))
-    Anchor              = [System.Windows.Forms.AnchorStyles]::Bottom`
-                            -bor [System.Windows.Forms.AnchorStyles]::Right
+    Location            = New-Object System.Drawing.Point(($StatusLbl.Width + 16), ($StatusLbl.Top))
+    Anchor              = "Bottom, Left"
 }
 
-$LocalForm.CancelButton = $cancelBtn
+$ProgressBar = New-Object System.Windows.Forms.ProgressBar -Property @{
+    Name                = 'progressBar1'
+    Value               = 0
+    Style               = "Continuous"
+    Width               = ($LocalForm.ClientSize.Width - 32)
+    Height              = 10
+    Location            = New-Object System.Drawing.Point(16, ($StatusLbl.Bottom - 8))
+    Anchor              = "Bottom, Left, Right"
+}
+
+$LocalForm.CancelButton = $CancelBtn
 
 $LocalForm.controls.AddRange( @(
     $TitleLbl, $DescriptionLbl, $Checkbox, 
     $SelectedFolderLbl, $SelectedFolderTxt, $SelectFolderBtn, 
     $SelectedFileLbl, $SelectedFileTxt, $SelectFileBtn, 
-    $ExecuteBtn, $cancelBtn,
-    $StatusLbl, $StatusTxt
+    $OutputTxt, 
+    $ProgressBar, 
+    $StatusLbl, $StatusTxt,
+    $ExecuteBtn, $CancelBtn
 ) )
 
 #-----------------------------------------------------------[Functions]------------------------------------------------------------
@@ -202,9 +222,9 @@ function SelectFolderBtn_Click {
 }
 
 function ExecuteBtn_Click { 
-    write-host ("Folder: {0}" -f $Global:Folder)
-    write-host ("File: {0}" -f $Global:File)
-    write-host ("")
+    $OutputTxt.Text = ($OutputTxt.Text + "Folder: {0}`r`n" -f $Global:Folder)
+    $OutputTxt.Text = ($OutputTxt.Text + "File {0}`r`n" -f $Global:File)
+    $OutputTxt.Text = ($OutputTxt.Text + "`r`n")
 }
 
 #---------------------------------------------------------[Script]--------------------------------------------------------
