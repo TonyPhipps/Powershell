@@ -1,5 +1,9 @@
 # https://lazyadmin.nl/powershell/powershell-gui-howto-get-started/
 
+#----------------------------------------------------[Allow use of -Verbose]--------------------------------------------------
+
+[CmdletBinding()] param ()
+
 #---------------------------------------------------------[Initialize]--------------------------------------------------------
 
 # Minimize PowerShell Console
@@ -9,19 +13,22 @@ if ($host.name -notmatch "ConsoleHost") {
         public static extern IntPtr GetConsoleWindow();
         [DllImport("user32.dll")]
         public static extern bool ShowWindow(IntPtr hWnd, Int32 nCmdShow);
-    ' 
+    '
     $consolePtr = [Console.Window]::GetConsoleWindow()
     [Console.Window]::ShowWindow($consolePtr, 7) | Out-Null # Hide = 0
 }
-
 
 # Init PowerShell GUI
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
-$global:Folder          = $PSScriptRoot
-$global:File            = ".\file.txt"
+#-------------------------------------------------------[Init Form]-----------------------------------------------------
+
+$global:InFile          = ".\settings.ini"
+$global:BaseCommand     = "Measure-Object"
+$global:OutFolder       = $PSScriptRoot
+$global:Command         = ("Get-Content '{0}' `| {1}" -f $global:InFile, $global:BaseCommand)
 
 #---------------------------------------------------------[Form]--------------------------------------------------------
 
@@ -58,64 +65,84 @@ $DescriptionLbl         = New-Object system.Windows.Forms.Label -Property @{
     Anchor              = "Top, Left, Right"
 }
 
-$Checkbox               = New-Object System.Windows.Forms.Checkbox  -Property @{
-    Text                = "Checkbox text"
-    Width               = 500
+$SelectInputLbl        = New-Object System.Windows.Forms.Label -Property @{
+    Text                = "Input:"
+    Font                = "Microsoft Sans Serif, 10"
+    Width               = 60
     Height              = 24
     Location            = New-Object System.Drawing.Point(16, ($DescriptionLbl.Bottom + 8))
 }
 
-$SelectedFolderLbl      = New-Object System.Windows.Forms.Label -Property @{
-    Text                = "Folder: "
-    Font                = "Microsoft Sans Serif, 10"
-    Width               = 50
-    Height              = 24
-    Location            = New-Object System.Drawing.Point(16, ($Checkbox.Bottom + 8))
-}
-
-$SelectedFolderTxt      = New-Object System.Windows.Forms.TextBox -Property @{
-    Text                = "{0}" -f $Folder
+$SelectInputTxt        = New-Object System.Windows.Forms.TextBox -Property @{
+    Text                = "{0}" -f $File
+    ReadOnly            = $true
     Width               = 256
     Height              = 70
-    Location            = New-Object System.Drawing.Point(($SelectedFolderLbl.Width + 32), ($SelectedFolderLbl.Top))
-    #Enabled            = $false
+    Location            = New-Object System.Drawing.Point(($SelectInputLbl.Right + 8), ($SelectInputLbl.Top))
 }
 
-$SelectFolderBtn        = New-Object system.Windows.Forms.Button -Property @{
+$SelectInputBtn          = New-Object system.Windows.Forms.Button -Property @{
     Text                = "Change"
     Font                = "Microsoft Sans Serif, 10"
     ForeColor           = "#000"
     BackColor           = "#ffffff"
     Width               = 120
     Height              = 24
-    Location            = New-Object System.Drawing.Point(($SelectedFolderTxt.Width + 96), ($SelectedFolderLbl.Top - 2))
+    Location            = New-Object System.Drawing.Point(($SelectInputTxt.Right + 8), ($SelectInputLbl.Top - 2))
     Visible             = $true
 }
 
-$SelectedFileLbl        = New-Object System.Windows.Forms.Label -Property @{
-    Text                = "File: "
+$SelectOutputLbl      = New-Object System.Windows.Forms.Label -Property @{
+    Text                = "Output:"
     Font                = "Microsoft Sans Serif, 10"
-    Width               = 50
+    Width               = 60
     Height              = 24
-    Location            = New-Object System.Drawing.Point(16, ($SelectedFolderLbl.Bottom + 8))
+    Location            = New-Object System.Drawing.Point(16, ($SelectInputLbl.Bottom + 8))
 }
 
-$SelectedFileTxt        = New-Object System.Windows.Forms.TextBox -Property @{
-    Text                = "{0}" -f $File
+$SelectOutputTxt      = New-Object System.Windows.Forms.TextBox -Property @{
+    Text                = "{0}" -f $Folder
+    ReadOnly            = $true
     Width               = 256
     Height              = 70
-    Location            = New-Object System.Drawing.Point(($SelectedFileLbl.Width + 32), ($SelectedFileLbl.Top))
-    #Enabled            = $false
+    Location            = New-Object System.Drawing.Point(($SelectOutputLbl.Right + 8), ($SelectOutputLbl.Top))
 }
 
-$SelectFileBtn          = New-Object system.Windows.Forms.Button -Property @{
+$SelectOutputBtn        = New-Object system.Windows.Forms.Button -Property @{
     Text                = "Change"
     Font                = "Microsoft Sans Serif, 10"
     ForeColor           = "#000"
     BackColor           = "#ffffff"
     Width               = 120
     Height              = 24
-    Location            = New-Object System.Drawing.Point(($SelectedFileTxt.Width + 96), ($SelectedFileLbl.Top - 2))
+    Location            = New-Object System.Drawing.Point(($SelectOutputTxt.Right + 8), ($SelectOutputLbl.Top - 2))
+    Visible             = $true
+}
+
+$Checkbox               = New-Object System.Windows.Forms.Checkbox  -Property @{
+    Text                = "Output to File"
+    Width               = 100
+    Height              = 24
+    Location            = New-Object System.Drawing.Point(($SelectOutputBtn.Right + 8), ($SelectOutputBtn.Top))
+}
+
+write-host $SelectOutputBtn.Right
+
+$CommandToRunLbl        = New-Object System.Windows.Forms.Label -Property @{
+    Text                = "Command:"
+    Font                = "Microsoft Sans Serif, 10"
+    Width               = 75
+    Height              = 24
+    Location            = New-Object System.Drawing.Point(16, ($SelectOutputLbl.Bottom + 8))
+}
+
+$CommandToRunTxt        = New-Object system.Windows.Forms.TextBox -Property @{
+    Text                = $global:Command
+    ReadOnly            = $true
+    Font                = "Microsoft Sans Serif, 10"
+    Width               = 450
+    Height              = 24
+    Location            = New-Object System.Drawing.Point(($CommandToRunLbl.Right + 8), ($CommandToRunLbl.Top - 2))
     Visible             = $true
 }
 
@@ -125,7 +152,7 @@ $OutputTxt        = New-Object System.Windows.Forms.TextBox -Property @{
     ReadOnly            = $true
     Width               = ($LocalForm.ClientSize.Width - 24)
     Height              = 300
-    Location            = New-Object System.Drawing.Point(16, ($SelectedFileLbl.Bottom + 16))
+    Location            = New-Object System.Drawing.Point(16, ($CommandToRunLbl.Bottom + 16))
     Anchor              = "Top, Bottom, Left, Right"
 }
 
@@ -167,7 +194,7 @@ $StatusTxt              = New-Object system.Windows.Forms.Label -Property @{
     Font                = "Microsoft Sans Serif, 10"
     Width               = ($LocalForm.Width - 50)
     Height              = 24
-    Location            = New-Object System.Drawing.Point(($StatusLbl.Width + 16), ($StatusLbl.Top))
+    Location            = New-Object System.Drawing.Point(($StatusLbl.Right + 8), ($StatusLbl.Top))
     Anchor              = "Bottom, Left"
 }
 
@@ -184,54 +211,73 @@ $ProgressBar = New-Object System.Windows.Forms.ProgressBar -Property @{
 $LocalForm.CancelButton = $CancelBtn
 
 $LocalForm.controls.AddRange( @(
-    $TitleLbl, $DescriptionLbl, $Checkbox, 
-    $SelectedFolderLbl, $SelectedFolderTxt, $SelectFolderBtn, 
-    $SelectedFileLbl, $SelectedFileTxt, $SelectFileBtn, 
+    $TitleLbl, 
+    $DescriptionLbl,
+    $SelectInputLbl, $SelectInputTxt, $SelectInputBtn, 
+    $SelectOutputLbl, $SelectOutputTxt, $SelectOutputBtn, $Checkbox,
+    $CommandToRunLbl, $CommandToRunTxt, 
     $OutputTxt, 
     $ProgressBar, 
-    $StatusLbl, $StatusTxt,
-    $ExecuteBtn, $CancelBtn
+    $ExecuteBtn, $CancelBtn, 
+    $StatusLbl, $StatusTxt
 ) )
 
 #-----------------------------------------------------------[Functions]------------------------------------------------------------
 
+function Update-Command {
+    $global:Command = ("Get-Content '{0}' `| {1}" -f $global:InFile, $global:BaseCommand)
+    $CommandToRunTxt.Text = $global:Command
+}
+
 function Checkbox_Click {
     If ($Checkbox.Checked) {
-        Write-Host "Checked"
+        Write-Verbose "Checked"
+        Update-Command
     } Else {
-        Write-Host "Unhecked"
+        Write-Verbose "Unhecked"
+        Update-Command
     }
 }
 
-function SelectFileBtn_Click {
+function SelectInputBtn_Click {
     $FileDialog = New-Object System.Windows.Forms.OpenFileDialog
     $null = $FileDialog.ShowDialog()
     
-    $SelectedFileTxt.Text = $FileDialog.FileName
-    $Global:File = $FileDialog.FileName
-    Write-Host ("{0}" -f $FileDialog.FileName)
+    $SelectInputTxt.Text = $FileDialog.FileName
+    $global:InFile = $FileDialog.FileName
+    Update-Command
+    Write-Verbose ("{0}" -f $FileDialog.FileName)
 }
 
-function SelectFolderBtn_Click {
+function SelectOutputBtn_Click {
     $FolderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
     $null = $FolderDialog.ShowDialog()
     
-    $SelectedFolderTxt.Text = $FolderDialog.SelectedPath
-    $Global:Folder = $FolderDialog.SelectedPath
-    Write-Host ("{0}" -f $FolderDialog.SelectedPath)
+    $SelectOutputTxt.Text = $FolderDialog.SelectedPath
+    $global:OutFolder = $FolderDialog.SelectedPath
+    Update-Command
+    Write-Verbose ("{0}" -f $FolderDialog.SelectedPath)
 }
 
 function ExecuteBtn_Click { 
-    $OutputTxt.Text = ($OutputTxt.Text + "Folder: {0}`r`n" -f $Global:Folder)
-    $OutputTxt.Text = ($OutputTxt.Text + "File {0}`r`n" -f $Global:File)
+    
+
+    $OutputTxt.Text = ($OutputTxt.Text + ("Running: `r`n`t {0}`r`n" -f $global:Command))
+    $Result = Invoke-Expression $global:Command | Out-String
+    $OutputTxt.Text = ($OutputTxt.Text + $Result)
     $OutputTxt.Text = ($OutputTxt.Text + "`r`n")
+
+    If ($Checkbox.Checked) {
+        $Result | Out-File ("{0}\test.txt" -f $global:OutFolder)
+        $OutputTxt.Text = ($OutputTxt.Text + "Saved to {0}\test.txt `r`n" -f $global:OutFolder)
+    }
 }
 
 #---------------------------------------------------------[Script]--------------------------------------------------------
 
 $Checkbox.Add_CheckStateChanged( {Checkbox_Click} )
-$SelectFolderBtn.Add_Click( {SelectFolderBtn_Click} )
-$SelectFileBtn.Add_Click( {SelectFileBtn_Click} )
+$SelectOutputBtn.Add_Click( {SelectOutputBtn_Click} )
+$SelectInputBtn.Add_Click( {SelectInputBtn_Click} )
 $ExecuteBtn.Add_Click( {ExecuteBtn_Click} )
 
 # Get Last Used Settings & Locale
