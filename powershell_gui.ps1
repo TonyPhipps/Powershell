@@ -126,8 +126,6 @@ $Checkbox               = New-Object System.Windows.Forms.Checkbox  -Property @{
     Location            = New-Object System.Drawing.Point(($SelectOutputBtn.Right + 8), ($SelectOutputBtn.Top))
 }
 
-write-host $SelectOutputBtn.Right
-
 $CommandToRunLbl        = New-Object System.Windows.Forms.Label -Property @{
     Text                = "Command:"
     Font                = "Microsoft Sans Serif, 10"
