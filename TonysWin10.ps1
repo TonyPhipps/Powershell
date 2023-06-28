@@ -185,8 +185,6 @@
         "diagnosticshub.standardcollector.service" # Microsoft (R) Diagnostics Hub Standard Collector Service
         "DiagTrack"                                # Diagnostics Tracking Service
         "dmwappushservice"                         # WAP Push Message Routing Service
-        "HomeGroupListener"                        # HomeGroup Listener
-        "HomeGroupProvider"                        # HomeGroup Provider
         "lfsvc"                                    # Geolocation Service
         "MapsBroker"                               # Downloaded Maps Manager
         "NetTcpPortSharing"                        # Net.Tcp Port Sharing Service
