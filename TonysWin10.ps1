@@ -51,8 +51,8 @@
     Set-RegProperty "HKCU:Software\Microsoft\Windows\CurrentVersion\Explorer\AutoplayHandlers\DisableAutoplay" "DWORD" 1
     
     # Disable Taskbar Search
-    Set-RegProperty "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search" "DWORD" 0
-
+    Set-RegProperty "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search\ShowTaskViewButton" "DWORD" 0
+    Set-RegProperty "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search\SearchboxTaskbarMode" "DWORD" 1
 
     # Privacy -> General -> let websites provide locally relevant content by accessing my language list
     Remove-ItemProperty -Path "HKCU:SOFTWARE\Microsoft\Internet Explorer\International" -Name "AcceptLanguage" -ErrorAction SilentlyContinue
