@@ -284,5 +284,5 @@
 # --- CLEANUP ---
 
 # Restart explorer to cause some settings to take affect
-    Stop-Process -ProcessName explorer
-
+Stop-Process -ProcessName explorer
+Start-Process -ProcessName explorer
