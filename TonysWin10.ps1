@@ -148,7 +148,7 @@
 
 # --- SYSTEM PREFERENCE ---
 
-    New-PSDrive -Name HKCR -PSProvider Registry -Root HKEY_CLASSES_ROOT -ErrorAction SilentlyContinue | Out-Null
+    #New-PSDrive -Name HKCR -PSProvider Registry -Root HKEY_CLASSES_ROOT -ErrorAction SilentlyContinue | Out-Null
 
     # Allow accessing anonymous shares on other systems
     Set-RegProperty "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters\AllowInsecureGuestAuth" "DWORD" 1
