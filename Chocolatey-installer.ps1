@@ -11,7 +11,6 @@ choco install irfanviewplugins -y
 choco install greenshot -y
 choco install 7zip -y
 choco install libreoffice -y
-choco install citrix-receiver -y
 choco install javaruntime -y
 choco install veracrypt -y
 choco install discord -y
