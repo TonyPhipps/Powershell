@@ -1,13 +1,10 @@
 ﻿Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
 
 choco install firefox -y
-choco install chromium -y
 choco install keepass -y
-choco install steam -y
 choco install vscode -y
 choco install notepadplusplus -y
 choco install git -y
-choco install spideroakone -y
 choco install vlc -y
 choco install irfanview -y
 choco install irfanviewplugins -y
@@ -18,7 +15,6 @@ choco install citrix-receiver -y
 choco install javaruntime -y
 choco install veracrypt -y
 choco install discord -y
-
 
 # Media
 choco install audacity -y
