@@ -33,12 +33,11 @@ choco install speccy -y
 choco install nirlauncher -y
 
 # Speciality
-choco install docker -y
 choco install putty -y
 choco install ffmpeg -y
 choco install shotcut -y
 choco install blender -y
-
+choco install docker -y
 
 
 # Setup Chocolatey update scheduled task
