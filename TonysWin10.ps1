@@ -49,6 +49,10 @@
 
     # Disable Autoplay 
     Set-RegProperty "HKCU:Software\Microsoft\Windows\CurrentVersion\Explorer\AutoplayHandlers\DisableAutoplay" "DWORD" 1
+    
+    # Disable Taskbar Search
+    Set-RegProperty "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search" "DWORD" 0
+
 
     # Privacy -> General -> let websites provide locally relevant content by accessing my language list
     Remove-ItemProperty -Path "HKCU:SOFTWARE\Microsoft\Internet Explorer\International" -Name "AcceptLanguage" -ErrorAction SilentlyContinue
@@ -285,4 +289,4 @@
 
 # Restart explorer to cause some settings to take affect
 Stop-Process -ProcessName explorer
-Start-Process -ProcessName explorer
+Start-Process explorer
