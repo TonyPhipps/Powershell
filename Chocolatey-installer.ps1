@@ -1,9 +1,9 @@
 ﻿Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
 
+choco install notepadplusplus -y
 choco install firefox -y
 choco install keepass -y
 choco install vscode -y
-choco install notepadplusplus -y
 choco install git -y
 choco install vlc -y
 choco install irfanview -y
