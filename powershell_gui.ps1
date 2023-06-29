@@ -259,16 +259,22 @@ function SelectOutputBtn_Click {
 }
 
 function ExecuteBtn_Click { 
-    
+
+    $StatusTxt.Text = "Executing..."
 
     $OutputTxt.AppendText("Running: `r`n`t {0}`r`n" -f $global:Command)
-    $Result = Invoke-Expression $global:Command | Out-String
-    $OutputTxt.AppendText("$Result`r`n")
+    Invoke-Expression -Command "$global:Command *>&1" |
+        ForEach-Object {
+            $OutputTxt.AppendText("$_`r`n")
+        }
 
     If ($Checkbox.Checked) {
         $Result | Out-File ("{0}\test.txt" -f $global:OutFolder)
         $OutputTxt.AppendText("Saved to {0}\test.txt `r`n" -f $global:OutFolder)
     }
+
+    $OutputTxt.AppendText("`r`n`r`n")
+    $StatusTxt.Text = "Completed."
 }
 
 #---------------------------------------------------------[Script]--------------------------------------------------------
