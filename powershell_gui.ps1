@@ -147,6 +147,7 @@ $CommandToRunTxt        = New-Object system.Windows.Forms.TextBox -Property @{
 $OutputTxt        = New-Object System.Windows.Forms.TextBox -Property @{
     Text                = ""
     Multiline           = $true
+    ScrollBars          = "Vertical"
     ReadOnly            = $true
     Width               = ($LocalForm.ClientSize.Width - 24)
     Height              = 300
