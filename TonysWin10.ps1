@@ -184,6 +184,11 @@
     # Change "Diagnostic and Usage Data Collection Settings" to 1 (Basic)
     Set-RegProperty "HKLM:Software\Microsoft\Windows\CurrentVersion\Policies\DataCollection\AllowTelemetry" "DWORD" 1
 
+    # Disable Automatic Driver Updating (Especially if Windows keeps replacing your video card driver)
+    Set-RegProperty "HKLM:SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching\SearchOrderConfig" "DWORD" 3
+    Set-RegProperty "HKLM:SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata\PreventDeviceMetadataFromNetwork " "DWORD" 1
+    Set-RegProperty "HKLM:SOFTWARE\Microsoft\Windows\WindowsUpdate\ExcludeWUDriversInQualityUpdate" "DWORD" 1
+
     # Disable Services
     $services = @(
         "diagnosticshub.standardcollector.service" # Microsoft (R) Diagnostics Hub Standard Collector Service
