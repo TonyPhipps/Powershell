@@ -200,7 +200,7 @@ $StatusTxt              = New-Object system.Windows.Forms.Label -Property @{
 $ProgressBar = New-Object System.Windows.Forms.ProgressBar -Property @{
     Name                = 'progressBar1'
     Value               = 0
-    Maximum             = 1
+    Maximum             = 20
     Style               = "Continuous"
     Width               = ($LocalForm.ClientSize.Width - 32)
     Height              = 10
@@ -268,11 +268,8 @@ function ExecuteBtn_Click {
     Invoke-Expression -Command "$global:Command *>&1" |
         ForEach-Object {
             $OutputTxt.AppendText("$_`r`n")
-            if ($_ -like "*keyword*" -and $ProgressBar.Maximum -gt 1){
+            if ($_ -like "*keyword*"){
                 $ProgressBar.Value += 1
-            }
-            else{
-                $ProgressBar.Value = 1
             }
         }
 
