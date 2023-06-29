@@ -268,9 +268,11 @@ function ExecuteBtn_Click {
     Invoke-Expression -Command "$global:Command *>&1" |
         ForEach-Object {
             $OutputTxt.AppendText("$_`r`n")
-            if ($_ -like "*something*"){
-                    $ProgressBar.Value += 1
-                }
+            if ($_ -like "*keyword*" -and $ProgressBar.Maximum -gt 1){
+                $ProgressBar.Value += 1
+            }
+            else{
+                $ProgressBar.Value = 1
             }
         }
 
