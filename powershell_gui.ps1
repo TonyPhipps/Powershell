@@ -200,6 +200,7 @@ $StatusTxt              = New-Object system.Windows.Forms.Label -Property @{
 $ProgressBar = New-Object System.Windows.Forms.ProgressBar -Property @{
     Name                = 'progressBar1'
     Value               = 0
+    Maximum             = 1
     Style               = "Continuous"
     Width               = ($LocalForm.ClientSize.Width - 32)
     Height              = 10
@@ -261,11 +262,16 @@ function SelectOutputBtn_Click {
 function ExecuteBtn_Click { 
 
     $StatusTxt.Text = "Executing..."
-
+    $ProgressBar.Value = 0
+    
     $OutputTxt.AppendText("Running: `r`n`t {0}`r`n" -f $global:Command)
     Invoke-Expression -Command "$global:Command *>&1" |
         ForEach-Object {
             $OutputTxt.AppendText("$_`r`n")
+            if ($_ -like "*something*"){
+                    $ProgressBar.Value += 1
+                }
+            }
         }
 
     If ($Checkbox.Checked) {
