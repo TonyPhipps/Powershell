@@ -136,7 +136,7 @@
     }
 
     # Disable access to Speechlist
-    Set-RegProperty  "HKCU:\Control Panel\International\User Profile\HttpAcceptLanguageOptOut" "DWORD" 1
+    Set-RegProperty "HKCU:\Control Panel\International\User Profile\HttpAcceptLanguageOptOut" "DWORD" 1
     Set-RegProperty "HKCU:\Printers\Defaults\NetID" "STRING" "{00000000-0000-0000-0000-000000000000}"
     
     # Disable Feedback on write
@@ -148,6 +148,8 @@
     # Privacy: SmartScreen Filter for Store Apps: Disable
     Set-RegProperty "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppHost\EnableWebContentEvaluation" "DWORD" 0
 
+    # Disable 'Recent Items' and 'Frequent Places'
+    Set-RegProperty "HKCU:Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\Start_TrackDocs" "DWORD" 0
 
 
 # --- SYSTEM PREFERENCE ---
@@ -174,9 +176,6 @@
 
     # Clear Recent Docs on Exit
     Set-RegProperty "HKLM:Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\ClearRecentDocsOnExit" "DWORD" 1
-
-    # Disable 'Recent Items' and 'Frequent Places'
-    Set-RegProperty "HKCU:Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\Start_TrackDocs" "DWORD" 0
 
     # Clear Recent Docs on Exit
     Set-RegProperty "HKLM:Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\ClearRecentDocsOnExit" "DWORD" 1
