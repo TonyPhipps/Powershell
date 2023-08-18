@@ -93,7 +93,7 @@ $URL = "http://tinyurl.com/KindleWireless"
 
 
 # Merge CSV files
-Get-ChildItem *.csv | select name -ExpandProperty name | Import-Csv | export-csv -NoTypeInformation merged.csv
+Get-ChildItem *.csv | Select-Object name -ExpandProperty name | Import-Csv | export-csv -NoTypeInformation merged.csv
 
 
 # Change the Network Profile Associated with a Network Connection (e.g. Public, Private, etc.)
