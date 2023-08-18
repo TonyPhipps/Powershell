@@ -99,3 +99,10 @@ Get-ChildItem *.csv | select name -ExpandProperty name | Import-Csv | export-csv
 # Change the Network Profile Associated with a Network Connection (e.g. Public, Private, etc.)
 Get-NetConnectionProfile
 Set-NetConnectionProfile -Name "Unidentified network" -NetworkCategory Private
+
+
+# Timeout a Command
+Use this to effectively assign a timeout to any command or command block.
+Start-Job {                
+    hostname
+} | Wait-Job -Timeout 3 | Receive-Job
