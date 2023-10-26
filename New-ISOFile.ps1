@@ -15,7 +15,8 @@ function New-IsoFile
     $scriptPath = split-path -parent $MyInvocation.MyCommand.Definition
     New-IsoFile -FromClipboard -Verbose -Path $scriptPath\clipboard.iso
 
-    Save to a .ps1 Before running the file, first select and copy (Ctrl-C) files/folders in Explorer.
+    This will speed up the process further, where you copy a folder, run the command, and get "clipboard.iso" in the same folder as the script.
+    Save to the bottom of this .ps1. Before running the resulting file, first select and copy (Ctrl-C) files/folders in Explorer.
     
     .Example
     dir c:\WinPE | New-IsoFile -Path c:\temp\WinPE.iso -BootFile "${env:ProgramFiles(x86)}\Windows Kits\10\Assessment and Deployment Kit\Deployment Tools\amd64\Oscdimg\efisys.bin" -Media DVDPLUSR -Title "WinPE"
