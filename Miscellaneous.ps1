@@ -43,18 +43,6 @@ $json
 $records = $json._embedded.records
 $records
 
-
-# Enable event logs
-$LogNamesArray = @(
-    "Microsoft-Windows-DriverFrameworks-UserMode/Operational"
-)
-foreach ($LogName in $LogNamesArray){
-    $Log = New-Object System.Diagnostics.Eventing.Reader.EventLogConfiguration $LogName
-    $Log.IsEnabled = $true
-    $Log.SaveChanges()
-}
-
-
 # Registers a scheduled task which runs a PowerShell script file daily at 10am
 $Action = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument '-ExecutionPolicy Bypass -Windowstyle Hidden -File "C:\Users\Daft\Documents\threcon.ps1"'
 $Trigger = New-ScheduledTaskTrigger -Daily -At 10am
