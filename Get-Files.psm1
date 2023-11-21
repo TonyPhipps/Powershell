@@ -33,7 +33,7 @@ function Get-Files {
         }
 
     .NOTES 
-        Updated: 2023-11-08
+        Updated: 2023-11-21
 
         Contributing Authors:
             Anthony Phipps
@@ -82,7 +82,10 @@ function Get-Files {
 
         $ResolvedPaths = ForEach ($Path in [String[]]$SourceList) {
             if ($Path -match '\*') {
-                (Resolve-Path -Path $Path).Path
+                $Paths = (Resolve-Path -Path $Path).Path
+                if ($Paths.Count -gt 0){
+                    (Resolve-Path -Path $Path).Path
+                }
             }
             else{
                 $Path
@@ -91,7 +94,7 @@ function Get-Files {
 
         $ResolvedFiles = ForEach ($Path in $ResolvedPaths) {
 
-            if (Test-Path $Path -PathType Container){
+            if ((Test-Path $Path -PathType Container) -and (Get-ChildItem -Path $Path -File -Recurse).Count -gt 0){
                 (Get-ChildItem -Path $Path -File -Recurse).FullName
             }
             else {
@@ -106,6 +109,13 @@ function Get-Files {
             New-Item -ItemType Directory ($Destination + $PathSplit) -ErrorAction SilentlyContinue | Out-Null
             Copy-Item -Path $File -Destination ($Destination + $PathSplit) -Force
 
+            # Remove Empty Directories Recursively
+            Get-ChildItem $Destination -Directory -Recurse |
+                Foreach-Object { $_.FullName} |
+                Sort-Object -Descending |
+                Where-Object { !@(Get-ChildItem -force $_) } |
+                Remove-Item
+
             try{
                 $FileHash = (Get-FileHash -Path $File -ErrorAction Stop).Hash
             }
@@ -114,7 +124,7 @@ function Get-Files {
             }          
 
             $fileObject = Get-Item -Path $File 
-            $fileObject | Add-Member -MemberType NoteProperty -Name "Hash" -Value $FileHash
+            $fileObject | Add-Member -MemberType NoteProperty -Name "Hash" -Value $FileHash -Force
             $fileObject
         }
 
