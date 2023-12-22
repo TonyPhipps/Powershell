@@ -20,10 +20,10 @@ for ($i = -2 ; $i -le 1000 ; $i++){
     $imgRegex = '(?s)url\(pics\/[^\/]+\/(?<set>[^\/]+)\/(?<card>\d+).jpg.*?class=und.*?\>(?<alt>[^\<]+)\<'
 
         # Use Select-String to find matches in the HTML content
-    $matches = ($html | Select-String -Pattern $imgRegex -AllMatches).Matches.Value
+    $regexMatches = ($html | Select-String -Pattern $imgRegex -AllMatches).Matches.Value
 
         # Iterate through each match and output the 'src' attribute
-    foreach ($value in $matches) {
+    foreach ($value in $regexMatches) {
         
         # Define a regular expression with a named group
         $regex = [regex]::new('(?s)url\(pics\/[^\/]+\/(?<set>[^\/]+)\/(?<card>\d+).jpg.*?class=und.*?\>(?<alt>[^\<]+)\<')
