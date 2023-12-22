@@ -21,7 +21,6 @@ for ($i = -2 ; $i -le 500 ; $i++){
 
     # Pull regex matches of card details and art link
     $imgRegex = '(?s)url\(pics\/[^\/]+\/(?<set>[^\/]+)\/(?<card>\d+).jpg.*?class=und.*?\>(?<name>[^\<]+)\<'
-    #$regexMatches = ($html | Select-String -Pattern $imgRegex -AllMatches).Matches.Value
     $regexMatches = ($html | Select-String -Pattern $imgRegex -AllMatches).Matches
 
     # Iterate through each match and output the 'src' attribute
