@@ -38,6 +38,7 @@ Get-ChildItem "D:\GoogleDrive\Tony\Projects\Magic\art\*" -Recurse -Filter *.jpg 
             "ant" {$set = "atq"}
             "apo" {$set = "apc"}
             "ara" {$set = "arn"}
+            "tbw" {$set = "bro"}
 
         }
 
