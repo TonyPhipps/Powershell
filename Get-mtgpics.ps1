@@ -1,7 +1,9 @@
 ﻿# Specify where to save files
 $output = "E:\GoogleDrive\Tony\Projects\Magic\art"
 
-mkdir ("{0}" -f $output)
+mkdir ("{0}" -f $output) -ErrorAction SilentlyContinue
+
+$downloaded = 0
 
 for ($i = -2 ; $i -le 1000 ; $i++){
     
@@ -29,17 +31,18 @@ for ($i = -2 ; $i -le 1000 ; $i++){
         # Extract matches to a value
         $set = ($regex.Match($value)).Groups['set'].Value
         $card = ($regex.Match($value)).Groups['card'].Value
-        $alt = ($regex.Match($value)).Groups['alt'].Value
+        $name = ($regex.Match($value)).Groups['alt'].Value
            
         # Handle special characters
-        $alt = $alt -replace "&#39;", "'"
-        $alt = $alt -replace ":", ""
+        $name = $name -replace "&#39;", "'"
+        $name = $name -replace ":", ""
 
         $url = "https://www.mtgpics.com/pics/art/" + $set + "/" + $card + ".jpg"
-        $filename = "{0} {1}.jpg" -f $card, $alt
+        $filename = "{0} {1}.jpg" -f $card, $name
 
         # Output the value of the named group
-        write-host ("Pulling`n`t{0}`n`t`tFrom`n`t`t`t{1}" -f $filename, $url)
+        
+        $outFile = ("{0}\{1}\{2}" -f $output, $set, $filename)
 
         
         # Test if the directory exists
@@ -48,9 +51,21 @@ for ($i = -2 ; $i -le 1000 ; $i++){
         } else {
             mkdir ("{0}\{1}" -f $output, $set)
         }
+        
+        if (-not(Test-Path -Path $outFile -PathType Leaf)) {
 
-        Invoke-WebRequest $url -OutFile ("{0}\{1}\{2}" -f $output, $set, $filename)
+            try { 
+                Invoke-WebRequest $url -OutFile $outFile
+                ++$downloaded
 
+                write-host ("Pulling`n`t{0}`n`t`tFrom`n`t`t`t{1}" -f $filename, $url)
+            }
+            catch { Write-Verbose "$set - $card not found." }
+        }
+        else{
+            Write-host ("Already downloaded: {0} - {1} - {2}" -f $set, $card, $name)
+        }
     }
-
 }
+
+write-host "Downloaded $downloaded new cards!"
