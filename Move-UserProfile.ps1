@@ -2,11 +2,11 @@
 # Run code below from the new admin account
 
 $date = Get-Date -UFormat "%Y-%m-%d";
-$source = "C:\Users\Cooler"
-$destination = "D:\Users\Cooler"
+$source = "C:\Users\Tony"
+$destination = "F:\Users\Tony"
 # $incremenetalDestination = "g:\Backup\Tony_incremental_$date\";
-$logFile = "D:\BackupLog_$date.txt";
-$backupReport = "D:\BackupReport_$date.txt";
+$logFile = "F:\BackupLog_$date.txt";
+$backupReport = "F:\BackupReport_$date.txt";
  
 
 ## Check if Destination exists, if no create folder
@@ -23,7 +23,9 @@ $check_Destination = Dir $destination;
 Compare-Object $check_Source $check_Destination | Out-File $backupReport;
 
 # Go to this registry key, find the user SID, and modify the ProfileImagePath to match your $destination
+regedit
 # HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList
 
 # Log out and back in to the original account. Some apps may need to be reinstalled due to how Windows is dumb.
+# start-process powershell_ise.exe -verb runas
 # Get-AppXPackage -AllUsers | Foreach {Add-AppxPackage -DisableDevelopmentMode -Register “$($_.InstallLocation)\AppXManifest.xml”}
