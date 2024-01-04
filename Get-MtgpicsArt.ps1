@@ -10,7 +10,7 @@ $downloaded = 0
 # For each potential set, iterate and provide progress
 for ($i = -2 ; $i -le 500 ; $i++){
     $percentage=[math]::Round(($i/500)*100)
-    Write-Progress -Activity "Set $i, with $downloaded cards downloaded so far." -Status "($percentage % Complete)" -PercentComplete $percentage
+    Write-Progress -Activity "Set $i ($setProper), with $downloaded cards downloaded so far." -Status "($percentage % Complete)" -PercentComplete $percentage
     
     # Specify the URL of the web page you want to request
     $url = "https://www.mtgpics.com/art?set=$i"
@@ -94,7 +94,7 @@ for ($i = -2 ; $i -le 500 ; $i++){
                 Invoke-WebRequest $url -OutFile $outFile
                 ++$downloaded
 
-                Write-Host ("Downloading: {0} - {1} - {2} `n`t from {3}" -f $setProper, $card, $name, $url)
+                Write-Host ("Downloading: {0} - {1} - {2} `n`t from {3} to {4}" -f $setProper, $card, $name, $url, $outFile)
             }
             catch { Write-Verbose "$set - $card not found." }
         }
