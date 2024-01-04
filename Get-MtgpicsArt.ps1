@@ -1,5 +1,5 @@
 ﻿# Specify where to save files
-$output = "E:\GoogleDrive\Tony\Projects\Magic\art"
+$output = "F:\GoogleDrive\Tony\Projects\Magic\art"
 
 # -----------------------------------------------
 
