@@ -13,6 +13,7 @@ if ($string -match $pattern) {
 
 
 # Find and Replace in a File
+```
 $log = "C:\test.txt"
 
 $matchlist = Select-String -path $log -Pattern "<stuff>(.*)</stuff>" -Encoding unicode
@@ -27,13 +28,13 @@ $values = foreach ($match in $matchlist){
 }
 
 $values | Out-File -FilePath processed.txt
-
+```
 
 
 
 
 # Search a directory for matching files, then find and replace
-
+```
 $path="C:\logs\"
 mkdir "$path\processed"
 
@@ -57,3 +58,4 @@ Get-ChildItem $path -Filter *.bak -Recurse |
 
         $values | Out-File -FilePath ($path+'\processed\'+$_.BaseName + '.log')
     }
+```
