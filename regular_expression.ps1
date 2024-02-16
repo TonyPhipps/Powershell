@@ -1,4 +1,38 @@
-# Searches a directory for matching files then executes regex-based find and replace
+# Given a string, find a substring and assign it to a variable
+```
+$string = "This is a test string 123"
+$pattern = "(\d+)"
+
+if ($string -match $pattern) {
+  $matchedChars = $matches[1]
+}
+```
+
+
+
+
+
+# Find and Replace in a File
+$log = "C:\test.txt"
+
+$matchlist = Select-String -path $log -Pattern "<stuff>(.*)</stuff>" -Encoding unicode
+
+$matchlist = $matchlist.matches
+
+$values = foreach ($match in $matchlist){
+    $value = $match.groups[1].value
+    $value = $value.replace("&lt;","<")
+    $value = $value.replace("&gt;",">")
+    $value
+}
+
+$values | Out-File -FilePath processed.txt
+
+
+
+
+
+# Search a directory for matching files, then find and replace
 
 $path="C:\logs\"
 mkdir "$path\processed"
@@ -23,21 +57,3 @@ Get-ChildItem $path -Filter *.bak -Recurse |
 
         $values | Out-File -FilePath ($path+'\processed\'+$_.BaseName + '.log')
     }
-
-
-
-# Opens a file and executes regex-based find and replace
-$log = "C:\test.txt"
-
-$matchlist = Select-String -path $log -Pattern "<stuff>(.*)</stuff>" -Encoding unicode
-
-$matchlist = $matchlist.matches
-
-$values = foreach ($match in $matchlist){
-    $value = $match.groups[1].value
-    $value = $value.replace("&lt;","<")
-    $value = $value.replace("&gt;",">")
-    $value
-}
-
-$values | Out-File -FilePath processed.txt
