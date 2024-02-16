@@ -1,4 +1,4 @@
-# Given a string, find a substring and assign it to a variable
+Given a string, find a substring and assign it to a variable
 ```
 $string = "This is a test string 123"
 $pattern = "(\d+)"
@@ -12,7 +12,7 @@ if ($string -match $pattern) {
 
 
 
-# Find and Replace in a File
+Find and Replace in a File
 ```
 $log = "C:\test.txt"
 
@@ -33,7 +33,7 @@ $values | Out-File -FilePath processed.txt
 
 
 
-# Search a directory for matching files, then find and replace
+Search a directory for matching files, then find and replace
 ```
 $path="C:\logs\"
 mkdir "$path\processed"
