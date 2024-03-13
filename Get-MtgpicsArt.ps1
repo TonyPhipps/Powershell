@@ -3,6 +3,8 @@ $output = "F:\GoogleDrive\Tony\Projects\Magic\art"
 
 # -----------------------------------------------
 
+# $VerbosePreference = "Continue"
+
 mkdir ("{0}" -f $output) -ErrorAction SilentlyContinue
 
 $downloaded = 0
@@ -27,7 +29,7 @@ for ($i = -2 ; $i -le 500 ; $i++){
     $count = 0
     foreach ($regexMatch in $regexMatches) {
         ++$count
-        
+
         $set = $regexMatch.Groups['set'].Value
         $card = $regexMatch.Groups['card'].Value
         $name = $regexMatch.Groups['name'].Value
@@ -63,7 +65,7 @@ for ($i = -2 ; $i -le 500 ; $i++){
             "ara" {$setProper = "arn"}
             "tbw" {$setProper = "bro"}
         }
-        
+
         $percentage=[math]::Round(($count/$regexMatches.Count)*100)
         Write-Progress -Activity "Checking for Art in Set $i ($setProper)" -Status "($percentage % Complete)" -PercentComplete $percentage
         
