@@ -247,12 +247,6 @@
         "*zune*"
         "*xbox*"
         "*twitter*"
-        "Microsoft.CommsPhone"
-        "Microsoft.ConnectivityStore"
-        "Microsoft.Getstarted"
-        "Microsoft.Messaging"
-        "Microsoft.OneConnect"
-        "XboxGamingOverlay"
     )
     
     foreach ($package in $packages) {
