@@ -73,7 +73,9 @@ for ($i = -2 ; $i -le 500 ; $i++){
         $name = $name -replace "&#39;", "'"
         $name = $name -replace ":", ""
         $name = $name -replace "!", ""
+        $name = $name -replace "\?", ""
         $name = $name -replace '"', ""
+        $name = $name -replace '/', ""
 
         $url = "https://www.mtgpics.com/pics/art/" + $set + "/" + $card + ".jpg"
         $filename = "{0} {1}.jpg" -f $card, $name
@@ -92,13 +94,13 @@ for ($i = -2 ; $i -le 500 ; $i++){
         # Check if file exists, then download.
         if (-not(Test-Path -Path $outFile -PathType Leaf)) {
 
+            Write-Host ("Downloading: {0} - {1} - {2} `n`t from {3} to {4}" -f $setProper, $card, $name, $url, $outFile)
+
             try { 
                 Invoke-WebRequest $url -OutFile $outFile
                 ++$downloaded
-
-                Write-Host ("Downloading: {0} - {1} - {2} `n`t from {3} to {4}" -f $setProper, $card, $name, $url, $outFile)
             }
-            catch { Write-Verbose "$set - $card not found." }
+            catch { Write-Host "Error with: {0} - {1} - {2} `n`t from {3} to {4}" -f $setProper, $card, $name, $url, $outFile -ForegroundColor Red }
         }
         else{
             Write-Verbose ("Already downloaded: {0} - {1} - {2}" -f $setProper, $card, $name)
