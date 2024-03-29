@@ -46,7 +46,7 @@ function Deploy-EventLog{
     if (Get-EventLog -list | Where-Object {$_.logdisplayname -eq $LogName}) {
         
         Write-Verbose ("Log '{0}' already exists..." -f $Source)
-        Write-EventLog -LogName $LogName -Source $Source -EventID $EventID -EntryType $EntryType -Category $Category -Message $Message -RawData $RawData
+        Write-EventLog -LogName $LogName -Source $Source -EventID $EventID -EntryType $EntryType -Category $Category -Message ($Message[00.32000] -join "") -RawData $RawData
 
     } else { 
         
