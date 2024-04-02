@@ -9,7 +9,17 @@ if ($string -match $pattern) {
 ```
 
 
+Find a String From a File
+Given a file with this somewhere in it, and you want just the value of Something, which is "Captured".
 
+```Something='Captured'```
+
+```
+$File = ""
+$Pattern = "Something=\s'([^\'])'"
+$Matches = Select-String -path $File -Pattern $Pattern
+$Matches.Groups[1].Value
+```
 
 
 Find and Replace in a File
