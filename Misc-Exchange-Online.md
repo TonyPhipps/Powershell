@@ -1,4 +1,5 @@
 # Connect to Exchange Online with MFA
+# https://docs.microsoft.com/en-us/powershell/exchange/connect-to-scc-powershell?view=exchange-ps
 # https://outlook.office365.com/ecp > Hybrid > "The Exchange Online PowerShell Module..." > Configure > Install
 Uninstall-Module ExchangeOnlineManagement
 Install-Module ExchangeOnlineManagement
@@ -21,7 +22,7 @@ Get-InboxRule -Mailbox "[email@address.com]" | Select Name, Description, Enabled
 Set-Mailbox kimakers@contoso.com -RecipientLimits 20
  
 # Update  Recipient Limits on multiple mailboxes
-(Get-Mailbox | where {$_.RecipientTypeDetails -ne "DiscoveryMailbox"}) | % {Set-Mailbox $_.Identity -RecipientLimits 10}
+(Get-Mailbox | Where-Object {$_.RecipientTypeDetails -ne "DiscoveryMailbox"}) | % {Set-Mailbox $_.Identity -RecipientLimits 10}
  
 # Update the default  Recipient Limits for new mailboxes created in the future (all plans, tenant-level)
 Get-MailboxPlan | Set-MailboxPlan -RecipientLimits 50
@@ -42,3 +43,5 @@ $Trace += Get-MessageTrace -RecipientAddress $userSMTP -StartDate 02/17/2021 -En
 $Trace += Get-MessageTrace -RecipientAddress $userSMTP -StartDate 02/17/2021 -EndDate 02/23/2021
 $Trace | Select-Object Received, MessageTraceId, Size, SenderAddress, FromIP, RecipientAddress, ToIP, Subject, Status | Export-Csv -NoTypeInformation ("C:\logs\" + $userSMTP.Split('@')[0] + "_messagetrace.csv")
 
+# List Security and Compliance Center configured alert policies
+Get-ProtectionAlert | Format-List Name,Category,Comment,NotifyUser

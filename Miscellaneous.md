@@ -9,9 +9,10 @@ Get Windows 7, 10 Product Key from current system
 (Get-WmiObject -Query 'select * from SoftwareLicensingService').OA3xOriginalProductKey
 ```
 
-Clear all event logs
+Resolve Shortened URL
 ```
-wevtutil el | Foreach-Object {wevtutil cl "$_"}
+$URL = "http://tinyurl.com/KindleWireless"
+(Invoke-WebRequest -Uri $URL -MaximumRedirection 0 -ErrorAction Ignore).Headers.Location
 ```
 
 List mapped drives
@@ -28,20 +29,7 @@ New-Partition -DiskNumber 1 -UseMaximumSize -AssignDriveLetter
 Format-Volume -DriveLetter F -FileSystem NTFS -NewFileSystemLabel "Label"
 ```
 
-Registers a scheduled task which runs a PowerShell script file daily at 10am
-```
-$Action = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument '-ExecutionPolicy Bypass -Windowstyle Hidden -File "C:\Users\Daft\Documents\threcon.ps1"'
-$Trigger = New-ScheduledTaskTrigger -Daily -At 10am
-Register-ScheduledTask -Action $Action -Trigger $Trigger -TaskName "Powershell Script" -Description "Why did I do this?"
-```
 
-Registers a scheduled task which runs a command directly, every hour starting now, with highest rights
-```
-$Action2 = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument '-ExecutionPolicy Bypass -Windowstyle Hidden -Command "mkdir c:\test"'
-$Trigger2 = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionDuration (New-TimeSpan -Days (365 * 20)) -RepetitionInterval  (New-TimeSpan -Minutes 60)
-$Principal = New-ScheduledTaskPrincipal -UserID "NT AUTHORITY\SYSTEM" -RunLevel Highest
-Register-ScheduledTask -Action $Action2 -Trigger $Trigger2 -Principal $Principal -TaskName "Powershell Command" -Description "Elevated!"
-```
 
 Get BitLocker Keys
 ```

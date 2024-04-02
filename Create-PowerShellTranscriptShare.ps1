@@ -1,6 +1,6 @@
 # Source https://devblogs.microsoft.com/powershell/powershell-the-blue-team/
 
-md c:\Transcripts
+mkdir c:\Transcripts
 
 ## Kill all inherited permissions 
 $acl = Get-Acl c:\Transcripts $acl.SetAccessRuleProtection($true, $false)

@@ -12,6 +12,11 @@ Get-WinEvent -LogName "Microsoft-Windows-PrintService/Operational"
 Get-WinEvent -LogName "Microsoft-Windows-AppLocker/EXE and DLL"
 ```
 
+Clear all event logs
+```
+wevtutil el | Foreach-Object {wevtutil cl "$_"}
+```
+
 Filter Logs
 ```
 Get-WinEvent -FilterHashtable @{LogName = "Security"; ID = "4663"}
