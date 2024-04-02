@@ -64,6 +64,7 @@ for ($i = -2 ; $i -le 500 ; $i++){
             "apo" {$setProper = "apc"}
             "ara" {$setProper = "arn"}
             "tbw" {$setProper = "bro"}
+            Default {$setProper = $set}
         }
 
         $percentage=[math]::Round(($count/$regexMatches.Count)*100)
