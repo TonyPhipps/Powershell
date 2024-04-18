@@ -18,8 +18,15 @@ for ($i = -2 ; $i -le 500 ; $i++){
     $url = "https://www.mtgpics.com/art?set=$i"
 
     # Get set page
-    $response = Invoke-WebRequest -Uri $url -ErrorAction SilentlyContinue
-    $html = $response.Content
+    Write-host ("Getting set page: {0}" -f $url)
+    
+    try {
+        $response = Invoke-WebRequest -Uri $url -ErrorAction SilentlyContinue
+        $html = $response.Content
+    } catch [System.Net.WebException] {
+        Write-host ("`tSet not found: {0}" -f $i) -ForegroundColor Red
+        continue
+    }
 
     # Pull regex matches of card details and art link
     $imgRegex = '(?s)url\(pics\/[^\/]+\/(?<set>[^\/]+)\/(?<card>\d+).jpg.*?class=und.*?\>(?<name>[^\<]+)\<'
@@ -64,6 +71,7 @@ for ($i = -2 ; $i -le 500 ; $i++){
             "apo" {$setProper = "apc"}
             "ara" {$setProper = "arn"}
             "tbw" {$setProper = "bro"}
+            "con" {$setProper = "con_"} # can't create a folder named 'con' in Windows
             Default {$setProper = $set}
         }
 
@@ -85,23 +93,22 @@ for ($i = -2 ; $i -le 500 ; $i++){
         $outFile = ("{0}\{1}\{2}" -f $output, $setProper, $filename)
 
         # Check if directory exists, then create.
-        if (Test-Path -Path ("{0}\{1}" -f $output, $setProper) -PathType Container) {
-            
-        } else {
+        $path = "{0}\{1}" -f $output, $setProper
+        If(!(Test-Path -PathType container $path))
+        {
             Write-Host ("Making dir {0}\{1}" -f $output, $setProper)
-            New-Item -ItemType Directory -Path ("{0}\{1}" -f $output, $setProper) -Force
+            New-Item -ItemType Directory -Path $path
         }
         
         # Check if file exists, then download.
-        if (-not(Test-Path -Path $outFile -PathType Leaf)) {
-
+        If(!(Test-Path $outfile))
+        {
             Write-Host ("Downloading: {0} - {1} - {2} `n`t from {3} to {4}" -f $setProper, $card, $name, $url, $outFile)
-
             try { 
                 Invoke-WebRequest $url -OutFile $outFile
                 ++$downloaded
             }
-            catch { Write-Host "Error with: {0} - {1} - {2} `n`t from {3} to {4}" -f $setProper, $card, $name, $url, $outFile -ForegroundColor Red }
+            catch { Write-Host ("`tError with: {0} - {1} - {2} `n`t from {3} to {4}" -f $setProper, $card, $name, $url, $outFile) -ForegroundColor Red }
         }
         else{
             Write-Verbose ("Already downloaded: {0} - {1} - {2}" -f $setProper, $card, $name)
