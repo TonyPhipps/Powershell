@@ -22,14 +22,6 @@ function Get-Comparison {
     .EXAMPLE
         Get-Comparison -ReferenceObject "C:\baseline.csv" -DifferenceObject "C:\new_check.csv" -Compare "One", "Two", "Three" -OutputFolder "C:\output"
 
-    .EXAMPLE
-        Get-DuplicateFiles -Path "C:\Temp" -FullReport
-        Returns all files checked, including originals. A Status property will contain Original or Duplicate.
-
-    .EXAMPLE
-        Get-DuplicateFiles "C:\Users\MyProfile" | Where-Object {$_.Status -eq "Duplicate"} | Remove-Item
-        Removes duplicate items found.
-
     .NOTES
         Updated: 2024-05-21
 
