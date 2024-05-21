@@ -1,29 +1,102 @@
-$Ref = "baseline.csv"
-$Diff = "something.csv"
-$Compare = @("ProcessName")
-$Output = "c:\users\aphipps\temp"
+function Get-Comparison {
+    <#
+    .SYNOPSIS
+        Compares two CSV files for differences and exports the result in a new CSV file.
 
-mkdir $Output -ErrorAction SilentlyContinue
-$OutputFull = "{0}\{1}_vs_{2}_difference.csv" -f $Output, (Split-Path $Ref -Leaf), (Split-Path $Diff -Leaf)
-$RefObjs = Import-Csv $Ref
-$DiffObjs = Import-Csv $Diff
+    .DESCRIPTION
+        Compares two CSV files for differences and exports the result in a new CSV file. 
+        The output file will be saved in the folder specified in the -OutputFolder parameter, and will contain the two compared filenames.
 
-$UniqueObjects = Compare-Object -ReferenceObject $RefObjs -DifferenceObject $DiffObjs -Property $Compare -PassThru | 
-    Where-Object { $_.SideIndicator -eq '<=' -or $_.SideIndicator -eq '=>' }
+    .PARAMETER ReferenceObject
+        The first CSV file to compare.
 
-foreach ($UniqueObject in $UniqueObjects) {
-        
-    if ($UniqueObject.SideIndicator -eq "<="){
-        $UniqueObject | Add-Member -MemberType NoteProperty -Name "File" -Value $Ref
+    .PARAMETER DifferenceObject
+        The second CSV file to compare.
+
+    .PARAMETER Compare
+        The properties to compare. Use the format "One", "Two", "Three", etc.
+
+    .PARAMETER OutputFolder
+        The folder where the output file will be saved. Do NOT include the trailing backslash (\)
+
+    .EXAMPLE
+        Get-Comparison -ReferenceObject "C:\baseline.csv" -DifferenceObject "C:\new_check.csv" -Compare "One", "Two", "Three" -OutputFolder "C:\output"
+
+    .EXAMPLE
+        Get-DuplicateFiles -Path "C:\Temp" -FullReport
+        Returns all files checked, including originals. A Status property will contain Original or Duplicate.
+
+    .EXAMPLE
+        Get-DuplicateFiles "C:\Users\MyProfile" | Where-Object {$_.Status -eq "Duplicate"} | Remove-Item
+        Removes duplicate items found.
+
+    .NOTES
+        Updated: 2024-05-21
+
+        Contributing Authors:
+            Anthony Phipps
+
+        LEGAL: Copyright (C) 2024
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+        along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+    .LINK
+       https://github.com/TonyPhipps/Powershell
+    #>
+
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        $ReferenceObject = "C:\baseline.csv",
+        [Parameter()]
+        $DifferenceObject = "C:\new.csv",
+        [Parameter()]
+        [Array]$Compare = @("ProcessName"),
+        [Parameter()]
+        $OutputFolder = "c:\output"
+    )
+
+    begin{
     }
-    
-    if ($UniqueObject.SideIndicator -eq "=>"){
-        $UniqueObject | Add-Member -MemberType NoteProperty -Name "File" -Value $Diff
+
+    process{
+
+        mkdir $OutputFolder -ErrorAction SilentlyContinue
+        $Output = "{0}\{1}_vs_{2}_difference.csv" -f $OutputFolder, (Split-Path $Ref -Leaf), (Split-Path $Diff -Leaf)
+        $ReferenceObjects = Import-Csv $ReferenceObject
+        $DifferenceObjects = Import-Csv $DifferenceObject
+
+        $UniqueObjects = Compare-Object -ReferenceObject $ReferenceObjects -DifferenceObject $DifferenceObjects -Property $Compare -PassThru | 
+            Where-Object { $_.SideIndicator -eq '<=' -or $_.SideIndicator -eq '=>' }
+
+        foreach ($UniqueObject in $UniqueObjects) {
+                
+            if ($UniqueObject.SideIndicator -eq "<="){
+                $UniqueObject | Add-Member -MemberType NoteProperty -Name "File" -Value $ReferenceObject
+            }
+            
+            if ($UniqueObject.SideIndicator -eq "=>"){
+                $UniqueObject | Add-Member -MemberType NoteProperty -Name "File" -Value $DifferenceObject
+            }
+
+            $UniqueObject | Add-Member -MemberType NoteProperty -Name "ComparedProperties" -Value ($Compare -join ", ")
+        }  
+
+        Write-Information -InformationAction Continue -MessageData ("Found {0} unique objects. Saving output to {1}" -f $UniqueObjects.count, $Output)
+
+        $UniqueObjects | Export-Csv $Output -NoTypeInformation
     }
 
-    $UniqueObject | Add-Member -MemberType NoteProperty -Name "ComparedProperties" -Value ($Compare -join ", ")
-}  
-
-Write-Information -InformationAction Continue -MessageData ("Found {0} unique objects. Saving output to {1}" -f $UniqueObjects.count, $OutputFull)
-
-$UniqueObjects | Export-Csv $OutputFull -NoTypeInformation
+    end{
+    }
+}
