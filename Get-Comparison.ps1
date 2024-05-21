@@ -84,9 +84,12 @@ function Get-Comparison {
             $UniqueObject | Add-Member -MemberType NoteProperty -Name "ComparedProperties" -Value ($Compare -join ", ")
         }  
 
-        Write-Information -InformationAction Continue -MessageData ("Found {0} unique objects. Saving output to {1}" -f $UniqueObjects.count, $Output)
-
-        $UniqueObjects | Export-Csv $Output -NoTypeInformation
+        Write-Information -InformationAction Continue -MessageData ("Found {0} unique objects." -f $UniqueObjects.count)
+        
+        if ($UniqueObjects.count -gt 0) {
+            Write-Information -InformationAction Continue -MessageData ("Saving output to {0}" -f $Output)    
+            $UniqueObjects | Export-Csv $Output -NoTypeInformation
+        }
     }
 
     end{
