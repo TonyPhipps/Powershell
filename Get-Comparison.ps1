@@ -71,7 +71,7 @@ function Get-Comparison {
 
     process{
 
-        mkdir $OutputFolder -ErrorAction SilentlyContinue
+        New-Item -Path (Split-Path $OutputFolder -Parent) -Name (Split-Path $OutputFolder -Leaf) -ItemType "Directory" -ErrorAction SilentlyContinue
         $Output = "{0}\{1}_vs_{2}_difference.csv" -f $OutputFolder, (Split-Path $Ref -Leaf), (Split-Path $Diff -Leaf)
         $ReferenceObjects = Import-Csv $ReferenceObject
         $DifferenceObjects = Import-Csv $DifferenceObject
