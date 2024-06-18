@@ -59,6 +59,23 @@ function Get-Comparison {
     )
 
     begin{
+        $ReferenceObjects = Import-Csv $ReferenceObject
+        $DifferenceObjects = Import-Csv $DifferenceObject
+        if ($ReferenceObjects -eq $DifferenceObjects){ # Objects are the same / both blank
+            continue 
+        } 
+        if (!$ReferenceObject -OR !$ReferenceObjects){ # ReferenceObject is blank
+            Write-Information -InformationAction Continue -MessageData ("Reference object blank or doesn't exist for: `n`t{0}`n`tCopying the DifferenceObject to represent differences." -f $DifferenceObject)
+            $Output = "{0}\NO_REFERENCE_OBJECT_OR_CONTENT_FOR_{1}.csv" -f $OutputFolder, (Split-Path $DifferenceObject -Leaf).split('\.')[-2]
+            Copy-Item $DifferenceObject $Output
+            continue
+        }    
+        if (!$DifferenceObject -OR !$DifferenceObjects){ # DifferenceObject is blank
+            Write-Information -InformationAction Continue -MessageData ("Difference object blank or doesn't exist for: `n`t{0}`n`tCopying the ReferenceObject to represent differences." -f $ReferenceObject)
+            $Output = "{0}\{1}_HAS_NO_DIFFERENCE_OBJECT_OR_CONTENT.csv" -f $OutputFolder, (Split-Path $ReferenceObject -Leaf).split('\.')[-2]
+            Copy-Item $ReferenceObject $Output
+            continue
+        }
     }
 
     process{
