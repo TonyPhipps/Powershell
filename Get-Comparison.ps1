@@ -23,7 +23,7 @@ function Get-Comparison {
         Get-Comparison -ReferenceObject "C:\baseline.csv" -DifferenceObject "C:\new_check.csv" -Compare "One", "Two", "Three" -OutputFolder "C:\output"
 
     .NOTES
-        Updated: 2024-05-21
+        Updated: 2024-06-18
 
         Contributing Authors:
             Anthony Phipps
