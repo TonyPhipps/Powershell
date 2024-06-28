@@ -48,14 +48,28 @@ function Get-Comparison {
 
     [CmdletBinding()]
     param(
+        [Parameter(mandatory=$true)]
+            [ValidateScript({
+                try {
+                    Get-Item $_ -ErrorAction Stop
+                } catch [System.Management.Automation.ItemNotFoundException] {
+                    Throw [System.Management.Automation.ItemNotFoundException] "${_} Maybe there are network issues?"
+                }
+            })]
+            [String]$ReferenceObject,
+        [Parameter(mandatory=$true)]
+            [ValidateScript({
+                try {
+                    Get-Item $_ -ErrorAction Stop
+                } catch [System.Management.Automation.ItemNotFoundException] {
+                    Throw [System.Management.Automation.ItemNotFoundException] "${_} Maybe there are network issues?"
+                }
+            })]
+            [String]$DifferenceObject,
         [Parameter()]
-        $ReferenceObject = "C:\baseline.csv",
+            [Array]$Compare,
         [Parameter()]
-        $DifferenceObject = "C:\new.csv",
-        [Parameter()]
-        [Array]$Compare = @("ProcessName"),
-        [Parameter()]
-        $OutputFolder = "c:\output"
+            [String]$OutputFolder = "$DifferenceObject\Difference"
     )
 
     begin{
