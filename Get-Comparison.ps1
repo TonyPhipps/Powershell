@@ -75,7 +75,7 @@ function Get-Comparison {
     begin{
         $ReferenceObjects = Import-Csv $ReferenceObject
         $DifferenceObjects = Import-Csv $DifferenceObject
-        if ($ReferenceObject -eq $DifferenceObject){ # Objects are the same / both blank
+        if ([Collections.Generic.SortedSet[String]]::CreateSetComparer().Equals($ReferenceObjects,$DifferenceObjects)){ # Objects are the same / both blank
             Write-Information -InformationAction Continue -MessageData ("Reference object matches Difference object. Skipping.")
             continue 
         } 
