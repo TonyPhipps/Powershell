@@ -23,7 +23,7 @@ function Get-Comparison {
         Get-Comparison -ReferenceObject "C:\baseline.csv" -DifferenceObject "C:\new_check.csv" -Compare "One", "Two", "Three" -OutputFolder "C:\output"
 
     .NOTES
-        Updated: 2024-06-18
+        Updated: 2024-06-28
 
         Contributing Authors:
             Anthony Phipps
@@ -75,7 +75,8 @@ function Get-Comparison {
     begin{
         $ReferenceObjects = Import-Csv $ReferenceObject
         $DifferenceObjects = Import-Csv $DifferenceObject
-        if ($ReferenceObjects -eq $DifferenceObjects){ # Objects are the same / both blank
+        if ($ReferenceObject -eq $DifferenceObject){ # Objects are the same / both blank
+            Write-Information -InformationAction Continue -MessageData ("Reference object matches Difference object. Skipping.")
             continue 
         } 
         if (!$ReferenceObject -OR !$ReferenceObjects){ # ReferenceObject is blank
