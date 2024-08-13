@@ -48,3 +48,21 @@ Get-NetConnectionProfile
 Set-NetConnectionProfile -Name "Unidentified network" -NetworkCategory Private
 
 ```
+
+Filter a string to produce a valid filename
+```
+function Get-ValidFileName {
+    param (
+        [string]$fileName,
+        [string]$replacement = "_"
+    )
+
+    $invalidChars = [System.IO.Path]::GetInvalidFileNameChars()
+
+    foreach ($char in $invalidChars) {
+        $fileName = $fileName -replace [RegEx]::Escape($char), $replacement
+    }
+
+    return $fileName
+}
+```
