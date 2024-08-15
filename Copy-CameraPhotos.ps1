@@ -2,7 +2,7 @@
 $searchDirectories = @("C:\Users", "D:\")
 
 # Define the destination folder for found photos
-$destinationFolder = "C:\test"
+$destinationFolder = "C:\PhotosFromCamera"
 
 # Define the file extensions for the image files you want to search for
 $imageExtensions = @("*.jpg", "*.jpeg", "*.heif", "*.heic", "*.png")
