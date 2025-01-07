@@ -2,6 +2,7 @@
 Param(
     [String]$IP = "localhost",
     [String]$Port = "8834",
+    [String]$Format = "csv", # options are csv, html
     [String]$ApiFile = "$ScriptRoot\ApiCredentials.xml",
     [Array]$ScanIDs = "",
     [String]$OutFolder = $ScriptRoot
@@ -158,7 +159,7 @@ foreach ($ScanID in $ScanIDs) {
         "Headers" = $Headers
 
 	    "Body"     = @{
-            "format"   = "csv"
+            "format"   = $Format
         } | ConvertTo-Json -Depth 10
     }
 
