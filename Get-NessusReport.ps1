@@ -17,8 +17,6 @@ if (($psISE) -and (Test-Path -Path $psISE.CurrentFile.FullPath)) {
     $ScriptRoot = $PSScriptRoot
 }
 
-$ModuleRoot = Split-Path -Path $ScriptRoot -Parent
-
 $ApiKey    = ""
 $ApiSecret = ""
 
