@@ -1,23 +1,29 @@
-# Install-Module -Name vmware.powercli -AllowClobber
+Install-Module -Name vmware.powercli -AllowClobber
 # Set-PowerCLIConfiguration -ParticipateInCEIP $true
 # Set-PowerCLIConfiguration -InvalidCertificateAction Ignore
+# Set-PowerCLIConfiguration -WebOperationTimeoutSeconds 1800 -Scope User
+# Import-Module VMware.VimAutomation.Core
 
-$VIServer = "192.168.1.100"
-$VIServerCredentials = "user@fqdn.com"
+$VIServer = "server"
+$VIServerCredentials = "administrator@server"
 $VIServerCredentials = (Get-Credential $VIServerCredentials)
-Connect-VIServer $VIServer -Credential $VIServerCredentials
 
-$GuestCredentials = "guestuser"
+
+$GuestCredentials = "guest_admin"
 $GuestCredentials = (Get-credential $GuestCredentials)
 
-$VM = "vmName"
-$Source = "C:\Users\aphipps\Downloads\test.txt"
-$Destination = "C:\TEMP\tony"
+$VM = "vm_name"
 
-# Copy From Local to Guest
+$Source = "D:\vmware_LocalToGuest"
+$Destination = "D:\vmware_LocalToGuest"
+
+Connect-VIServer $VIServer -Credential $VIServerCredentials
+
 Copy-VMGuestFile -Source $Source -Destination $Destination -LocalToGuest -VM $VM -GuestCredential $GuestCredentials -Force
 [System.Console]::beep(440, 500)
 
-# Copy From Guest to Local
+$Source = "D:\vmware_GuestToLocal"
+$Destination = "D:\vmware_GuestToLocal"
+
 Copy-VMGuestFile -Source $Source -Destination $Destination -GuestToLocal -VM $VM -GuestCredential $GuestCredentials -Force
 [System.Console]::beep(440, 500)

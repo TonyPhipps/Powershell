@@ -22,22 +22,21 @@ $Matches.Groups[1].Value
 ```
 
 
-Find and Replace in a File
+Find and Replace in One or More Files
 ```
-$log = "C:\test.txt"
+$Files = Get-ChildItem -Path $ViewsFolder -Filter *.xml
 
-$matchlist = Select-String -path $log -Pattern "<stuff>(.*)</stuff>" -Encoding unicode
-
-$matchlist = $matchlist.matches
-
-$values = foreach ($match in $matchlist){
-    $value = $match.groups[1].value
-    $value = $value.replace("&lt;","<")
-    $value = $value.replace("&gt;",">")
-    $value
+foreach ($File in $Files){
+    if ($File.Name -match "file1.xml"){
+        (Get-Content $File.PSPath) |
+        Foreach-Object { $_ -replace "regex1", "replacement1" } |
+        Set-Content $File.PSPath
+    }elseif ($File.Name -match "file2.xml"){
+        (Get-Content $File.PSPath) |
+        Foreach-Object { $_ -replace "regex2", "replacement2" } |
+        Set-Content $File.PSPath
+    }
 }
-
-$values | Out-File -FilePath processed.txt
 ```
 
 

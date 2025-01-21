@@ -54,6 +54,11 @@
     Set-RegProperty "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search\ShowTaskViewButton" "DWORD" 0
     Set-RegProperty "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search\SearchboxTaskbarMode" "DWORD" 1
 
+    # Disable Mouse Enhanced Pointer Precision (Auto mouse speed)
+    Set-RegProperty "HKCU:\Control Panel\Mouse\MouseSpeed" "STRING" 0
+    Set-RegProperty "HKCU:\Control Panel\Mouse\MouseThreshold1" "STRING" 0
+    Set-RegProperty "HKCU:\Control Panel\Mouse\MouseThreshold2" "STRING" 0
+
     # Privacy -> General -> let websites provide locally relevant content by accessing my language list
     Remove-ItemProperty -Path "HKCU:SOFTWARE\Microsoft\Internet Explorer\International" -Name "AcceptLanguage" -ErrorAction SilentlyContinue
     Set-RegProperty "HKCU:Control Panel\International\User Profile\HttpAcceptLanguageOptOut" "DWORD" 1
