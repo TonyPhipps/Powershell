@@ -1,4 +1,4 @@
-﻿function Flatten-Object {
+﻿function Get-FlatYAML {
     param (
         [Parameter(Mandatory)]
         $InputObject
@@ -8,7 +8,7 @@
     # Find-Module -Repository psgallery *yaml*
     # Install-Module powershell-yaml -Scope CurrentUser
     # Get-Help ConvertFrom-YAML
-    # ConvertFrom-Yaml (Get-Content ($File.FullName) -raw)
+    # $SampleInput = ConvertFrom-Yaml (Get-Content ($File.FullName) -raw)
 
     $Output = New-Object -TypeName PSObject
 
