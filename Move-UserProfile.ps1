@@ -18,8 +18,8 @@ robocopy $source $destination /XJ *.* /COPY:DAT /DCOPY:DAT /MIR /ZB /R:3 /W:10 /
 
 
 ## Compare Source and Destination, write deviations to backup report 
-$check_Source = Dir $source;
-$check_Destination = Dir $destination;
+$check_Source = Get-ChildItem $source;
+$check_Destination = Get-ChildItem $destination;
 Compare-Object $check_Source $check_Destination | Out-File $backupReport;
 
 # Go to this registry key, find the user SID, and modify the ProfileImagePath to match your $destination
