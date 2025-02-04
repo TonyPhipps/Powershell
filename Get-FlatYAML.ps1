@@ -1,14 +1,26 @@
 ﻿function Get-FlatYAML {
     param (
         [Parameter(Mandatory)]
-        $InputObject
+        $InputObject,
+
+        [String]$InputFileName
     )
 
-    # Sample $InputObject:
+    # Sample $InputObject
     # Find-Module -Repository psgallery *yaml*
     # Install-Module powershell-yaml -Scope CurrentUser
     # Get-Help ConvertFrom-YAML
     # $SampleInput = ConvertFrom-Yaml (Get-Content ($File.FullName) -raw)
+
+    # Sample Mass Use
+    # $Files = Get-ChildItem -Path "C:\Users\user\Downloads\sigma-master\sigma-master\rules*" -Recurse -Include *.yml
+    # [array]$CSV = ForEach ($File in $Files){
+    #     if ($File.GetType().Name -eq "FileInfo"){
+    #         $FullName = $File.FullName
+    #         $YAML = ConvertFrom-Yaml (Get-Content ($File.FullName) -raw)
+    #         Get-FlatYAML $YAML $FullName
+    #     }
+    # }
 
     $Output = New-Object -TypeName PSObject
 
@@ -32,7 +44,7 @@
                             }
                             elseif ($NULL -eq $Member3) {
                             }
-                            elseif ($Member3.GetType().Name -in ("String","Int32","long","Bool")) {
+                            elseif ($Member3.GetType().Name -in ("String","Int32","long","bool")) {
                                 $Output | Add-Member -MemberType NoteProperty -Name ($Key + "." + $Key2 + "." + $Key3) -Value $Member3 -ErrorAction SilentlyContinue | Out-Null
                             }
                             else {
@@ -45,7 +57,7 @@
                         $ICollection2 = $Member2.$Key2 -join ", "
                         $Output | Add-Member -MemberType NoteProperty -Name ($Key + "." + $Key2) -Value $ICollection2 -ErrorAction SilentlyContinue | Out-Null
                     }
-                    elseif ($Member2.GetType().Name -in ("String","Int32","long","Bool")) {
+                    elseif ($Member2.GetType().Name -in ("String","Int32","long","bool")) {
                         $Output | Add-Member -MemberType NoteProperty -Name ($Key + "." + $Key2) -Value $Member2 -ErrorAction SilentlyContinue | Out-Null
                     }
                     else {
@@ -58,7 +70,7 @@
                 $ICollection = $InputObject.$key -join ", "
                 $Output | Add-Member -MemberType NoteProperty -Name $Key -Value $ICollection -ErrorAction SilentlyContinue | Out-Null
             }
-            elseif ($Member.GetType().Name -in ("String","Int32","long","Bool")) {
+            elseif ($Member.GetType().Name -in ("String","Int32","long","bool")) {
                 $Output | Add-Member -MemberType NoteProperty -Name $Key -Value $Member -ErrorAction SilentlyContinue | Out-Null
             }            
             else {
@@ -67,5 +79,11 @@
             }               
         }
     }
+
+    if ($InputFileName){
+        $Original = Get-Content ($InputFileName) -raw
+        $Output | Add-Member -MemberType NoteProperty -Name "Original" -Value $Original -ErrorAction SilentlyContinue | Out-Null
+    }
+
     return $Output
 }
