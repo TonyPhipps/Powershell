@@ -1,10 +1,11 @@
 # Script to convert ManaBox CSV export to Moxfield-compatible CSV
 # Supports drag-and-drop or command-line parameters
+# Supports auto converting a file named "ManaBox_Collection.csv" in the same directory as this script when ran without any parameters.
 # Example
 # C:\path\to\Convert-ManaboxToMoxfield.ps1 -InputFile "C:\path\to\ManaBox_Collection.csv" -OutputFile "C:\path\to\ManaBox_Collection_Moxfield.csv"
 
 param (
-    [Parameter(Mandatory=$false)][string]$InputFile,
+    [Parameter(Mandatory=$false)][string]$InputFile = ".\ManaBox_Collection.csv",
     [Parameter(Mandatory=$false)][string]$OutputFile
 )
 
@@ -65,7 +66,8 @@ $convertedData = @()
 foreach ($row in $manaBoxData) {
     # Map ManaBox fields to Moxfield fields
     $convertedRow = [PSCustomObject]@{
-        "Count"          = $row.Quantity           # ManaBox uses "Quantity" for card count
+        #"Count"          = $row.Quantity          # ManaBox uses "Quantity" for card count
+        "Count"          = "1"                     # ManaBox uses "Quantity" for card count
         "Name"           = $row.Name               # Card name, assumed to match
         "Edition"        = $row."Set Code"         # ManaBox "Set Code" maps to Moxfield "Edition"
         "Condition"      = $row.Condition          # Condition, may need normalization
