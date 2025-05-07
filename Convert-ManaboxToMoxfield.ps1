@@ -79,7 +79,9 @@ foreach ($row in $manaBoxData) {
     # Normalize condition values to Moxfield's expected terms (adjust as needed)
     switch ($convertedRow.Condition) {
         "near_mint" { $convertedRow.Condition = "Near Mint" }
-        "LightlyPlayed" { $convertedRow.Condition = "Lightly Played" }
+        "excellent" { $convertedRow.Condition = "Lightly Played" }
+		"LightlyPlayed" { $convertedRow.Condition = "Lightly Played" }
+		"light_played" { $convertedRow.Condition = "Lightly Played" }
         "HeavilyPlayed" { $convertedRow.Condition = "Heavily Played" }
         # Add more mappings if needed
     }
