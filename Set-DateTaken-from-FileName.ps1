@@ -2,6 +2,8 @@
 $directory = "E:\temp\pics\test"
 
 # Define the pattern to extract the date from filenames
+#$dateTimePattern = "IMG_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})" # Example: IMG_20220322_154540.jpg
+#$dateTimePattern = "File_(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})" # Example: File_20221212-123211.jpg
 #$dateTimePattern = "(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})" # Example: 20210720_200601_1177536
 $dateTimePattern = "(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})" # Example: 2021-07-20_20-06-01_1177536
 #$dateTimePattern = "x" # Example: 79576746_590191381795832_5037634142968217600_n.jpg
