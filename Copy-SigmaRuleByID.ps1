@@ -1,32 +1,39 @@
 ﻿# Given a csv of selected ID's for sigma rules, copy those rules from a sigma-master repo download into another folder for further processing.
+# .\Copy-SigmaRuleByID.ps1 -SelectedIDs "selected_ids.csv" -SigmaRules "D:\github\sigma\rules" -output ".\selected_rules"
 
 param (
-    [string]$Rules,
-    [string]$SelectedIDs
+    [Parameter(Mandatory=$true)][string]$SelectedIDs,
+    [Parameter(Mandatory=$true)][string]$SigmaRules,
+    [Parameter(Mandatory=$true)][string]$Output
 )
 
-# Set variables
-$csvPath = "C:\path\to\selected_ids.csv"
-$sourceRoot = "C:\path\to\sigma-master\rules"
-$destinationRoot = "C:\path-to\sigma-master\select_rules"
+if ( ($psISE) -and (Test-Path -Path $psISE.CurrentFile.FullPath)) {
+    $ScriptRoot = Split-Path -Path $psISE.CurrentFile.FullPath -Parent
+} else {
+    $ScriptRoot = $PSScriptRoot
+}
+
+if (not $Output){
+    $Output = "$SCriptRoot\selected_rules"
+}
 
 # Import strings from CSV
-$stringsToFind = Import-Csv $csvPath | Select-Object -ExpandProperty *
+$stringsToFind = Import-Csv $SelectedIDs | Select-Object -ExpandProperty *
 
 # Get all files recursively
-$files = Get-ChildItem $sourceRoot -Recurse | Where-Object { !$_.PSIsContainer }
+$files = Get-ChildItem $SigmaRules -Recurse | Where-Object { !$_.PSIsContainer }
 
 # Loop through each file
 foreach ($file in $files) {
     # Read the content of the file
-    $content = Get-Content $file.FullName
+    $content = Get-Content $file.FullName -Raw -Encoding UTF8
 
     # Check if any of the strings exist in the file content
     foreach ($string in $stringsToFind) {
         if ($content -match $string) {
             # Build destination path, maintaining folder structure
-            $relativePath = $file.FullName.Substring($sourceRoot.Length).TrimStart("\")
-            $destinationPath = Join-Path $destinationRoot $relativePath
+            $relativePath = $file.FullName.Substring($SigmaRules.Length).TrimStart("\")
+            $destinationPath = Join-Path $Output $relativePath
             $destinationDir = Split-Path $destinationPath
 
             # Create the destination directory if it doesn't exist
