@@ -1,4 +1,16 @@
-﻿param (
+﻿# Defaults asusme the folder structure:
+# .\sigma\util\SCRIPT_IS_HERE
+# .\sigma\rules
+# .\sigma\output
+# .\sigma\pipelines
+# .\sigma\filters
+
+# Example
+# .\Create-SigamRulesFromDir.ps1 `
+# -inputDir "C:\Users\you\sigma\selected-rules" `
+# -outputDir "C:\Users\you\sigma\"
+
+param (
     [string]$venv         = "$($env:USERPROFILE)\python\sigma",
     [string]$inputDir     = (Join-Path -Path $ScriptParent -ChildPath 'rules'),
     [string]$outputDir    = (Join-Path -Path $ScriptParent -ChildPath 'output'),
