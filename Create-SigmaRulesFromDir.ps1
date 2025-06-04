@@ -11,11 +11,11 @@
 # -outputDir "C:\Users\you\sigma\"
 
 param (
-    [string]$venv         = "$($env:USERPROFILE)\python\sigma",
-    [string]$inputDir     = (Join-Path -Path $ScriptParent -ChildPath 'rules'),
-    [string]$outputDir    = (Join-Path -Path $ScriptParent -ChildPath 'output'),
-    [string]$pipelineDir  = (Join-Path -Path $ScriptParent -ChildPath 'pipelines'),
-    [string]$filterDir    = (Join-Path -Path $ScriptParent -ChildPath 'filters')
+    [string]$venv,
+    [string]$inputDir,
+    [string]$outputDir,
+    [string]$pipelineDir,
+    [string]$filterDir
 )
 
 if ( ($psISE) -and (Test-Path -Path $psISE.CurrentFile.FullPath)) {
@@ -24,6 +24,12 @@ if ( ($psISE) -and (Test-Path -Path $psISE.CurrentFile.FullPath)) {
     $ScriptRoot = $PSScriptRoot
 }
 $ScriptParent = Split-Path -Path $ScriptRoot -Parent
+
+if (!$venv)         { $venv = "$($env:USERPROFILE)\python\sigma" }
+if (!$inputDir)     { $inputDir = (Join-Path -Path $ScriptParent -ChildPath 'rules') }
+if (!$outputDir)    { $outputDir = (Join-Path -Path $ScriptParent -ChildPath 'output') }
+if (!$pipelineDir)  { $pipelineDir = (Join-Path -Path $ScriptParent -ChildPath 'pipelines') }
+if (!$filterDir)    { $filterDir = (Join-Path -Path $ScriptParent -ChildPath 'filters') }
 
 # Ensure rules exist in \rules\
 if ((Get-ChildItem $inputDir -Recurse -Include "*.yml").Length -eq 0 ){
