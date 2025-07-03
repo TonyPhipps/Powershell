@@ -23,7 +23,7 @@ Copy-VMGuestFile -Source $Source -Destination $Destination -LocalToGuest -VM $VM
 [System.Console]::beep(440, 500)
 
 $Source = "D:\vmware_GuestToLocal"
-$Destination = "D:\vmware_GuestToLocal"
+$Destination = "D:\"
 
 Copy-VMGuestFile -Source $Source -Destination $Destination -GuestToLocal -VM $VM -GuestCredential $GuestCredentials -Force
 [System.Console]::beep(440, 500)
