@@ -15,7 +15,7 @@ $GuestCredentials = (Get-credential $GuestCredentials)
 $VM = "vm_name"
 
 $Source = "D:\vmware_LocalToGuest"
-$Destination = "D:\vmware_LocalToGuest"
+$Destination = "D:\"
 
 Connect-VIServer $VIServer -Credential $VIServerCredentials
 
