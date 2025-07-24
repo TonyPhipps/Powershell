@@ -108,7 +108,7 @@
         Limit-EventLog -LogName $LogName -MaximumSize 50MB -OverflowAction OverwriteAsNeeded
     }
     if ($Source -and -not (Get-EventLog $LogName -Source $Source -Newest 1 -ErrorAction SilentlyContinue)) { # Event Log exists, but not Source
-        New-EventLog -LogName $LogName -Source $Source
+        New-EventLog -LogName $LogName -Source @($Source)
         Limit-EventLog -LogName $LogName -MaximumSize 50MB -OverflowAction OverwriteAsNeeded
     }
     if ($Source -and (Get-EventLog -list | Where-Object { $_.logdisplayname -eq $LogName })) { # Event Log and Source exist
