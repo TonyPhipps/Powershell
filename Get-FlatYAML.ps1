@@ -1,31 +1,57 @@
-﻿function Get-FlatYAML {
+﻿<#
+.SYNOPSIS
+    Converts YAML files to CSV format from a specified directory.
+
+.DESCRIPTION
+    This script processes YAML files in the specified input directory, converts them to a flat structure,
+    and exports the results to a CSV file. It requires the powershell-yaml module.
+
+.PARAMETER InputDir
+    The directory containing YAML files to process. Defaults to 'rules' folder in the parent directory.
+
+.PARAMETER OutputFile
+    The path for the output CSV file. Defaults to 'flattenedyaml.csv' in the script's directory.
+
+.EXAMPLE
+    .\Convert-YamlToCsv.ps1 -InputDir "C:\Rules" -OutputFile "C:\Output\flattenedyaml.csv"
+    Processes YAML files from C:\Rules and outputs to C:\Output\flattenedyaml.csv
+
+.EXAMPLE
+    .\Convert-YamlToCsv.ps1
+    Uses default paths to process YAML files and create flattenedyaml.csv
+#>
+
+[CmdletBinding()]
+param (
+    [Parameter(Mandatory=$false)]
+    [ValidateScript({Test-Path $_ -PathType Container})]
+    [string]$InputDir,
+
+    [Parameter(Mandatory=$false)]
+    [string]$OutputFile = (Join-Path -Path $PSScriptRoot -ChildPath 'flattenedyaml.csv')
+)
+
+begin {
+    # Determine script root directory
+    if ($psISE -and (Test-Path -Path $psISE.CurrentFile.FullPath)) {
+        $ScriptRoot = Split-Path -Path $psISE.CurrentFile.FullPath -Parent
+    } else {
+        $ScriptRoot = $PSScriptRoot
+    }
+
+    # Set default InputDir if not provided
+    if (-not $InputDir) {
+        $ScriptParent = Split-Path -Path $ScriptRoot -Parent
+        $InputDir = Join-Path -Path $ScriptParent -ChildPath 'rules'
+    }
+
+    function Get-FlatYAML {
     param (
         [Parameter(Mandatory)]
         $InputObject,
 
         [String]$InputFileName
     )
-
-    # Sample $InputObject
-    # Find-Module -Repository psgallery *yaml*
-    # Install-Module powershell-yaml -Scope CurrentUser
-    # Get-Help ConvertFrom-YAML
-    # $SampleInput = ConvertFrom-Yaml (Get-Content ($File.FullName) -raw)
-
-    # Sample Mass Use
-    # $Files = Get-ChildItem -Path "C:\Users\username\Downloads\sigma\rules*" -Recurse -Include *.yml
-
-    # [array]$CSV = ForEach ($File in $Files){
-    #     if ($File.GetType().Name -eq "FileInfo"){
-    #         $FullName = $File.FullName
-    #         $YAML = ConvertFrom-Yaml (Get-Content ($File.FullName) -raw)
-    #         .\Get-FlatYAML.ps1 $YAML $FullName
-    #     }
-    # }
-
-    # $CSV | 
-    #   Select-Object title, name, id, status, description, references, author, date, modified, tags, logsource.category, logsource.definition, logsource.product, logsource.service, falsepositives, level, license, original | 
-    #       Export-csv -NoTypeInformation sigma.csv
 
     $Output = New-Object -TypeName PSObject
 
@@ -88,7 +114,80 @@
     if ($InputFileName){
         $Original = Get-Content ($InputFileName) -raw
         $Output | Add-Member -MemberType NoteProperty -Name "Original" -Value $Original -ErrorAction SilentlyContinue | Out-Null
+        $Output | Add-Member -MemberType NoteProperty -Name "Filepath" -Value $InputFileName -ErrorAction SilentlyContinue | Out-Null
     }
 
     return $Output
+}
+
+    # Initialize variables
+    $CSV = @()
+    
+    # Install required module
+    try {
+        if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {
+            Write-Verbose "Installing powershell-yaml module..."
+            Install-Module powershell-yaml -Scope CurrentUser -Force -ErrorAction Stop
+        }
+        Import-Module powershell-yaml -ErrorAction Stop
+    }
+    catch {
+        Write-Error "Failed to install or import powershell-yaml module: $_"
+        exit 1
+    }
+}
+
+process {
+    try {
+        # Validate input directory
+        if (-not (Test-Path $InputDir -PathType Container)) {
+            Write-Error "Input directory '$InputDir' does not exist"
+            exit 1
+        }
+
+        # Get YAML files
+        $Files = Get-ChildItem -Path $InputDir -Recurse -Include '*.yml' -ErrorAction Stop
+
+        if ($Files.Count -eq 0) {
+            Write-Warning "No YAML files found in '$InputDir'"
+            return
+        }
+
+        # Process each YAML file
+        foreach ($File in $Files) {
+            if ($File.GetType().Name -eq "FileInfo") {
+                try {
+                    $FullName = $File.FullName
+                    $YAML = ConvertFrom-Yaml (Get-Content $FullName -Raw -ErrorAction Stop)
+                    $CSV += Get-FlatYAML $YAML $FullName
+                }
+                catch {
+                    Write-Warning "Failed to process file '$FullName': $_"
+                    continue
+                }
+            }
+        }
+
+        # Export to CSV
+        if ($CSV.Count -gt 0) {
+            $CSV | 
+                Select-Object title, name, id, status, description, references, author, date, 
+                            modified, tags, logsource.category, logsource.definition, 
+                            logsource.product, logsource.service, falsepositives, level, 
+                            license, FilePath, original |
+                Export-Csv -Path $OutputFile -NoTypeInformation -ErrorAction Stop
+            Write-Verbose "Successfully exported $($CSV.Count) records to '$OutputFile'"
+        }
+        else {
+            Write-Warning "No valid YAML data to export"
+        }
+    }
+    catch {
+        Write-Error "An error occurred during processing: $_"
+        exit 1
+    }
+}
+
+end {
+    Write-Verbose "Script execution completed"
 }

@@ -1,4 +1,4 @@
-﻿function Set-AuditGpoPolicy {
+﻿function Set-EnhancedLogging {
     <#
     .SYNOPSIS
         Configures multiple audit policies, override setting, and event log sizes in a specified GPO, creating the GPO if it doesn't exist.
@@ -10,11 +10,11 @@
         The Active Directory domain to use. If not specified, the current computer's domain is used.
 
     .EXAMPLE
-        Set-AuditGpoPolicy -GpoName "MyAuditPolicy" -Domain "contoso.local"
+        Set-EnhancedLogging -GpoName "MyAuditPolicy" -Domain "contoso.local"
         Configures audit policies, override setting, and event log sizes in the "MyAuditPolicy" GPO in the contoso.local domain.
 
     .EXAMPLE
-        Set-AuditGpoPolicy
+        Set-EnhancedLogging
         Configures audit policies, override setting, and event log sizes in the default GPO "Enhanced Logging" in the current computer's domain.
     #>
 
