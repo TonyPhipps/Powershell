@@ -7,18 +7,18 @@
     and exports the results to a CSV file. It requires the powershell-yaml module.
 
 .PARAMETER InputDir
-    The directory containing YAML files to process. Defaults to 'rules' folder in the parent directory.
+    The directory containing YAML files to process. Defaults to 'yaml-files' folder in the parent directory.
 
 .PARAMETER OutputFile
-    The path for the output CSV file. Defaults to 'flattenedyaml.csv' in the script's directory.
+    The path for the output CSV file. Defaults to 'flattened-yaml.csv' in the script's directory.
 
 .EXAMPLE
-    .\Convert-YamlToCsv.ps1 -InputDir "C:\Rules" -OutputFile "C:\Output\flattenedyaml.csv"
-    Processes YAML files from C:\Rules and outputs to C:\Output\flattenedyaml.csv
+    .\Get-FlatYAML.ps1 -InputDir "C:\yaml-files" -OutputFile "C:\Output\flattened-yaml.csv"
+    Processes YAML files from C:\yaml-files and outputs to C:\Output\flattened-yaml.csv
 
 .EXAMPLE
-    .\Convert-YamlToCsv.ps1
-    Uses default paths to process YAML files and create flattenedyaml.csv
+    .\Get-FlatYAML.ps1
+    Uses default paths to process YAML files and create flattened-yaml.csv
 #>
 
 [CmdletBinding()]
@@ -28,7 +28,7 @@ param (
     [string]$InputDir,
 
     [Parameter(Mandatory=$false)]
-    [string]$OutputFile = (Join-Path -Path $PSScriptRoot -ChildPath 'flattenedyaml.csv')
+    [string]$OutputFile = (Join-Path -Path $PSScriptRoot -ChildPath 'flattened-yaml.csv')
 )
 
 begin {
@@ -42,7 +42,7 @@ begin {
     # Set default InputDir if not provided
     if (-not $InputDir) {
         $ScriptParent = Split-Path -Path $ScriptRoot -Parent
-        $InputDir = Join-Path -Path $ScriptParent -ChildPath 'rules'
+        $InputDir = Join-Path -Path $ScriptParent -ChildPath 'yaml-files'
     }
 
     function Get-FlatYAML {
