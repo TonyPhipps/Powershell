@@ -121,7 +121,7 @@ begin {
 }
 
     # Initialize variables
-    $CSV = @()
+    $CSV = [System.Collections.Generic.List[PSObject]]::new() # Replace array with List
     
     # Install required module
     try {
@@ -145,33 +145,35 @@ process {
             exit 1
         }
 
-        # Get YAML files
-        $Files = Get-ChildItem -Path $InputDir -Recurse -Include '*.yml' -ErrorAction Stop
+        # Get YAML files with both .yml and .yaml extensions, including hidden files
+        $Files = Get-ChildItem -Path $InputDir -Recurse -Include '*.yml', '*.yaml' -File -Force -ErrorAction Stop
 
         if ($Files.Count -eq 0) {
-            Write-Warning "No YAML files found in '$InputDir'"
+            Write-Warning "No YAML files (.yml or .yaml) found in '$InputDir' or its subdirectories"
             return
         }
 
+        # Initialize List for CSV output
+        $CSV = [System.Collections.Generic.List[PSObject]]::new()
+
         # Process each YAML file
         foreach ($File in $Files) {
-            if ($File.GetType().Name -eq "FileInfo") {
-                try {
-                    $FullName = $File.FullName
-                    $YAML = ConvertFrom-Yaml (Get-Content $FullName -Raw -ErrorAction Stop)
-                    $CSV += Get-FlatYAML $YAML $FullName
-                }
-                catch {
-                    Write-Warning "Failed to process file '$FullName': $_"
-                    continue
-                }
+            try {
+                $FullName = $File.FullName
+                Write-Verbose "Processing file: $FullName"
+                $YAML = ConvertFrom-Yaml (Get-Content $FullName -Raw -ErrorAction Stop)
+                $CSV.Add((Get-FlatYAML $YAML $FullName))
+            }
+            catch {
+                Write-Warning "Failed to process file '$FullName': $_"
+                continue
             }
         }
 
         # Export to CSV
         if ($CSV.Count -gt 0) {
             $CSV | 
-                Select-Object title, name, id, status, description, references, author, date, 
+                Select-Object title, id, status, description, references, author, date, 
                             modified, tags, logsource.category, logsource.definition, 
                             logsource.product, logsource.service, falsepositives, level, 
                             license, FilePath, original |
@@ -186,8 +188,4 @@ process {
         Write-Error "An error occurred during processing: $_"
         exit 1
     }
-}
-
-end {
-    Write-Verbose "Script execution completed"
 }
