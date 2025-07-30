@@ -64,14 +64,6 @@
             Type = "DWord"
             Value = 3  # 3 = Success + Failure
         },
-        @{
-            Name = "Audit DPAPI Activity"
-            Subcategory = "DPAPI Activity"
-            RegistryKey = "MACHINE\System\CurrentControlSet\Control\Lsa\Audit\PerUserAuditing\System\DPAPI Activity"
-            ValueName = "AuditSetting"
-            Type = "DWord"
-            Value = 3  # 3 = Success + Failure
-        },
         # Event Log Sizes
         @{
             Name = "Security Log Maximum Size"
