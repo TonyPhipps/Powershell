@@ -20,11 +20,11 @@
     Switch to match only filenames from PathListFile, ignoring their paths, searching recursively in SourceParentFolder.
 
 .EXAMPLE
-    .\CopyFilesByPathList.ps1 -SourceParentFolder "C:\Source" -DestinationFolder "D:\Backup" -PathListFile "C:\paths.txt"
+    .\Copy-FilesWithRelativePath.ps1 -SourceParentFolder "C:\Source" -DestinationFolder "D:\Backup" -PathListFile "C:\paths.txt"
     Copies files listed in paths.txt from C:\Source to D:\Backup using relative paths.
 
 .EXAMPLE
-    .\CopyFilesByPathList.ps1 -SourceParentFolder "C:\Source" -DestinationFolder "D:\Backup" -PathListFile "C:\paths.txt" -FileNameOnly
+    .\Copy-FilesWithRelativePath.ps1 -SourceParentFolder "C:\Source" -DestinationFolder "D:\Backup" -PathListFile "C:\paths.txt" -FileNameOnly
     Copies files listed in paths.txt from C:\Source to D:\Backup matching only filenames regardless of their path.
 
 .NOTES
