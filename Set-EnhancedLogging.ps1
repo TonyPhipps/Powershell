@@ -38,14 +38,22 @@
 
     # Define preset audit settings, override setting, and event log sizes
     $AuditSettings = @(
-        # Override Legacy Audit Policy
+        #PowerShell
         @{
-            Name = "Force Audit Policy Subcategory Override"
-            Subcategory = "SCENoApplyLegacyAuditPolicy"
-            RegistryKey = "MACHINE\System\CurrentControlSet\Control\Lsa"
-            ValueName = "SCENoApplyLegacyAuditPolicy"
-            Type = "DWord"
-            Value = 1  # 1 = Enabled (override legacy settings)
+            Name        = "Enable Module Logging"
+            Subcategory = "ModuleLogging"
+            RegistryKey = "SOFTWARE\Policies\Microsoft\Windows\PowerShell\ModuleLogging"
+            ValueName   = "EnableModuleLogging"
+            Type        = "DWord"
+            Value       = 1 # Enabled
+        },
+        @{
+            Name        = "Enable Module Logging for All Modules"
+            Subcategory = "ModuleLogging"
+            RegistryKey = "SOFTWARE\Policies\Microsoft\Windows\PowerShell\ModuleLogging\ModuleNames"
+            ValueName   = "*"
+            Type        = "String"
+            Value       = "*" # Log all modules
         },
         # Audit Policies
         @{
