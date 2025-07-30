@@ -73,7 +73,7 @@ function Remove-FieldsSection {
             # Write modified content back to file
             $newContent = $newLines -join "`n"
             Set-Content -Path $FilePath -Value $newContent -Force -ErrorAction Stop
-            Write-Information "Processed out `"Fields`": $FilePath"
+            Write-Host "Processed out `"Fields`": $FilePath"
         } else {
             Write-Verbose "No `"Fields`" section found in: $FilePath"
         }
