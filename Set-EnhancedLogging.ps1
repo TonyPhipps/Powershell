@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-    Configures multiple audit policies, override setting, event log sizes, and command-line auditing in a specified GPO, creating the GPO if it doesn't exist.
+    Configures multiple audit policies (Process Creation, File System), override setting, event log sizes, and command-line auditing in a specified GPO, creating the GPO if it doesn't exist.
 
 .PARAMETER GpoName
     The name of the GPO to configure. Defaults to "Enhanced Logging" if not specified.
@@ -37,7 +37,15 @@ catch {
 
 # Define preset audit settings, event log sizes, and command-line auditing
 $AuditSettings = @(
-    # PowerShell
+    @{
+        # GPO: Computer Configuration > Windows Settings > Security Settings > Local Policies > Security Options > Force audit policy subcategory settings (Windows Vista or later) to override audit policy category settings
+        Name        = "Enable Advanced Audit Policy"
+        Subcategory = "Advanced Audit Policy"
+        RegistryKey = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa"
+        ValueName   = "SCENoApplyLegacyAuditPolicy"
+        Type        = "DWord"
+        Value       = 1 # Enable advanced audit policies
+    },
     @{
         # GPO: Computer Configuration > Policies > Administrative Templates > Windows Components > Windows PowerShell > Turn on Module Logging
         Name        = "Enable Module Logging"
@@ -56,16 +64,15 @@ $AuditSettings = @(
         Type        = "String"
         Value       = "*" # Log all modules
     },
-    # Enable Advanced Audit Policy
     @{
-        Name        = "Enable Advanced Audit Policy"
-        Subcategory = "Advanced Audit Policy"
-        RegistryKey = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa"
-        ValueName   = "SCENoApplyLegacyAuditPolicy"
+        # GPO: Computer Configuration > Policies > Administrative Templates > Windows Components > Windows PowerShell > Turn on Script Block Logging
+        Name        = "Turn on Script Block Logging"
+        Subcategory = "ScriptBlockLogging"
+        RegistryKey = "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging"
+        ValueName   = "EnableScriptBlockLogging"
         Type        = "DWord"
-        Value       = 1 # Enable advanced audit policies
+        Value       = 1 # Enabled
     },
-    # Include Command Line in Process Creation Events
     @{
         # GPO: Computer Configuration > Policies > Administrative Templates > System > Audit Process Creation > Include command line in process creation events
         Name        = "Include Command Line in Process Creation Events"
@@ -75,7 +82,33 @@ $AuditSettings = @(
         Type        = "DWord"
         Value       = 1 # Enabled
     },
-    # Event Log Sizes
+    @{
+        # GPO: Computer Configuration > Administrative Templates > System > Device Installation > Prevent Installation of Removable Devices
+        Name        = "Prevent Installation of Removable Devices"
+        Subcategory = "DeviceInstallation"
+        RegistryKey = "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeviceInstall\Restrictions"
+        ValueName   = "DenyRemovableDevices"
+        Type        = "DWord"
+        Value       = 1 # Enabled
+    },
+    @{
+        # GPO: Computer Configuration > Policies > Windows Settings > Security Settings > Local Policies > Security Options > Network Security: Restrict NTLM: Audit NTLM authentication in this domain
+        Name        = "Audit NTLM Authentication in Domain"
+        Subcategory = "NTLMAuthentication"
+        RegistryKey = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0"
+        ValueName   = "AuditNTLMInDomain"
+        Type        = "DWord"
+        Value       = 2 # Enable auditing (2 = Success and Failure)
+    },
+    @{
+        # GPO: Computer Configuration > Policies > Windows Settings > Security Settings > Local Policies > Security Options > Network Security: Restrict NTLM: Audit Incoming NTLM Traffic
+        Name        = "Audit Incoming NTLM Traffic"
+        Subcategory = "NTLMAuthentication"
+        RegistryKey = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0"
+        ValueName   = "AuditIncomingNTLM"
+        Type        = "DWord"
+        Value       = 1 # Enable auditing
+    },
     @{
         Name        = "Security Log Maximum Size"
         Subcategory = "Security Log"
@@ -99,19 +132,37 @@ $AuditSettings = @(
         ValueName   = "MaxSize"
         Type        = "DWord"
         Value       = 524288000  # 500 MB in bytes
+    },
+    @{
+        # wevtutil set-log Microsoft-Windows-Bits-Client/Operational /enabled:true /rt:true /q:true
+        Name        = "Enable BITS Client Operational Log"
+        Subcategory = "BITSLogging"
+        RegistryKey = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\EventLog\Microsoft-Windows-Bits-Client\Operational"
+        ValueName   = "Enabled"
+        Type        = "DWord"
+        Value       = 1 # Enabled
+    },
+    @{
+        # wevtutil set-log Microsoft-Windows-Bits-Client/Operational /enabled:true /rt:true /q:true
+        Name        = "Enable BITS Client Real-Time Monitoring"
+        Subcategory = "BITSLogging"
+        RegistryKey = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\EventLog\Microsoft-Windows-Bits-Client\Operational"
+        ValueName   = "EnableRealtime"
+        Type        = "DWord"
+        Value       = 1 # Enabled
     }
 )
 
 # Check if the GPO exists, create it if it doesn't
 try {
-    GroupPolicy\Get-GPO -Name $GpoName -Domain $Domain -ErrorAction Stop
-    Write-Host "GPO '$GpoName' found in domain '$Domain'."
+    $gpo = Get-GPO -Name $GpoName -Domain $Domain -ErrorAction Stop
+    Write-Host "GPO '$GpoName' found in domain '$Domain' (ID: $($gpo.Id))."
 }
 catch {
     Write-Host "GPO '$GpoName' does not exist. Creating new GPO..."
     try {
-        New-GPO -Name $GpoName -Domain $Domain -ErrorAction Stop
-        Write-Host "Successfully created GPO '$GpoName'."
+        $gpo = New-GPO -Name $GpoName -Domain $Domain -ErrorAction Stop
+        Write-Host "Successfully created GPO '$GpoName' (ID: $($gpo.Id))."
     }
     catch {
         Write-Error "Failed to create GPO '$GpoName': $_"
@@ -137,71 +188,63 @@ foreach ($Setting in $AuditSettings) {
     }
 }
 
-# Configure Audit Process Creation using audit.csv
-Write-Host "Configuring Audit Process Creation in GPO: $GpoName"
+# Configure Advanced Audit Policies (Audit Process Creation and Audit File System) using audit.csv
+Write-Host "Configuring Advanced Audit Policies in GPO: $GpoName"
 try {
-    # Create a temporary audit policy file
+    # Create a temporary audit policy file with UTF-8 encoding (no BOM)
     $tempCsv = [System.IO.Path]::GetTempFileName() + ".csv"
     $auditPolicy = @"
 Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclusion Setting,Setting Value
-,System,Process Creation,{0cce922b-69ae-11d9-bed3-505054503030},,Success and Failure,3
+,System,Computer Account Management,{0cce9235-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,User Account Management,{0cce9234-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,Process Creation,{0cce922b-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,Directory Service Changes,{0cce9238-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,File System,{0cce922d-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,Other Object Access Events,{0cce9232-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,Audit Registry,{0cce922f-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,Removable Storage,{0cce9231-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,Detailed File Share,{0cce9244-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,Authorization Policy Change,{0cce923e-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,Security System Extension,{0cce923a-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,System Integrity,{0cce923b-69ae-11d9-bed3-505054503030},Success and Failure,,3
 "@
-    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Configuration > Audit Policies > Detailed Tracking > Audit Process Creation
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Account Management  > Audit Computer Account Management
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Account Management > Audit User Account Management
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Detailed Tracking > Audit Process Creation
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > DS Access > Audit Directory Services Changes
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access > Audit File System
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access > Audit Other Object Access Events
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access > Audit Registry
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access > Audit Removable Storage
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access Policy > Audit Detailed File Share
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Policy Change > Audit Authorization Policy Change
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > System > Audit Security System Extension
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > System > Audit System Integrity
+
     # Use UTF-8 encoding without BOM
-    [System.IO.File]::WriteAllText($tempCsv, $auditPolicy, [System.Text.Encoding]::UTF8)
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($tempCsv, $auditPolicy, $utf8NoBom)
+    Write-Host "Created temporary audit.csv at $tempCsv"
 
     # Import the audit policy into the GPO
     $GPOId = (Get-GPO -Name $GpoName -Domain $Domain).Id
     $gpoPath = ("\\{0}\SysVol\{1}\Policies\{2}\Machine\Microsoft\Windows NT\Audit" -f $Domain, $Domain, "{$GPOId}")
     Write-Host "Copying audit.csv to $gpoPath"
     if (-not (Test-Path $gpoPath)) {
-        Write-Host "Created directory $gpoPath"
         New-Item -Path $gpoPath -ItemType Directory -Force | Out-Null
+        Write-Host "Created directory $gpoPath"
     }
     Copy-Item -Path $tempCsv -Destination "$gpoPath\audit.csv" -Force -ErrorAction Stop
-    Write-Host "Successfully configured Audit Process Creation in GPO: $GpoName"
+    Write-Host "Successfully copied audit.csv to $gpoPath\audit.csv"
 }
 catch {
-    Write-Host "Error configuring Audit Process Creation: $_" -ForegroundColor Red
+    Write-Host "Error configuring Advanced Audit Policies: $_" -ForegroundColor Red
 }
 finally {
     if (Test-Path $tempCsv) {
         Remove-Item -Path $tempCsv -Force
+        Write-Host "Cleaned up temporary file $tempCsv"
     }
-}
-
-# Verify the GPO settings
-Write-Host "Verifying GPO settings..."
-foreach ($Setting in $AuditSettings) {
-    try {
-        $Result = Get-GPRegistryValue -Name $GpoName -Domain $Domain -Key $Setting.RegistryKey -ValueName $Setting.ValueName -ErrorAction Stop
-        Write-Host "GPO: $GpoName, $($Setting.Subcategory) = $($Result.Value)"
-    }
-    catch {
-        Write-Host "Error verifying $($Setting.Subcategory): $_" -ForegroundColor Red
-    }
-}
-
-# Verify Audit Process Creation
-try {
-    $gpo = Get-GPO -Name $GpoName -Domain $Domain
-    $auditCsvPath = "\\$Domain\SysVol\$Domain\Policies\{$($gpo.Id)}\Machine\Microsoft\Windows NT\Audit\audit.csv"
-    if (Test-Path $auditCsvPath) {
-        $auditSettings = Import-Csv -Path $auditCsvPath
-        $processCreation = $auditSettings | Where-Object { $_.Subcategory -eq "Process Creation" }
-        if ($processCreation -and $processCreation.'Setting Value' -eq "3") {
-            Write-Host "GPO: $GpoName, Audit Process Creation = Success and Failure"
-        }
-        else {
-            Write-Host "Audit Process Creation not set correctly in GPO: $GpoName" -ForegroundColor Red
-        }
-    }
-    else {
-        Write-Host "Audit policy file not found in GPO: $GpoName" -ForegroundColor Red
-    }
-}
-catch {
-    Write-Host "Error verifying Audit Process Creation: $_" -ForegroundColor Red
 }
 
 Write-Host "GPO configuration completed. Link the GPO to an OU and apply using 'gpupdate /force' on target machines."
