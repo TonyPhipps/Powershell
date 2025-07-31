@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-    Configures multiple audit policies, override setting, and event log sizes in a specified GPO, creating the GPO if it doesn't exist.
+    Configures multiple audit policies, override setting, event log sizes, and command-line auditing in a specified GPO, creating the GPO if it doesn't exist.
 
 .PARAMETER GpoName
     The name of the GPO to configure. Defaults to "Enhanced Logging" if not specified.
@@ -10,11 +10,11 @@
 
 .EXAMPLE
     Set-EnhancedLogging -GpoName "MyAuditPolicy" -Domain "contoso.local"
-    Configures audit policies, override setting, and event log sizes in the "MyAuditPolicy" GPO in the contoso.local domain.
+    Configures audit policies, override setting, event log sizes, and command-line auditing in the "MyAuditPolicy" GPO in the contoso.local domain.
 
 .EXAMPLE
     Set-EnhancedLogging
-    Configures audit policies, override setting, and event log sizes in the default GPO "Enhanced Logging" in the current computer's domain.
+    Configures audit policies, override setting, event log sizes, and command-line auditing in the default GPO "Enhanced Logging" in the current computer's domain.
 #>
 
 [CmdletBinding()]
@@ -35,11 +35,11 @@ catch {
     return
 }
 
-# Define preset audit settings and event log sizes
+# Define preset audit settings, event log sizes, and command-line auditing
 $AuditSettings = @(
     # PowerShell
     @{
-        #GPO        = Computer Configuration > Policies > Administrative Templates > Windows Components > Windows PowerShell > Turn on Module Logging
+        # GPO: Computer Configuration > Policies > Administrative Templates > Windows Components > Windows PowerShell > Turn on Module Logging
         Name        = "Enable Module Logging"
         Subcategory = "ModuleLogging"
         RegistryKey = "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ModuleLogging"
@@ -48,7 +48,7 @@ $AuditSettings = @(
         Value       = 1 # Enabled
     },
     @{
-        #GPO        = Computer Configuration > Policies > Administrative Templates > Windows Components > Windows PowerShell > Turn on Module Logging
+        # GPO: Computer Configuration > Policies > Administrative Templates > Windows Components > Windows PowerShell > Turn on Module Logging
         Name        = "Enable Module Logging for All Modules"
         Subcategory = "ModuleLogging"
         RegistryKey = "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ModuleLogging\ModuleNames"
@@ -64,6 +64,16 @@ $AuditSettings = @(
         ValueName   = "SCENoApplyLegacyAuditPolicy"
         Type        = "DWord"
         Value       = 1 # Enable advanced audit policies
+    },
+    # Include Command Line in Process Creation Events
+    @{
+        # GPO: Computer Configuration > Policies > Administrative Templates > System > Audit Process Creation > Include command line in process creation events
+        Name        = "Include Command Line in Process Creation Events"
+        Subcategory = "Audit Process Creation"
+        RegistryKey = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit"
+        ValueName   = "ProcessCreationIncludeCmdLine_Enabled"
+        Type        = "DWord"
+        Value       = 1 # Enabled
     },
     # Event Log Sizes
     @{
@@ -136,11 +146,16 @@ try {
 Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclusion Setting,Setting Value
 ,System,Process Creation,{0cce922b-69ae-11d9-bed3-505054503030},,Success and Failure,3
 "@
-    Set-Content -Path $tempCsv -Value $auditPolicy -ErrorAction Stop
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Configuration > Audit Policies > Detailed Tracking > Audit Process Creation
+    # Use UTF-8 encoding without BOM
+    [System.IO.File]::WriteAllText($tempCsv, $auditPolicy, [System.Text.Encoding]::UTF8)
 
     # Import the audit policy into the GPO
-    $gpoPath = "\\$Domain\SysVol\$Domain\Policies\{$(Get-GPO -Name $GpoName -Domain $Domain).Id}\Machine\Microsoft\Windows NT\Audit"
+    $GPOId = (Get-GPO -Name $GpoName -Domain $Domain).Id
+    $gpoPath = ("\\{0}\SysVol\{1}\Policies\{2}\Machine\Microsoft\Windows NT\Audit" -f $Domain, $Domain, "{$GPOId}")
+    Write-Host "Copying audit.csv to $gpoPath"
     if (-not (Test-Path $gpoPath)) {
+        Write-Host "Created directory $gpoPath"
         New-Item -Path $gpoPath -ItemType Directory -Force | Out-Null
     }
     Copy-Item -Path $tempCsv -Destination "$gpoPath\audit.csv" -Force -ErrorAction Stop
