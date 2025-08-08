@@ -173,10 +173,7 @@ process {
         # Export to CSV
         if ($CSV.Count -gt 0) {
             $CSV | 
-                Select-Object title, id, status, description, references, author, date, 
-                            modified, tags, logsource.category, logsource.definition, 
-                            logsource.product, logsource.service, falsepositives, level, 
-                            license, FilePath, original |
+                Select-Object *, FilePath, original |
                 Export-Csv -Path $OutputFile -NoTypeInformation -ErrorAction Stop
             Write-Verbose "Successfully exported $($CSV.Count) records to '$OutputFile'"
         }
