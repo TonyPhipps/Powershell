@@ -18,7 +18,7 @@
 .EXAMPLE
     Set-EnhancedLogging
     Configures audit policies, override setting, event log sizes, and command-line auditing in the default 
-    GPO "Enhanced Logging" in the current computer's domain.
+    GPO "Enhanced Logging STIG" in the current computer's domain.
 #>
 
 [CmdletBinding()]
