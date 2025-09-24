@@ -50,24 +50,6 @@ $AuditSettings = @(
         Type        = "DWord"
         Value       = 1 # Enable advanced audit policies
     },
-    # @{
-    #     # GPO: Computer Configuration > Policies > Administrative Templates > Windows Components > Windows PowerShell > Turn on Module Logging
-    #     Name        = "Enable Module Logging"
-    #     Subcategory = "ModuleLogging"
-    #     RegistryKey = "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ModuleLogging"
-    #     ValueName   = "EnableModuleLogging"
-    #     Type        = "DWord"
-    #     Value       = 1 # Enabled
-    # },
-    # @{
-    #     # GPO: Computer Configuration > Policies > Administrative Templates > Windows Components > Windows PowerShell > Turn on Module Logging
-    #     Name        = "Enable Module Logging for All Modules"
-    #     Subcategory = "ModuleLogging"
-    #     RegistryKey = "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ModuleLogging\ModuleNames"
-    #     ValueName   = "*"
-    #     Type        = "String"
-    #     Value       = "*" # Log all modules
-    # },
     @{
         # GPO: Computer Configuration > Policies > Administrative Templates > Windows Components > Windows PowerShell > Turn on Script Block Logging
         Name        = "Turn on Script Block Logging"
@@ -95,24 +77,6 @@ $AuditSettings = @(
         Type        = "DWord"
         Value       = 1 # Enabled
     },
-    # @{
-    #     # GPO: Computer Configuration > Policies > Windows Settings > Security Settings > Local Policies > Security Options > Network Security: Restrict NTLM: Audit NTLM authentication in this domain
-    #     Name        = "Audit NTLM Authentication in Domain"
-    #     Subcategory = "NTLMAuthentication"
-    #     RegistryKey = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0"
-    #     ValueName   = "AuditNTLMInDomain"
-    #     Type        = "DWord"
-    #     Value       = 2 # Enable auditing (2 = Success and Failure)
-    # },
-    # @{
-    #     # GPO: Computer Configuration > Policies > Windows Settings > Security Settings > Local Policies > Security Options > Network Security: Restrict NTLM: Audit Incoming NTLM Traffic
-    #     Name        = "Audit Incoming NTLM Traffic"
-    #     Subcategory = "NTLMAuthentication"
-    #     RegistryKey = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0"
-    #     ValueName   = "AuditIncomingNTLM"
-    #     Type        = "DWord"
-    #     Value       = 1 # Enable auditing
-    # },
     @{
         Name        = "Security Log Maximum Size"
         Subcategory = "Security Log"
@@ -136,25 +100,7 @@ $AuditSettings = @(
         ValueName   = "MaxSize"
         Type        = "DWord"
         Value       = 524288000  # 500 MB in bytes
-    }# ,
-    # @{
-    #     # wevtutil set-log Microsoft-Windows-Bits-Client/Operational /enabled:true /rt:true /q:true
-    #     Name        = "Enable BITS Client Operational Log"
-    #     Subcategory = "BITSLogging"
-    #     RegistryKey = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\EventLog\Microsoft-Windows-Bits-Client\Operational"
-    #     ValueName   = "Enabled"
-    #     Type        = "DWord"
-    #     Value       = 1 # Enabled
-    # },
-    # @{
-    #     # wevtutil set-log Microsoft-Windows-Bits-Client/Operational /enabled:true /rt:true /q:true
-    #     Name        = "Enable BITS Client Real-Time Monitoring"
-    #     Subcategory = "BITSLogging"
-    #     RegistryKey = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\EventLog\Microsoft-Windows-Bits-Client\Operational"
-    #     ValueName   = "EnableRealtime"
-    #     Type        = "DWord"
-    #     Value       = 1 # Enabled
-    # }
+    }
 )
 
 # Check if the GPO exists, create it if it doesn't
