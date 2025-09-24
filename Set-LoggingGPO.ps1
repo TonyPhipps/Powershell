@@ -1,6 +1,8 @@
 ﻿<#
 .SYNOPSIS
-    Configures multiple audit policies (Process Creation, File System), override setting, event log sizes, and command-line auditing in a specified GPO, creating the GPO if it doesn't exist.
+    Configures multiple audit policies, override settings, event log sizes, and command-line 
+    auditing in a specified GPO, creating the GPO if it doesn't exist.
+    Only includes those items NOT covered by DISA STIG (https://public.cyber.mil/stigs/).
 
 .PARAMETER GpoName
     The name of the GPO to configure. Defaults to "Enhanced Logging" if not specified.
@@ -10,17 +12,19 @@
 
 .EXAMPLE
     Set-EnhancedLogging -GpoName "MyAuditPolicy" -Domain "contoso.local"
-    Configures audit policies, override setting, event log sizes, and command-line auditing in the "MyAuditPolicy" GPO in the contoso.local domain.
+    Configures audit policies, override setting, event log sizes, and command-line auditing in the 
+    "MyAuditPolicy" GPO in the contoso.local domain.
 
 .EXAMPLE
     Set-EnhancedLogging
-    Configures audit policies, override setting, event log sizes, and command-line auditing in the default GPO "Enhanced Logging" in the current computer's domain.
+    Configures audit policies, override setting, event log sizes, and command-line auditing in the default 
+    GPO "Enhanced Logging" in the current computer's domain.
 #>
 
 [CmdletBinding()]
 param (
     [Parameter(Mandatory = $false)]
-    [string]$GpoName = "Enhanced Logging",
+    [string]$GpoName = "Enhanced Logging Non-STIG",
 
     [Parameter(Mandatory = $false)]
     [string]$Domain = (Get-WmiObject Win32_ComputerSystem).Domain
@@ -37,15 +41,6 @@ catch {
 
 # Define preset audit settings, event log sizes, and command-line auditing
 $AuditSettings = @(
-    @{
-        # GPO: Computer Configuration > Windows Settings > Security Settings > Local Policies > Security Options > Force audit policy subcategory settings (Windows Vista or later) to override audit policy category settings
-        Name        = "Enable Advanced Audit Policy"
-        Subcategory = "Advanced Audit Policy"
-        RegistryKey = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa"
-        ValueName   = "SCENoApplyLegacyAuditPolicy"
-        Type        = "DWord"
-        Value       = 1 # Enable advanced audit policies
-    },
     @{
         # GPO: Computer Configuration > Policies > Administrative Templates > Windows Components > Windows PowerShell > Turn on Module Logging
         Name        = "Enable Module Logging"
@@ -65,33 +60,6 @@ $AuditSettings = @(
         Value       = "*" # Log all modules
     },
     @{
-        # GPO: Computer Configuration > Policies > Administrative Templates > Windows Components > Windows PowerShell > Turn on Script Block Logging
-        Name        = "Turn on Script Block Logging"
-        Subcategory = "ScriptBlockLogging"
-        RegistryKey = "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging"
-        ValueName   = "EnableScriptBlockLogging"
-        Type        = "DWord"
-        Value       = 1 # Enabled
-    },
-    @{
-        # GPO: Computer Configuration > Policies > Administrative Templates > System > Audit Process Creation > Include command line in process creation events
-        Name        = "Include Command Line in Process Creation Events"
-        Subcategory = "Audit Process Creation"
-        RegistryKey = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit"
-        ValueName   = "ProcessCreationIncludeCmdLine_Enabled"
-        Type        = "DWord"
-        Value       = 1 # Enabled
-    },
-    @{
-        # GPO: Computer Configuration > Administrative Templates > System > Device Installation > Prevent Installation of Removable Devices
-        Name        = "Prevent Installation of Removable Devices"
-        Subcategory = "DeviceInstallation"
-        RegistryKey = "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeviceInstall\Restrictions"
-        ValueName   = "DenyRemovableDevices"
-        Type        = "DWord"
-        Value       = 1 # Enabled
-    },
-    @{
         # GPO: Computer Configuration > Policies > Windows Settings > Security Settings > Local Policies > Security Options > Network Security: Restrict NTLM: Audit NTLM authentication in this domain
         Name        = "Audit NTLM Authentication in Domain"
         Subcategory = "NTLMAuthentication"
@@ -108,30 +76,6 @@ $AuditSettings = @(
         ValueName   = "AuditIncomingNTLM"
         Type        = "DWord"
         Value       = 1 # Enable auditing
-    },
-    @{
-        Name        = "Security Log Maximum Size"
-        Subcategory = "Security Log"
-        RegistryKey = "HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\Eventlog\Security"
-        ValueName   = "MaxSize"
-        Type        = "DWord"
-        Value       = 524288000  # 500 MB in bytes
-    },
-    @{
-        Name        = "System Log Maximum Size"
-        Subcategory = "System Log"
-        RegistryKey = "HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\Eventlog\System"
-        ValueName   = "MaxSize"
-        Type        = "DWord"
-        Value       = 524288000  # 500 MB in bytes
-    },
-    @{
-        Name        = "Application Log Maximum Size"
-        Subcategory = "Application Log"
-        RegistryKey = "HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\Eventlog\Application"
-        ValueName   = "MaxSize"
-        Type        = "DWord"
-        Value       = 524288000  # 500 MB in bytes
     },
     @{
         # wevtutil set-log Microsoft-Windows-Bits-Client/Operational /enabled:true /rt:true /q:true
@@ -195,31 +139,17 @@ try {
     $tempCsv = [System.IO.Path]::GetTempFileName() + ".csv"
     $auditPolicy = @"
 Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclusion Setting,Setting Value
-,System,Computer Account Management,{0cce9235-69ae-11d9-bed3-505054503030},Success and Failure,,3
-,System,User Account Management,{0cce9234-69ae-11d9-bed3-505054503030},Success and Failure,,3
-,System,Process Creation,{0cce922b-69ae-11d9-bed3-505054503030},Success and Failure,,3
-,System,Directory Service Changes,{0cce9238-69ae-11d9-bed3-505054503030},Success and Failure,,3
 ,System,File System,{0cce922d-69ae-11d9-bed3-505054503030},Success and Failure,,3
-,System,Other Object Access Events,{0cce9232-69ae-11d9-bed3-505054503030},Success and Failure,,3
 ,System,Audit Registry,{0cce922f-69ae-11d9-bed3-505054503030},Success and Failure,,3
-,System,Removable Storage,{0cce9231-69ae-11d9-bed3-505054503030},Success and Failure,,3
 ,System,Detailed File Share,{0cce9244-69ae-11d9-bed3-505054503030},Success and Failure,,3
-,System,Authorization Policy Change,{0cce923e-69ae-11d9-bed3-505054503030},Success and Failure,,3
-,System,Security System Extension,{0cce923a-69ae-11d9-bed3-505054503030},Success and Failure,,3
-,System,System Integrity,{0cce923b-69ae-11d9-bed3-505054503030},Success and Failure,,3
 "@
-    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Account Management  > Audit Computer Account Management
-    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Account Management > Audit User Account Management
-    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Detailed Tracking > Audit Process Creation
-    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > DS Access > Audit Directory Services Changes
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access > Audit File System
-    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access > Audit Other Object Access Events
+        # NOTE - Windows only generates events for objects (files/folders) that have a System Access Control List (SACL) entry specifying "Audit" on them. 
+        # If no SACLs are defined, enabling this produces no new events.
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access > Audit Registry
-    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access > Audit Removable Storage
+        # NOTE - Windows only generates events for objects (registry) that have a System Access Control List (SACL) entry specifying "Audit" on them. 
+        # If no SACLs are defined, enabling this produces no new events.
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access Policy > Audit Detailed File Share
-    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Policy Change > Audit Authorization Policy Change
-    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > System > Audit Security System Extension
-    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > System > Audit System Integrity
 
     # Use UTF-8 encoding without BOM
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
