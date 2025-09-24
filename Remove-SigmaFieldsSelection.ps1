@@ -10,7 +10,7 @@
     The root directory to search for .yml files. This parameter is mandatory.
 
 .EXAMPLE
-    .\Remove-FieldsSelection.ps1 -ParentDir "D:\github\sigma\rules"
+    .\Remove-SigmaFieldsSelection.ps1 -ParentDir "D:\github\sigma\rules"
     Processes all .yml files in the specified directory and removes their 'fields' sections.
 
 .NOTES
