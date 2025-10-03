@@ -12,13 +12,17 @@
 .PARAMETER OutputFile
     The path for the output CSV file. Defaults to 'flattened-yaml.csv' in the script's directory.
 
-.EXAMPLE
-    .\Get-FlatYAML.ps1 -InputDir "C:\yaml-files" -OutputFile "C:\Output\flattened-yaml.csv"
-    Processes YAML files from C:\yaml-files and outputs to C:\Output\flattened-yaml.csv
+.PARAMETER IgnoreFields
+    One or more dotted field paths to ignore (and all of their child fields). Case-insensitive.
+    Examples:
+      -IgnoreFields detection
+      -IgnoreFields detection, logsource.product, metadata.internal.id
 
 .EXAMPLE
-    .\Get-FlatYAML.ps1
-    Uses default paths to process YAML files and create flattened-yaml.csv
+    .\Get-FlatYAML.ps1 -InputDir "C:\yaml-files" -OutputFile "C:\Output\flattened-yaml.csv"
+
+.EXAMPLE
+    .\Get-FlatYAML.ps1 -IgnoreFields detection
 #>
 
 [CmdletBinding()]
@@ -28,7 +32,10 @@ param (
     [string]$InputDir,
 
     [Parameter(Mandatory=$false)]
-    [string]$OutputFile = (Join-Path -Path $PSScriptRoot -ChildPath 'flattened-yaml.csv')
+    [string]$OutputFile = (Join-Path -Path $PSScriptRoot -ChildPath 'flattened-yaml.csv'),
+
+    [Parameter(Mandatory=$false)]
+    [string[]]$IgnoreFields = @()
 )
 
 begin {
@@ -45,7 +52,31 @@ begin {
         $InputDir = Join-Path -Path $ScriptParent -ChildPath 'yaml-files'
     }
 
+    # Normalize ignore list (lower-case, trim trailing .* for convenience)
+    $IgnoreNorm = @()
+    foreach ($p in $IgnoreFields) {
+        if ([string]::IsNullOrWhiteSpace($p)) { continue }
+        $q = $p.Trim()
+        if ($q.EndsWith('.*')) { $q = $q.Substring(0, $q.Length-2) }
+        $IgnoreNorm += $q.ToLowerInvariant()
+    }
+
+    function Should-IgnorePath {
+    param(
+        [string]$Path  # allow null/empty safely
+    )
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $false }
+    $lp = $Path.ToLowerInvariant()
+    foreach ($prefix in $IgnoreNorm) {
+        if ($lp -eq $prefix -or $lp.StartsWith("$prefix.")) {
+            return $true
+        }
+    }
+    return $false
+}
+
     function Get-FlatYAML {
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory)]
         $InputObject,
@@ -53,76 +84,74 @@ begin {
         [String]$InputFileName
     )
 
-    $Output = New-Object -TypeName PSObject
+    $Output = [pscustomobject]@{}
 
-    if ($inputObject -is [Hashtable]){
-        foreach ($Key in $InputObject.Keys) { # review each member
-            $Member = $InputObject.$Key
-            if ($Member -is [Hashtable]){
-                #-----------------Level 2-----------------
-                foreach ($Key2 in $Member.Keys) { # review each member
-                    $Member2 = $Member.$Key2
-                    if ($Member2 -is [Hashtable]){
-                        #-----------------Level 3-----------------
-                        foreach ($Key3 in $Member2.Keys) { # review each member
-                            $Member3 = $Member2.$Key3
-                            if ($Member3 -is [Hashtable]){
-                                Write-Host "is hashtable: $Key.$Key2.$Key3. Add another level."
-                            }
-                            elseif ($Member3 -is [System.Collections.ICollection]) {
-                                $ICollection3 = $Member2.$Key3 -join ", "
-                                $Output | Add-Member -MemberType NoteProperty -Name ($Key + "." + $Key2 + "." + $Key3) -Value $ICollection3 -ErrorAction SilentlyContinue | Out-Null
-                            }
-                            elseif ($NULL -eq $Member3) {
-                            }
-                            elseif ($Member3.GetType().Name -in ("String","Int32","long","bool")) {
-                                $Output | Add-Member -MemberType NoteProperty -Name ($Key + "." + $Key2 + "." + $Key3) -Value $Member3 -ErrorAction SilentlyContinue | Out-Null
-                            }
-                            else {
-                                Write-Host "Level 3 - $Key.$Key2.$Key3 is a $($Member3.GetType())" 
-                            }            
-                        }
-                        #-----------------Level 3 END-----------------
-                    }
-                    elseif ($Member.$Key2 -is [System.Collections.ICollection]) {
-                        $ICollection2 = $Member2.$Key2 -join ", "
-                        $Output | Add-Member -MemberType NoteProperty -Name ($Key + "." + $Key2) -Value $ICollection2 -ErrorAction SilentlyContinue | Out-Null
-                    }
-                    elseif ($Member2.GetType().Name -in ("String","Int32","long","bool")) {
-                        $Output | Add-Member -MemberType NoteProperty -Name ($Key + "." + $Key2) -Value $Member2 -ErrorAction SilentlyContinue | Out-Null
-                    }
-                    else {
-                        Write-Host "Level 2 - $Key.$Key2 is a $($Member2.GetType())" 
-                    }               
-                #-----------------Level 2 END-----------------
-                }
+    function Add-Flat {
+        param(
+            $Value,
+            [string]$Path = $null   # <-- default to $null (not mandatory)
+        )
+
+        if (Should-IgnorePath -Path $Path) {
+            return
+        }
+
+        if ($null -eq $Value) { return }
+
+        if ($Value -is [Hashtable]) {
+            foreach ($k in $Value.Keys) {
+                $childPath = if ($Path) { "$Path.$k" } else { "$k" }
+                Add-Flat -Value $Value[$k] -Path $childPath
             }
-            elseif ($InputObject.$Key -is [System.Collections.ICollection]) {
-                $ICollection = $InputObject.$key -join ", "
-                $Output | Add-Member -MemberType NoteProperty -Name $Key -Value $ICollection -ErrorAction SilentlyContinue | Out-Null
+            return
+        }
+
+        if ($Value -is [psobject] -and $Value.PSObject.Properties.Name.Count -gt 0) {
+            foreach ($prop in $Value.PSObject.Properties) {
+                $childPath = if ($Path) { "$Path.$($prop.Name)" } else { "$($prop.Name)" }
+                Add-Flat -Value $prop.Value -Path $childPath
             }
-            elseif ($Member.GetType().Name -in ("String","Int32","long","bool")) {
-                $Output | Add-Member -MemberType NoteProperty -Name $Key -Value $Member -ErrorAction SilentlyContinue | Out-Null
-            }            
-            else {
-                $Member3.GetType()
-                Write-Host "Level 1 - $Key is a $($Member.GetType())" 
-            }               
+            return
+        }
+
+        if ($Value -is [System.Collections.IEnumerable] -and -not ($Value -is [string])) {
+            $joined = ($Value | ForEach-Object {
+                if ($_ -eq $null) { '' } else { [string]$_ }
+            }) -join ', '
+            if ($Path) {
+                try { $Output | Add-Member -MemberType NoteProperty -Name $Path -Value $joined -ErrorAction Stop } catch {}
+            }
+            return
+        }
+
+        $typeName = $Value.GetType().Name
+        if ($typeName -in @('String','Int32','Int64','Boolean','Double','Decimal','Single','Byte')) {
+            if ($Path) {
+                try { $Output | Add-Member -MemberType NoteProperty -Name $Path -Value $Value -ErrorAction Stop } catch {}
+            }
+            return
+        }
+
+        if ($Path) {
+            try { $Output | Add-Member -MemberType NoteProperty -Name $Path -Value ([string]$Value) -ErrorAction Stop } catch {}
         }
     }
 
+    # Start recursive flatten WITHOUT passing an empty Path
+    Add-Flat -Value $InputObject
+
     if ($InputFileName){
-        $Original = Get-Content ($InputFileName) -raw
-        $Output | Add-Member -MemberType NoteProperty -Name "Original" -Value $Original -ErrorAction SilentlyContinue | Out-Null
-        $Output | Add-Member -MemberType NoteProperty -Name "Filepath" -Value $InputFileName -ErrorAction SilentlyContinue | Out-Null
+        $Original = Get-Content ($InputFileName) -Raw
+        try { $Output | Add-Member -MemberType NoteProperty -Name "Original" -Value $Original -ErrorAction Stop } catch {}
+        try { $Output | Add-Member -MemberType NoteProperty -Name "Filepath" -Value $InputFileName -ErrorAction Stop } catch {}
     }
 
     return $Output
 }
 
     # Initialize variables
-    $CSV = [System.Collections.Generic.List[PSObject]]::new() # Replace array with List
-    
+    $CSV = [System.Collections.Generic.List[PSObject]]::new()
+
     # Install required module
     try {
         if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {
@@ -162,7 +191,7 @@ process {
                 $FullName = $File.FullName
                 Write-Verbose "Processing file: $FullName"
                 $YAML = ConvertFrom-Yaml (Get-Content $FullName -Raw -ErrorAction Stop)
-                $CSV.Add((Get-FlatYAML $YAML $FullName))
+                $CSV.Add((Get-FlatYAML -InputObject $YAML -InputFileName $FullName))
             }
             catch {
                 Write-Warning "Failed to process file '$FullName': $_"
@@ -172,8 +201,18 @@ process {
 
         # Export to CSV
         if ($CSV.Count -gt 0) {
-            $CSV | 
-                Select-Object *, FilePath, original |
+            $allProperties = @()
+            $CSV | ForEach-Object {
+                $_.PSObject.Properties | ForEach-Object {
+                    # keep only properties with a value (string non-whitespace or non-string non-null)
+                    if ($_.Value -ne $null -and (($_.Value -is [string] -and -not [string]::IsNullOrWhiteSpace($_.Value)) -or -not ($_.Value -is [string]))) {
+                        $allProperties += $_.Name
+                    }
+                }
+            }
+            $uniqueProperties = $allProperties | Select-Object -Unique
+            $CSV |
+                Select-Object -Property $uniqueProperties -ErrorAction SilentlyContinue |
                 Export-Csv -Path $OutputFile -NoTypeInformation -ErrorAction Stop
             Write-Verbose "Successfully exported $($CSV.Count) records to '$OutputFile'"
         }
