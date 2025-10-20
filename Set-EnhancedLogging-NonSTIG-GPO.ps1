@@ -61,6 +61,7 @@ $AuditSettings = @(
     },
     @{
         # GPO: Computer Configuration > Policies > Windows Settings > Security Settings > Local Policies > Security Options > Network Security: Restrict NTLM: Audit NTLM authentication in this domain
+        # NOTE: This is a DC policy.
         Name        = "Audit NTLM Authentication in Domain"
         Subcategory = "NTLMAuthentication"
         RegistryKey = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0"
@@ -73,7 +74,7 @@ $AuditSettings = @(
         Name        = "Audit Incoming NTLM Traffic"
         Subcategory = "NTLMAuthentication"
         RegistryKey = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0"
-        ValueName   = "AuditIncomingNTLM"
+        ValueName   = "AuditReceivingNTLMTraffic"
         Type        = "DWord"
         Value       = 1 # Enable auditing
     },
@@ -83,15 +84,6 @@ $AuditSettings = @(
         Subcategory = "BITSLogging"
         RegistryKey = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\EventLog\Microsoft-Windows-Bits-Client\Operational"
         ValueName   = "Enabled"
-        Type        = "DWord"
-        Value       = 1 # Enabled
-    },
-    @{
-        # wevtutil set-log Microsoft-Windows-Bits-Client/Operational /enabled:true /rt:true /q:true
-        Name        = "Enable BITS Client Real-Time Monitoring"
-        Subcategory = "BITSLogging"
-        RegistryKey = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\EventLog\Microsoft-Windows-Bits-Client\Operational"
-        ValueName   = "EnableRealtime"
         Type        = "DWord"
         Value       = 1 # Enabled
     }
@@ -130,6 +122,39 @@ foreach ($Setting in $AuditSettings) {
     catch {
         Write-Host "Error configuring $($Setting.Subcategory) in GPO: $_" -ForegroundColor Red
     }
+}
+
+# Configure Real-time subscription for BITSLogging via wevtutil set-log ... /rt:true
+$ScriptName = "Enable-BITSRealtime.ps1"
+$SysvolPath = "\\$Domain\SYSVOL\$Domain\Scripts"
+$ScriptFullPath = Join-Path $SysvolPath $ScriptName
+
+# Ensure script directory exists
+New-Item -ItemType Directory -Force -Path $SysvolPath | Out-Null
+
+# Write a startup script that sets BITS real-time logging
+$ScriptContent = @"
+# Startup script for real-time BITS logging
+wevtutil set-log 'Microsoft-Windows-Bits-Client/Operational' /rt:true /q:true
+"@
+
+# Get current startup script entries
+$currentScripts = Get-GPStartupScript -Name $GpoName -ErrorAction SilentlyContinue
+
+# Only add if not already present
+if ($currentScripts -and ($currentScripts | Where-Object { $_.ScriptName -ieq $ScriptName })) {
+    Write-Host "Startup script '$ScriptName' is already attached to GPO '$GpoName' — skipping duplicate."
+}
+else {
+    # Create or update the script file in SYSVOL
+    $ScriptContent | Out-File -FilePath $ScriptFullPath -Encoding UTF8 -Force
+
+    # Attach the script to the GPO
+    Add-GPStartupScript -Name $GpoName `
+                        -ScriptName $ScriptName `
+                        -ScriptParameters "" `
+                        -ErrorAction Stop
+    Write-Host "Attached startup script '$ScriptName' to GPO '$GpoName'."
 }
 
 # Configure Advanced Audit Policies (Audit Process Creation and Audit File System) using audit.csv
