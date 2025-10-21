@@ -49,6 +49,12 @@ $AuditSettings = @(
         ValueName   = "SCENoApplyLegacyAuditPolicy"
         Type        = "DWord"
         Value       = 1 # Enable advanced audit policies
+        # Windows 11: SV-253437r958442_rule 
+        # Windows 10: SV-220913r958442_rule
+        # Windows Server 2022: SV-254449r958442_rule
+        # Windows Server 2019: SV-205644r958442_rule
+        # Windows Server 2016: SV-225028r569186_rule
+        # Windows Server 2012 / 2012 R2 (Member Server): SV-225454r569185_rule
     },
     @{
         # GPO: Computer Configuration > Policies > Administrative Templates > Windows Components > Windows PowerShell > Turn on Script Block Logging
@@ -58,6 +64,9 @@ $AuditSettings = @(
         ValueName   = "EnableScriptBlockLogging"
         Type        = "DWord"
         Value       = 1 # Enabled
+        # Windows Server 2019: SV-205639r569188_rule
+        # Windows 11: SV-220860r958422_rule
+        # Windows Server 2012 / 2012 R2: SV-226054r569184_rule
     },
     @{
         # GPO: Computer Configuration > Policies > Administrative Templates > System > Audit Process Creation > Include command line in process creation events
@@ -67,15 +76,9 @@ $AuditSettings = @(
         ValueName   = "ProcessCreationIncludeCmdLine_Enabled"
         Type        = "DWord"
         Value       = 1 # Enabled
-    },
-    @{
-        # GPO: Computer Configuration > Administrative Templates > System > Device Installation > Prevent Installation of Removable Devices
-        Name        = "Prevent Installation of Removable Devices"
-        Subcategory = "DeviceInstallation"
-        RegistryKey = "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeviceInstall\Restrictions"
-        ValueName   = "DenyRemovableDevices"
-        Type        = "DWord"
-        Value       = 1 # Enabled
+        # Windows Server 2022: SV-254341r958422_rule
+        # Windows Server 2019: SV-205638r569188_rule
+        # Windows 10: SV-220809r569187_rule
     },
     @{
         Name        = "Security Log Maximum Size"
@@ -84,6 +87,12 @@ $AuditSettings = @(
         ValueName   = "MaxSize"
         Type        = "DWord"
         Value       = 524288000  # 500 MB in bytes
+        # Windows 11: SV-253338r958752_rule
+        # Windows 10: SV-220780r877391_rule
+        # Windows Server 2022: SV-254359r958752_rule
+        # Windows Server 2019: SV-205797r958752_rule
+        # Windows Server 2016 — SV-224938r877391_rule
+        # Windows Server 2012 / 2012 R2 (Member Server): SV-225371r569185_rule
     },
     @{
         Name        = "System Log Maximum Size"
@@ -92,6 +101,11 @@ $AuditSettings = @(
         ValueName   = "MaxSize"
         Type        = "DWord"
         Value       = 524288000  # 500 MB in bytes
+        # Windows 11: SV-253339r958752_rule
+        # Windows 10: SV-220781r569187_rule
+        # Windows Server 2022: SV-254360r958752_rule
+        # Windows Server 2019: SV-205798r969188_rule (or variant r569188): SV-205798r569188_rule
+        # Windows Server 2012/2012 R2: SV-225371r877391_rule
     },
     @{
         Name        = "Application Log Maximum Size"
@@ -100,6 +114,12 @@ $AuditSettings = @(
         ValueName   = "MaxSize"
         Type        = "DWord"
         Value       = 524288000  # 500 MB in bytes
+        # Windows 11: SV-253337r958752_rule
+        # Windows 10: SV-220779r877391_rule
+        # Windows Server 2022: SV-254358r958752_rule
+        # Windows Server 2019: SV-205796r958752_rule
+        # Windows Server 2016: SV-224937r877391_rule
+        # Windows Server 2012 / 2012 R2: SV-225370r877391_rule
     }
 )
 
@@ -157,31 +177,59 @@ Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclus
 "@
 
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Account Management  > Audit Computer Account Management
-        # SV-226087r569184_rule
+        # Windows Server 2022 (DC): SV-254407r958368_rule
+        # Windows Server 2019 (DC): SV-205628r958368_rule
+        # Windows Server 2016 (DC): SV-224986r958368_rule (earlier revs also seen as SV-224986r852358_rule / SV-224986r569186_rule)
+        # Windows Server 2012 / 2012 R2 (DC): SV-226087r569184_rule
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Account Management > Audit User Account Management
-        # SV-253310r991551_rule
+        # Windows 11: SV-253310r991551_rule, SV-253309r958566_rule
+        # Windows 10: SV-220752r569187_rule, SV-220751r569187_rule
+        # Windows Server 2022: SV-254304r958368_rule, SV-254305r958368_rule
+        # Windows Server 2019: 205626r958368_rule, SV-205627r569188_rule
+        # Windows Server 2016: SV-224885r569186_rule, SV-224886r569186_rule
+        # Windows Server 2012 / 2012 R2 — Member Server: SV-225279r569185_rule, SV-225280r569185_rule
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Detailed Tracking > Audit Process Creation
-        # SV-220754r569187_rule
-        # SV-205770r958732_rule
+        # Windows 11: SV-253307r991570_rule
+        # Windows 10: SV-220754r851974_rule
+        # Windows Server 2022: SV-254307r958732_rule
+        # Windows Server 2019: SV-205770r958732_rule
+        # Windows Server 2016: SV-224888r569186_rule
+        # Windows Server 2012 / 2012 R2 (Member Server): SV-225281r569185_rule
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > DS Access > Audit Directory Services Changes
-        # SV-254410r958732_rule
+        # Windows Server 2022 (DC): SV-254410r958732_rule
+        # Windows Server 2019 (DC): SV-205793r958732_rule, SV-205794r569188_rule
+        # Windows Server 2016 (DC): SV-224989r569186_rule, SV-224990r569186_rule
+        # Windows Server 2012 / 2012 R2 (DC): SV-226097r569184_rule, SV-226098r569184_rule
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access > Audit Other Object Access Events
-        # SV-220763r569187_rule
-        # SV-220764r569187_rule
-        # SV-205836r991578_rule
-        # SV-205837r991578_rule
+        # Windows 11: SV-253315r991578_rule	SV-253316r991578_rule
+        # Windows 10: SV-220763r569187_rule	SV-220764r569187_rule
+        # Windows Server 2022: SV-254315r991578_rule, SV-254316r991578_rule
+        # Windows Server 2019: SV-205836r958732_rule, SV-205837r958732_rule
+        # Windows Server 2016: SV-224896r569186_rule, SV-224897r569186_rule
+        # Windows Server 2012 / 2012 R2 (Member/Server): SV-225279r569185_rule, SV-225280r569185_rule
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access > Audit Removable Storage
-        # SV-220765r569187_rule
-        # SV-205840r569188_rule
+        # Windows 10: SV-220765r569187_rule, SV-220766r991583_rule
+        # Windows 11: SV-253324r991578_rule, SV-253325r991578_rule
+        # Windows Server 2019: SV-205840r958732_rule, SV-205841r958732_rule
+        # Windows Server 2022: SV-254317r958422_rule, SV-254318r958422_rule
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Policy Change > Audit Authorization Policy Change
-        # SV-220769r569187_rule
-        # SV-220770r569187_rule
+        # Windows 11: SV-253329r991578_rule, SV-253330r991578_rule
+        # Windows 10: SV-220769r569187_rule, SV-220770r569187_rule
+        # Windows Server 2022: SV-254491r958726_rule, SV-254492r958726_rule
+        # Windows Server 2019: SV-205774r958726_rule, SV-205775r958726_rule
+        # Windows Server 2016: SV-224893r569186_rule, SV-224894r569186_rule
+        # Windows Server 2012 / 2012 R2: SV-226056r569184_rule, SV-226057r569184_rule
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > System > Audit Security System Extension
-        # SV-254330r958732_rule
-        # SV-205782r958732_rule
+        # Windows Server 2022: SV-254330r958732_rule
+        # Windows Server 2019: SV-205782r569188_rule
+        # Windows Server 2016: SV-224892r569186_rule
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > System > Audit System Integrity
-        # SV-220777r569187_rule
-        # SV-205784r958732_rule
+        # Windows Server 2022: SV-254323r958732_rule
+        # Windows Server 2019: SV-205784r958732_rule
+        # Windows Server 2016: SV-224927r569186_rule
+        # Windows Server 2012 / 2012 R2: SV-225295r569184_rule
+        # Windows 10: SV-220777r569187_rule
+        # Windows 11: SV-253318r991570_rule
 
     # Use UTF-8 encoding without BOM
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
