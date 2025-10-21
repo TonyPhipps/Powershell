@@ -174,6 +174,7 @@ Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclus
 ,System,Authorization Policy Change,{0cce923e-69ae-11d9-bed3-505054503030},Success and Failure,,3
 ,System,Security System Extension,{0cce923a-69ae-11d9-bed3-505054503030},Success and Failure,,3
 ,System,System Integrity,{0cce923b-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,Detailed File Share,{0cce9244-69ae-11d9-bed3-505054503030},Failure,,3
 "@
 
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Account Management  > Audit Computer Account Management
@@ -230,6 +231,8 @@ Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclus
         # Windows Server 2012 / 2012 R2: SV-225295r569184_rule
         # Windows 10: SV-220777r569187_rule
         # Windows 11: SV-253318r991570_rule
+    # # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access Policy > Audit Detailed File Share
+        # SV-220789r569187_rule (Failure)
 
     # Use UTF-8 encoding without BOM
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)

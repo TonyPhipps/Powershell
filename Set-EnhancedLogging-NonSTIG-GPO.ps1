@@ -175,7 +175,6 @@ try {
 Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclusion Setting,Setting Value
 ,System,File System,{0cce922d-69ae-11d9-bed3-505054503030},Success and Failure,,3
 ,System,Audit Registry,{0cce922f-69ae-11d9-bed3-505054503030},Success and Failure,,3
-,System,Detailed File Share,{0cce9244-69ae-11d9-bed3-505054503030},Success and Failure,,3
 "@
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access > Audit File System
         # NOTE - Windows only generates events for objects (files/folders) that have a System Access Control List (SACL) entry specifying "Audit" on them. 
@@ -183,7 +182,6 @@ Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclus
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access > Audit Registry
         # NOTE - Windows only generates events for objects (registry) that have a System Access Control List (SACL) entry specifying "Audit" on them. 
         # If no SACLs are defined, enabling this produces no new events.
-    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access Policy > Audit Detailed File Share
 
     # Use UTF-8 encoding without BOM
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
