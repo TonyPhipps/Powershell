@@ -147,27 +147,15 @@ $ScriptContent = @"
 wevtutil set-log 'Microsoft-Windows-Bits-Client/Operational' /rt:true /q:true
 "@
 
-# Get current startup script entries
-$currentScripts = Get-GPStartupScript -Name $GpoName -ErrorAction SilentlyContinue
+# Create or update the script file in SYSVOL
+$ScriptContent | Out-File -FilePath $ScriptFullPath -Encoding UTF8 -Force
 
-# Only add if not already present
-if ($currentScripts -and ($currentScripts | Where-Object { $_.ScriptName -ieq $ScriptName })) {
-    Write-Host "Startup script '$ScriptName' is already attached to GPO '$GpoName' — skipping duplicate."
-}
-else {
-    # Create or update the script file in SYSVOL
-    $ScriptContent | Out-File -FilePath $ScriptFullPath -Encoding UTF8 -Force
-
-    # Attach the script to the GPO
-    Add-GPStartupScript -Name $GpoName `
-                        -ScriptName $ScriptName `
-                        -ScriptParameters "" `
-                        -ErrorAction Stop
-    Write-Host "Attached startup script '$ScriptName' to GPO '$GpoName'."
-}
+Write-Host "You still need to attach startup script '$ScriptName' to GPO '$GpoName'."
+Write-Host "Computer Configuration → Policies → Windows Settings → Scripts (Startup/Shutdown) → Startup"
 
 # Configure Advanced Audit Policies (Audit Process Creation and Audit File System) using audit.csv
 Write-Host "Configuring Advanced Audit Policies in GPO: $GpoName"
+
 try {
     # Create a temporary audit policy file with UTF-8 encoding (no BOM)
     $tempCsv = [System.IO.Path]::GetTempFileName() + ".csv"
