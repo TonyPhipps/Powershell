@@ -39,7 +39,7 @@ catch {
     return
 }
 
-# Define preset audit settings, event log sizes, and command-line auditing
+# Define preset audit settings
 $AuditSettings = @(
     @{
         # GPO: Computer Configuration > Policies > Administrative Templates > Windows Components > Windows PowerShell > Turn on Module Logging
@@ -84,6 +84,15 @@ $AuditSettings = @(
         Subcategory = "BITSLogging"
         RegistryKey = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\EventLog\Microsoft-Windows-Bits-Client\Operational"
         ValueName   = "Enabled"
+        Type        = "DWord"
+        Value       = 1 # Enabled
+    },
+        @{
+        # GPO: Computer Configuration > Administrative Templates > System > Device Installation > Prevent Installation of Removable Devices
+        Name        = "Prevent Installation of Removable Devices"
+        Subcategory = "DeviceInstallation"
+        RegistryKey = "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeviceInstall\Restrictions"
+        ValueName   = "DenyRemovableDevices"
         Type        = "DWord"
         Value       = 1 # Enabled
     }
