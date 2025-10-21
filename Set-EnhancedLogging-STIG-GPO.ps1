@@ -145,13 +145,43 @@ try {
     $tempCsv = [System.IO.Path]::GetTempFileName() + ".csv"
     $auditPolicy = @"
 Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclusion Setting,Setting Value
-,System,File System,{0cce922d-69ae-11d9-bed3-505054503030},Success and Failure,,3
-,System,Audit Registry,{0cce922f-69ae-11d9-bed3-505054503030},Success and Failure,,3
-,System,Detailed File Share,{0cce9244-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,Computer Account Management,{0cce9235-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,User Account Management,{0cce9234-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,Process Creation,{0cce922b-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,Directory Service Changes,{0cce9238-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,Other Object Access Events,{0cce9232-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,Removable Storage,{0cce9231-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,Authorization Policy Change,{0cce923e-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,Security System Extension,{0cce923a-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,System Integrity,{0cce923b-69ae-11d9-bed3-505054503030},Success and Failure,,3
 "@
-    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access > Audit File System
-    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access > Audit Registry
-    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access Policy > Audit Detailed File Share
+
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Account Management  > Audit Computer Account Management
+        # SV-226087r569184_rule
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Account Management > Audit User Account Management
+        # SV-253310r991551_rule
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Detailed Tracking > Audit Process Creation
+        # SV-220754r569187_rule
+        # SV-205770r958732_rule
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > DS Access > Audit Directory Services Changes
+        # SV-254410r958732_rule
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access > Audit Other Object Access Events
+        # SV-220763r569187_rule
+        # SV-220764r569187_rule
+        # SV-205836r991578_rule
+        # SV-205837r991578_rule
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access > Audit Removable Storage
+        # SV-220765r569187_rule
+        # SV-205840r569188_rule
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Policy Change > Audit Authorization Policy Change
+        # SV-220769r569187_rule
+        # SV-220770r569187_rule
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > System > Audit Security System Extension
+        # SV-254330r958732_rule
+        # SV-205782r958732_rule
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > System > Audit System Integrity
+        # SV-220777r569187_rule
+        # SV-205784r958732_rule
 
     # Use UTF-8 encoding without BOM
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
