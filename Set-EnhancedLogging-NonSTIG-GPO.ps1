@@ -86,15 +86,6 @@ $AuditSettings = @(
         ValueName   = "Enabled"
         Type        = "DWord"
         Value       = 1 # Enabled
-    },
-        @{
-        # GPO: Computer Configuration > Administrative Templates > System > Device Installation > Prevent Installation of Removable Devices
-        Name        = "Prevent Installation of Removable Devices"
-        Subcategory = "DeviceInstallation"
-        RegistryKey = "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeviceInstall\Restrictions"
-        ValueName   = "DenyRemovableDevices"
-        Type        = "DWord"
-        Value       = 1 # Enabled
     }
 )
 
