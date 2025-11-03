@@ -53,7 +53,7 @@ $AuditSettings = @(
     @{
         # GPO: Computer Configuration > Policies > Administrative Templates > Windows Components > Windows PowerShell > Turn on Module Logging
         Name        = "Enable Module Logging for All Modules"
-        Subcategory = "ModuleLogging"
+        Subcategory = "ModuleLogging All Modules"
         RegistryKey = "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ModuleLogging\ModuleNames"
         ValueName   = "*"
         Type        = "String"
@@ -141,8 +141,8 @@ wevtutil set-log 'Microsoft-Windows-Bits-Client/Operational' /rt:true /q:true
 # Create or update the script file in SYSVOL
 $ScriptContent | Out-File -FilePath $ScriptFullPath -Encoding UTF8 -Force
 
-Write-Host "You still need to attach startup script '$ScriptName' to GPO '$GpoName'."
-Write-Host "Computer Configuration → Policies → Windows Settings → Scripts (Startup/Shutdown) → Startup"
+Write-Host "You still need to open the GPO '$GpoName' and attach the startup script at '$ScriptFullPath'." -ForegroundColor Yellow
+Write-Host "Computer Configuration → Policies → Windows Settings → Scripts (Startup/Shutdown) → Startup" -ForegroundColor DarkYellow
 
 # Configure Advanced Audit Policies (Audit Process Creation and Audit File System) using audit.csv
 Write-Host "Configuring Advanced Audit Policies in GPO: $GpoName"
@@ -188,4 +188,4 @@ finally {
     }
 }
 
-Write-Host "GPO configuration completed. Link the GPO to an OU and apply using 'gpupdate /force' on target machines."
+Write-Host "GPO configuration completed. Link the GPO to an OU and apply using 'gpupdate /force' on target machines." -ForegroundColor Yellow
