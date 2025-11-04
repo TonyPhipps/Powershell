@@ -50,6 +50,7 @@ Write-Host "Applying Enhanced Logging Registry Policies" -ForegroundColor Yellow
 $RegistrySettings = @(
     @{
         # 1. Enable PowerShell Module Logging (Set-ItemProperty ... -Name EnableModuleLogging -Value 1)
+        # Local Group Policy\Computer Configuration\Administrative Templates\Windows Components\Windows PowerShell\Turn on Module Logging
         Name        = "PowerShell Module Logging"
         Path        = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ModuleLogging"
         ValueName   = "EnableModuleLogging"
@@ -58,6 +59,7 @@ $RegistrySettings = @(
     },
     @{
         # 2. Log all PowerShell Modules (Set-ItemProperty ... -Name '*' -Value '*')
+        # Local Group Policy\Computer Configuration\Administrative Templates\Windows Components\Windows PowerShell\Turn on Module Logging
         Name        = "PowerShell Module Logging - All Modules"
         Path        = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ModuleLogging\ModuleNames"
         ValueName   = "*"
@@ -66,6 +68,7 @@ $RegistrySettings = @(
     },
     @{
         # 3. Enable PowerShell Script Block Logging (Set-ItemProperty ... -Name EnableScriptBlockLogging -Value 1)
+        # Local Group Policy\Computer Configuration\Administrative Templates\Windows Components\Windows PowerShell\Turn on PowerShell Script Block Logging
         Name        = "PowerShell Script Block Logging"
         Path        = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging"
         ValueName   = "EnableScriptBlockLogging"
@@ -74,6 +77,8 @@ $RegistrySettings = @(
     },
     @{
         # 4. Enable Advanced Audit Policy Override (Set-ItemProperty ... -Name SCENoApplyLegacyAuditPolicy -Value 1)
+        # Local Security Policy\Security Settings\Local Policies\Security Options\Audit: Force audit policy subcategory settings (Windows Vista or later) to override legacy audit policy settings
+        # Local Group Policy\Computer Configuration\Windows Settings\Security Settings\Local Policies\Security Options\Audit: Force audit policy subcategory settings (Windows Vista or later) to override legacy audit policy settings
         Name        = "Enable Advanced Audit Policy Override"
         Path        = "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa"
         ValueName   = "SCENoApplyLegacyAuditPolicy"
@@ -82,6 +87,7 @@ $RegistrySettings = @(
     },
     @{
         # 5. Enable Audit Receiving NTLM Traffic (Set-ItemProperty ... -Name AuditReceivingNTLMTraffic -Value 2)
+        # Local Security Policy\Security Settings\Local Policies\Security Options\Network security: Restrict NTLM: Audit Incoming NTLM Traffic
         Name        = "Audit Receiving NTLM Traffic (All)"
         Path        = "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0"
         ValueName   = "AuditReceivingNTLMTraffic"

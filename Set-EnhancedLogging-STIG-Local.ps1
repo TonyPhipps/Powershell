@@ -78,6 +78,8 @@ Write-Host "Applying Direct Registry-Based Policies" -ForegroundColor Yellow
 $RegistrySettings = @(
     @{
         # Security Option: Force audit policy subcategory settings to override category settings (STIG requirement)
+        # Local Group Policy\Computer Configuration\Windows Settings\Security Settings\Local Policies\Security Options\Audit: Force audit policy subcategory settings (Windows Vista or later) to override legacy audit policy settings
+        # Local Security Policy\Local Policies\Security Options\Audit: Force audit policy subcategory settings (Windows Vista or later) to override audit policy category settings
         # Windows Server 2022: SV-254449r958442_rule
         # Windows Server 2019: SV-205633r958400_rule
         # Windows 11: SV-248480r798150_rule
@@ -89,6 +91,8 @@ $RegistrySettings = @(
     },
     @{
         # PowerShell Setting: Turn on Script Block Logging
+        # Not in Local Security Policy
+        # Local Group Policy\Computer Configuration\Administrative Templates\Windows Components\Windows PowerShell\Turn on PowerShell Script Block Logging
         # Windows Server 2022: SV-254377r958442_rule
         # Windows Server 2019: SV-205792r958400_rule
         # Windows 11: SV-250873r958376_rule
@@ -101,6 +105,8 @@ $RegistrySettings = @(
     },
     @{
         # Audit Process Creation: Include command line in process creation events
+        # Not in Local Security Policy
+        # Local Group Policy\Computer Configuration\Administrative Templates\System\Audit Process Creation\Include command line in process creation events
         # Windows Server 2022: SV-254378r958442_rule
         # Windows Server 2019: SV-205793r958400_rule
         # Windows 11: SV-250874r958376_rule
@@ -113,11 +119,13 @@ $RegistrySettings = @(
     },
     @{
         # Event Log Size: Security Log Maximum Size (1000 MB in bytes)
+        # Not in Local Security Policy
+        # Local Group Policy\Computer Configuration\Administrative Templates\Windows Components\Event Log Service\Security\Specify the maximum log file size (KB)
         # Windows Server 2022: SV-254359r958442_rule
         # Windows Server 2019: SV-205797r958400_rule
         # Windows 11: SV-253338r958752_rule
         # Windows 10: SV-220780r958752_rule
-        Name        = "Security Log MaxSize (500MB)"
+        Name        = "Security Log MaxSize (1000MB)"
         Path        = "HKLM:\System\CurrentControlSet\Services\Eventlog\Security"
         ValueName   = "MaxSize"
         Type        = "DWord"
@@ -125,11 +133,13 @@ $RegistrySettings = @(
     },
     @{
         # Event Log Size: System Log Maximum Size (1000 MB in bytes)
+        # Not in Local Security Policy
+        # Local Group Policy\Computer Configuration\Administrative Templates\Windows Components\Event Log Service\System\Specify the maximum log file size (KB)
         # Windows Server 2022: SV-254360r958442_rule
         # Windows Server 2019: SV-205798r958400_rule
         # Windows 11: SV-253339r958752_rule
         # Windows 10: SV-220781r958752_rule
-        Name        = "System Log MaxSize (500MB)"
+        Name        = "System Log MaxSize (1000MB)"
         Path        = "HKLM:\System\CurrentControlSet\Services\Eventlog\System"
         ValueName   = "MaxSize"
         Type        = "DWord"
@@ -137,11 +147,13 @@ $RegistrySettings = @(
     },
     @{
         # Event Log Size: Application Log Maximum Size (1000 MB in bytes)
+        # Not in Local Security Policy
+        # Local Group Policy\Computer Configuration\Administrative Templates\Windows Components\Event Log Service\Application\Specify the maximum log file size (KB)
         # Windows Server 2022: SV-254358r958442_rule
         # Windows Server 2019: SV-205796r958400_rule
         # Windows 11: SV-253337r958752_rule
         # Windows 10: SV-220779r958752_rule
-        Name        = "Application Log MaxSize (500MB)"
+        Name        = "Application Log MaxSize (1000MB)"
         Path        = "HKLM:\System\CurrentControlSet\Services\Eventlog\Application"
         ValueName   = "MaxSize"
         Type        = "DWord"
