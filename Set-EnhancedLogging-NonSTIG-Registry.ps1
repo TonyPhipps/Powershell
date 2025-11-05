@@ -88,6 +88,7 @@ $RegistrySettings = @(
     @{
         # 5. Enable Audit Receiving NTLM Traffic (Set-ItemProperty ... -Name AuditReceivingNTLMTraffic -Value 2)
         # Local Security Policy\Security Settings\Local Policies\Security Options\Network security: Restrict NTLM: Audit Incoming NTLM Traffic
+        # Local Group Policy\Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network security: Restrict NTLM: Audit incoming NTLM traffic
         Name        = "Audit Receiving NTLM Traffic (All)"
         Path        = "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0"
         ValueName   = "AuditReceivingNTLMTraffic"
