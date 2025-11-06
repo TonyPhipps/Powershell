@@ -1,9 +1,9 @@
-# This script performs three actions:
+# This script performs these actions:
 # 1. Backs up the current Local Group Policy (LGPO) settings.
 # 2. Backups up the current Audit Policy settings.
-# 2. Imports an EMBEDDED group_policy.pol file.
-# 2. Imports an EMBEDDED audit_policy.pol file.
-# 3. Reports the exact location of the backup folders.
+# 3. Imports an EMBEDDED group_policy.pol file.
+# 4. Imports an EMBEDDED audit_policy.pol file.
+# 5. Reports the exact location of the backup folders.
 
 # =================================================================
 #                      CONFIGURATION SECTION
@@ -132,8 +132,7 @@ if (-not (Test-Path $LGPOPath -PathType Leaf)) {
 
 # --- Perform LGPO Backup ---
 $Timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
-$BackupBaseDir = Join-Path -Path $PSScriptRoot -ChildPath "LGPO_Backups"
-$BackupDir = Join-Path -Path $BackupBaseDir -ChildPath "Backup_$Timestamp"
+$BackupDir = Join-Path -Path $BackupBaseDir -ChildPath "LGPOBackup_$Timestamp"
 New-Item -Path $BackupDir -ItemType Directory -Force | Out-Null
 Write-Host "Backing up current LGPO settings to $BackupDir..." -ForegroundColor DarkGray
 & $LGPOPath /b $BackupDir 2>$null
@@ -159,8 +158,7 @@ try {
 
 # --- Perform Audit Policy Backup ---
 $Timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
-$BackupBaseDir = Join-Path -Path $PSScriptRoot -ChildPath "AuditPolicy_Backups"
-$BackupDir = Join-Path -Path $BackupBaseDir -ChildPath "Backup_$Timestamp"
+$BackupDir = Join-Path -Path $BackupBaseDir -ChildPath "AuditBackup_$Timestamp"
 New-Item -Path $BackupDir -ItemType Directory -Force | Out-Null
 Write-Host "Backing up current Audit Policy settings to $BackupDir..." -ForegroundColor DarkGray
 auditpol.exe /backup /file:$BackupDir\AuditPolicy.csv

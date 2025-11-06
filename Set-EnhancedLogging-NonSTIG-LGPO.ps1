@@ -1,4 +1,4 @@
-# This script performs three actions:
+# This script performs these actions:
 # 1. Backs up the current Local Group Policy (LGPO) settings.
 # 2. Imports an EMBEDDED group_policy.pol file.
 # 3. Reports the exact location of the backup folder.
@@ -80,7 +80,6 @@ if (-not (Test-Path $LGPOPath -PathType Leaf)) {
 
 # --- Perform LGPO Backup ---
 $Timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
-$BackupBaseDir = Join-Path -Path $PSScriptRoot -ChildPath "LGPO_Backups"
 $BackupDir = Join-Path -Path $BackupBaseDir -ChildPath "Backup_$Timestamp"
 New-Item -Path $BackupDir -ItemType Directory -Force | Out-Null
 Write-Host "Backing up current LGPO settings to $BackupDir..." -ForegroundColor Yellow
