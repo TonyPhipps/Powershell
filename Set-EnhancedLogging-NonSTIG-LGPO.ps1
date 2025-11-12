@@ -3,22 +3,13 @@
 # 2. Imports an EMBEDDED group_policy.pol file.
 # 3. Reports the exact location of the backup folder.
 
-# =================================================================
-#                      CONFIGURATION SECTION
-# =================================================================
-
-# 1. Update the $LGPOPath variable below to the exact location of your LGPO.exe.
+# Update the $LGPOPath variable below to the exact location of your LGPO.exe.
 $LGPOPath = "$PSScriptRoot\LGPO.exe"
 
 # Set the base directory for the backup (uses the script's location by default)
 $BackupBaseDir = Join-Path -Path $PSScriptRoot -ChildPath "LGPO_Backups"
 
-# =================================================================
-#        EMBEDDED POLICY CONTENT (Plain Text group_policy.pol)
-# =================================================================
-
-# This section holds the content of the group_policy.pol file in plain text.
-# The script writes this directly to a temporary .pol file for LGPO to import.
+# The following will be directly to a temporary .pol file for LGPO to import.
 
 $PolicyPlainText = @"
 Computer

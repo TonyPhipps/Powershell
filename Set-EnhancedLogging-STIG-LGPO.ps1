@@ -5,29 +5,13 @@
 # 4. Imports an EMBEDDED audit_policy.pol file.
 # 5. Reports the exact location of the backup folders.
 
-# =================================================================
-#                      CONFIGURATION SECTION
-# =================================================================
-
-# 1. Update the $LGPOPath variable below to the exact location of your LGPO.exe.
+# Update the $LGPOPath variable below to the exact location of your LGPO.exe.
 $LGPOPath = "$PSScriptRoot\LGPO.exe"
 
 # Set the base directory for the backup (uses the script's location by default)
 $BackupBaseDir = Join-Path -Path $PSScriptRoot -ChildPath "LGPO_Backups"
 
-# =================================================================
-#        EMBEDDED POLICY CONTENT (Plain Text group_policy.pol)
-# =================================================================
-
-# This section holds the content of the group_policy.pol file in plain text.
-# The script writes this directly to a temporary .pol file for LGPO to import.
-
-# =================================================================
-#        EMBEDDED POLICY CONTENT (Plain Text audit_policy.csv)
-# =================================================================
-
-# This section holds the content of the audit_policy.pol file in plain text.
-# The script writes this directly to a temporary .pol file for LGPO to import.
+# The following will be written directly to a temporary .pol file for LGPO to import.
 
 $PolicyPlainText = @"
 Computer
@@ -107,6 +91,8 @@ The above $PolicyPlainText applies the following Group Policy settings:
         Windows Server 2016: SV-224937r877391_rule
         Windows Server 2012: SV-225370r877391_rule
 #>
+
+# The following will be written directly to a temporary .pol file for LGPO to import.
 
 $AuditPolicyPlainText = @"
 Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclusion Setting,Setting Value
