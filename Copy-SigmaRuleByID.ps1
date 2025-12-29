@@ -1,5 +1,5 @@
 ﻿# Given a csv of selected ID's for sigma rules, copy those rules from a sigma-master repo download into another folder for further processing.
-# .\Copy-SigmaRuleByID.ps1 -SelectedIDs "selected_ids.csv" -SigmaRules "D:\github\sigma\rules" -output ".\selected_rules"
+# D:\scripts\Copy-SigmaRuleByID.ps1 -SelectedIDs "C:\Users\you\selected_ids.csv" -SigmaRules "C:\Users\you\sigma" -Output "C:\Users\you\selected_rules"
 
 param (
     [Parameter(Mandatory=$true)][string]$SelectedIDs,
@@ -13,7 +13,7 @@ if ( ($psISE) -and (Test-Path -Path $psISE.CurrentFile.FullPath)) {
     $ScriptRoot = $PSScriptRoot
 }
 
-if (not $Output){
+if ($null -eq $Output){
     $Output = "$SCriptRoot\selected_rules"
 }
 
@@ -26,7 +26,7 @@ $files = Get-ChildItem $SigmaRules -Recurse | Where-Object { !$_.PSIsContainer }
 # Loop through each file
 foreach ($file in $files) {
     # Read the content of the file
-    $content = Get-Content $file.FullName -Raw -Encoding UTF8
+    $content = Get-Content $file.FullName -TotalCount 2
 
     # Check if any of the strings exist in the file content
     foreach ($string in $stringsToFind) {
