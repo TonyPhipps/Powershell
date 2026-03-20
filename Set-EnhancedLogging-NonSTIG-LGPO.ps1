@@ -23,6 +23,11 @@ AuditIncomingNTLMTraffic
 DWORD:2
 
 Computer
+SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\RestrictNTLM
+AuditNTLMInDomain
+DWORD:7
+
+Computer
 SOFTWARE\Policies\Microsoft\Windows\PowerShell
 ScriptBlockLogging
 DWORD:1
@@ -57,6 +62,9 @@ Enabled:
 
 Enabled and set to "2" (Audit only):
 - Local Group Policy\Computer Configuration\Windows Settings\Security Settings\Local Policies\Security Options\Network security: Restrict NTLM: Audit incoming NTLM traffic
+
+Enabled and set to "7" (all):
+- Local Group Policy\Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network security: Restrict NTLM: Audit NTLM authentication in this domain
 
 Adds a wildcard entry for all modules (*:*):
 - Local Group Policy\Computer Configuration\Administrative Templates\Windows Components\Windows PowerShell\Turn on Module Logging (specifically, the ModuleNames list)

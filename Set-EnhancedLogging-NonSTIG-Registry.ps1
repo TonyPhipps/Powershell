@@ -76,7 +76,7 @@ $RegistrySettings = @(
         Value       = 1
     },
     @{
-        # 4. Enable Advanced Audit Policy Override (Set-ItemProperty ... -Name SCENoApplyLegacyAuditPolicy -Value 1)
+        # 4. Enable Advanced Audit Policy Override
         # Local Security Policy\Security Settings\Local Policies\Security Options\Audit: Force audit policy subcategory settings (Windows Vista or later) to override legacy audit policy settings
         # Local Group Policy\Computer Configuration\Windows Settings\Security Settings\Local Policies\Security Options\Audit: Force audit policy subcategory settings (Windows Vista or later) to override legacy audit policy settings
         Name        = "Enable Advanced Audit Policy Override"
@@ -86,7 +86,7 @@ $RegistrySettings = @(
         Value       = 1
     },
     @{
-        # 5. Enable Audit Receiving NTLM Traffic (Set-ItemProperty ... -Name AuditReceivingNTLMTraffic -Value 2)
+        # 5. Enable Audit Receiving NTLM Traffic
         # Local Security Policy\Security Settings\Local Policies\Security Options\Network security: Restrict NTLM: Audit Incoming NTLM Traffic
         # Local Group Policy\Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network security: Restrict NTLM: Audit incoming NTLM traffic
         Name        = "Audit Receiving NTLM Traffic (All)"
@@ -94,6 +94,16 @@ $RegistrySettings = @(
         ValueName   = "AuditReceivingNTLMTraffic"
         Type        = "DWord"
         Value       = 2 # 2 = Enable auditing for all traffic
+    }
+    @{
+        # 6. Enable Audit Receiving NTLM Traffic
+        # Local Security Policy\Security Settings\Local Policies\Security Options\Network security: Restrict NTLM: Audit NTLM authentication in this domain
+        # Local Group Policy\Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network security: Restrict NTLM: Audit NTLM authentication in this domain
+        Name        = "Audit Receiving NTLM Traffic (All)"
+        Path        = "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0"
+        ValueName   = "AuditNTLMInDomain"
+        Type        = "DWord"
+        Value       = 7 # 7 = Enable auditing for all
     }
 )
 foreach ($Setting in $RegistrySettings) {

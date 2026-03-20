@@ -67,7 +67,7 @@ $AuditSettings = @(
         RegistryKey = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0"
         ValueName   = "AuditNTLMInDomain"
         Type        = "DWord"
-        Value       = 2 # Enable auditing (2 = Success and Failure)
+        Value       = 7 # Enable all
     },
     @{
         # GPO: Computer Configuration > Policies > Windows Settings > Security Settings > Local Policies > Security Options > Network Security: Restrict NTLM: Audit Incoming NTLM Traffic
@@ -76,7 +76,7 @@ $AuditSettings = @(
         RegistryKey = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0"
         ValueName   = "AuditReceivingNTLMTraffic"
         Type        = "DWord"
-        Value       = 1 # Enable auditing
+        Value       = 2 # Enable all
     },
     @{
         # wevtutil set-log Microsoft-Windows-Bits-Client/Operational /enabled:true /rt:true /q:true
