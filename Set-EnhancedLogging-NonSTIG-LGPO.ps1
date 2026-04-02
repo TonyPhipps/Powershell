@@ -70,6 +70,13 @@ Adds a wildcard entry for all modules (*:*):
 - Local Group Policy\Computer Configuration\Administrative Templates\Windows Components\Windows PowerShell\Turn on Module Logging (specifically, the ModuleNames list)
 #>
 
+# The following will be written directly to a temporary .pol file for LGPO to import.
+
+$AuditPolicyPlainText = @"
+Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclusion Setting,Setting Value
+,System,Directory Service Access,{0cce923b-69ae-11d9-bed3-505054503030},Success,,1
+"@
+
 # --- Initial Validation ---
 if (-not (Test-Path $LGPOPath -PathType Leaf)) {
     Write-Host "ERROR: LGPO.exe not found at '$LGPOPath'." -ForegroundColor Red
@@ -100,6 +107,32 @@ try {
     if (Test-Path $TempPolFile) {
         Remove-Item $TempPolFile -Force -ErrorAction SilentlyContinue
         Write-Host "Cleaned up temporary group policy file." -ForegroundColor DarkGray
+    }
+}
+
+# --- Perform Audit Policy Backup ---
+$Timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+$BackupDir = Join-Path -Path $BackupBaseDir -ChildPath "AuditBackup_$Timestamp"
+New-Item -Path $BackupDir -ItemType Directory -Force | Out-Null
+Write-Host "Backing up current Audit Policy settings to $BackupDir..." -ForegroundColor DarkGray
+auditpol.exe /backup /file:$BackupDir\AuditPolicy.csv
+
+# --- Write and Import Audit Policy ---
+$TempAuditPolicyFile = Join-Path -Path $env:TEMP -ChildPath "audit_policy_$(Get-Random).csv"
+try {
+    # Write the audit policy directly to a temporary .csv file
+    $AuditPolicyPlainText | Out-File $TempAuditPolicyFile -Encoding ASCII -Force
+    Write-Host "Temporary audit policy file created at: $TempAuditPolicyFile"
+    Write-Host "Importing audit policy from temporary file..." -ForegroundColor DarkGray
+    & $LGPOPath /a $TempAuditPolicyFile 2>$null
+} catch {
+    Write-Host "`nFATAL ERROR during audit policy file write or LGPO import:" -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Red
+    exit 1
+} finally {
+    if (Test-Path $TempAuditPolicyFile) {
+        Remove-Item $TempAuditPolicyFile -Force -ErrorAction SilentlyContinue
+        Write-Host "Cleaned up temporary audit policy file." -ForegroundColor DarkGray
     }
 }
 

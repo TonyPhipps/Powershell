@@ -154,6 +154,7 @@ try {
 Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclusion Setting,Setting Value
 ,System,File System,{0cce922d-69ae-11d9-bed3-505054503030},Success and Failure,,3
 ,System,Audit Registry,{0cce922f-69ae-11d9-bed3-505054503030},Success and Failure,,3
+,System,Directory Service Access,{0cce923b-69ae-11d9-bed3-505054503030},Success,,1
 "@
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access > Audit File System
         # NOTE - Windows only generates events for objects (files/folders) that have a System Access Control List (SACL) entry specifying "Audit" on them. 
@@ -161,6 +162,8 @@ Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclus
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access > Audit Registry
         # NOTE - Windows only generates events for objects (registry) that have a System Access Control List (SACL) entry specifying "Audit" on them. 
         # If no SACLs are defined, enabling this produces no new events.
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Configuration > Audit Policies > DS Access > Audit Directory Service Access
+        # NOTE - Even with the policy on, Windows won't log unless that specific container has an Audit Rule (SACL) applied to it.
 
     # Use UTF-8 encoding without BOM
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)

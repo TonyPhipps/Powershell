@@ -197,6 +197,7 @@ Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclus
         # Windows Server 2016: SV-224888r569186_rule
         # Windows Server 2012 / 2012 R2 (Member Server): SV-225281r569185_rule
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > DS Access > Audit Directory Services Changes
+        # NOTE - Even with the policy on, Windows won't log unless that specific container has an Audit Rule (SACL) applied to it.
         # Windows Server 2022 (DC): SV-254410r958732_rule
         # Windows Server 2019 (DC): SV-205793r958732_rule, SV-205794r569188_rule
         # Windows Server 2016 (DC): SV-224989r569186_rule, SV-224990r569186_rule
