@@ -160,6 +160,8 @@ Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclus
         # NOTE - Windows only generates events for objects (files/folders) that have a System Access Control List (SACL) entry specifying "Audit" on them. 
         # If no SACLs are defined, enabling this produces no new events.
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access > Audit Registry
+        # MITRE: T1112, T1562
+        # Event ID: 4657
         # NOTE - Windows only generates events for objects (registry) that have a System Access Control List (SACL) entry specifying "Audit" on them. 
         # If no SACLs are defined, enabling this produces no new events.
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Configuration > Audit Policies > DS Access > Audit Directory Service Access

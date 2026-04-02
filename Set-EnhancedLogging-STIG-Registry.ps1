@@ -106,6 +106,7 @@ $RegistrySettings = @(
     @{
         # Audit Process Creation: Include command line in process creation events
         # Not in Local Security Policy
+        # Event ID: 4688, 4696
         # Local Group Policy\Computer Configuration\Administrative Templates\System\Audit Process Creation\Include command line in process creation events
         # Windows Server 2022: SV-254378r958442_rule
         # Windows Server 2019: SV-205793r958400_rule
@@ -171,12 +172,16 @@ Write-Host "Applying Advanced Audit Policies (using auditpol.exe)" -ForegroundCo
 $AdvancedAuditPolicies = @(
     @{ Subcategory = "Computer Account Management"; Setting = "Success and Failure" },
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Account Management  > Audit Computer Account Management
+        # MITRE: T1207
+        # Event ID: 4741, 4743 on Domain Controller
         # Windows Server 2022 (DC): SV-254407r958368_rule
         # Windows Server 2019 (DC): SV-205628r958368_rule
         # Windows Server 2016 (DC): SV-224986r958368_rule (earlier revs also seen as SV-224986r852358_rule / SV-224986r569186_rule)
         # Windows Server 2012 / 2012 R2 (DC): SV-226087r569184_rule
     @{ Subcategory = "User Account Management"; Setting = "Success and Failure" },
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Account Management > Audit User Account Management
+        # MITRE: T1207    
+        # Event ID: 4738 on Domain Controller
         # Windows 11: SV-253310r991551_rule, SV-253309r958566_rule
         # Windows 10: SV-220752r569187_rule, SV-220751r569187_rule
         # Windows Server 2022: SV-254304r958368_rule, SV-254305r958368_rule
@@ -193,6 +198,9 @@ $AdvancedAuditPolicies = @(
         # Windows Server 2012 / 2012 R2 (Member Server): SV-225281r569185_rule
     @{ Subcategory = "Directory Service Changes"; Setting = "Success and Failure" },
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > DS Access > Audit Directory Services Changes
+        # NOTE - Even with the policy on, Windows won't log unless that specific container has an Audit Rule (SACL) applied to it.
+        # MITRE: T1098
+        # Event ID: Security 5136, Security 4738 on Domain Controller
         # Windows Server 2022 (DC): SV-254410r958732_rule
         # Windows Server 2019 (DC): SV-205793r958732_rule, SV-205794r569188_rule
         # Windows Server 2016 (DC): SV-224989r569186_rule, SV-224990r569186_rule
@@ -213,6 +221,8 @@ $AdvancedAuditPolicies = @(
         # Windows Server 2022: SV-254317r958422_rule, SV-254318r958422_rule
     @{ Subcategory = "Authorization Policy Change"; Setting = "Success and Failure" },
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Policy Change > Audit Authorization Policy Change
+        # Event ID: Security 4704
+        # MITRE: T1098
         # Windows 11: SV-253329r991578_rule, SV-253330r991578_rule
         # Windows 10: SV-220769r569187_rule, SV-220770r569187_rule
         # Windows Server 2022: SV-254491r958726_rule, SV-254492r958726_rule
@@ -226,6 +236,9 @@ $AdvancedAuditPolicies = @(
         # Windows Server 2016: SV-224892r569186_rule
     @{ Subcategory = "System Integrity"; Setting = "Success and Failure" },
     # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > System > Audit System Integrity
+        # Detect code integrity failures such as missing page hashes or corrupted drivers due unauthorized modification. This could be a sign of tampered binaries.
+        # MITRE: T1027.001
+        # Event ID: 5038, 6281
         # Windows Server 2022: SV-254323r958732_rule
         # Windows Server 2019: SV-205784r958732_rule
         # Windows Server 2016: SV-224927r569186_rule

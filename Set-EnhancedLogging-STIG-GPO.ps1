@@ -232,7 +232,9 @@ Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclus
         # Windows Server 2012 / 2012 R2: SV-225295r569184_rule
         # Windows 10: SV-220777r569187_rule
         # Windows 11: SV-253318r991570_rule
-    # # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access Policy > Audit Detailed File Share
+    # Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access Policy > Audit Detailed File Share
+        # MITRE: T1053.005
+        # Event ID: 5136 on domain controller
         # SV-220789r569187_rule (Failure)
 
     # Use UTF-8 encoding without BOM
