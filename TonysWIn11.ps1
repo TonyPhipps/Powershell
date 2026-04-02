@@ -38,3 +38,18 @@ Get-WindowsCapability -Online -Name "Rsat.GroupPolicy.Management.Tools*" | Add-W
 
 # Install DNS Server Tools:
 Get-WindowsCapability -Online -Name "Rsat.Dns.Tools*" | Add-WindowsCapability -Online
+
+
+# Set Maximum Performance, Minimum Power Savings
+powercfg /duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 # Unlock Ultimate Performance plan
+$ultimatePlan = powercfg /list | Select-String "Ultimate Performance" # Set it as active (the GUID may vary, so we'll grab it dynamically)
+$guid = $ultimatePlan.ToString().Split()[3]
+powercfg /setactive $guid
+powercfg /x -standby-timeout-ac 0 # Disable Monitor Timeout
+powercfg /x -standby-timeout-dc 0 # Disable Monitor Timeout
+powercfg /h off # Turn Off Hibernation
+powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMIN 100 # Set Minimum Processor State to 100% (Plugged In)
+powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMAX 100 # Set Maximum Processor State to 100% (Plugged In)
+powercfg /setactive SCHEME_CURRENT # Apply the changes
+powercfg /list # Show plans
+powercfg /query SCHEME_CURRENT # Show settings
