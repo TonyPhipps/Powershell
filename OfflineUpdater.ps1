@@ -110,7 +110,8 @@ if ($Scan) {
     Write-Host "Gathering AD Computers..." -ForegroundColor Gray
     Get-ADComputer -Filter {Enabled -eq $true -and OperatingSystem -like '*Windows*'} | Select-Object -ExpandProperty Name | Out-File -FilePath $EndpointsPath
     $TargetEndpoints = Get-Content $EndpointsPath
-    $ScanResults = Get-KbNeededUpdate -ComputerName $TargetEndpoints -ScanFilePath $CabPath
+    $RemoteCabPath = "\\$env:COMPUTERNAME\$($CabPath -replace ':', '$')"
+    $ScanResults = Get-KbNeededUpdate -ComputerName $TargetEndpoints -ScanFilePath $RemoteCabPath
     if ($ScanResults) {
         $ReportPath = Join-Path $ExportFolder "Full_Compliance_Report_$((Get-Date).ToString('yyyyMMdd')).csv"
         $ScanResults | Select-Object ComputerName, KBUpdate, Title, IsMandatory, RebootRequired | Export-Csv -Path $ReportPath -NoTypeInformation
