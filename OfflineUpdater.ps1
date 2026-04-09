@@ -103,7 +103,6 @@ if ($Scan) {
         Write-Host "RSAT: Active Directory Users and Computers is NOT installed." -ForegroundColor Red
         return
     }
-
     Write-Host "--- Operation: Scan ---" -ForegroundColor Gray
     if (-not (Test-Path $ScanFolder)) { New-Item -ItemType Directory -Path $ScanFolder -Force | Out-Null }
     if (-not (Test-Path $ExportFolder)) { New-Item -ItemType Directory -Path $ExportFolder -Force | Out-Null }
@@ -111,13 +110,22 @@ if ($Scan) {
     Get-ADComputer -Filter {Enabled -eq $true -and OperatingSystem -like '*Windows*'} | Select-Object -ExpandProperty Name | Out-File -FilePath $EndpointsPath
     $TargetEndpoints = Get-Content $EndpointsPath
     $RemoteCabPath = "\\$env:COMPUTERNAME\$($CabPath -replace ':', '$')"
-    $ScanResults = Get-KbNeededUpdate -ComputerName $TargetEndpoints -ScanFilePath $RemoteCabPath
+    $ScanResults = foreach ($endpoint in $TargetEndpoints) {
+        $scanAttempt = Get-KbNeededUpdate -ComputerName $endpoint -ScanFilePath $RemoteCabPath -WarningVariable warn -ErrorVariable err -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
+        if ($warn -or $err -or (-not $scanAttempt)) {
+            Get-KbNeededUpdate -ComputerName $endpoint -ScanFilePath $RemoteCabPath -Force
+        } else {
+            $scanAttempt
+        }
+    }
     if ($ScanResults) {
         $ReportPath = Join-Path $ExportFolder "Full_Compliance_Report_$((Get-Date).ToString('yyyyMMdd')).csv"
         $ScanResults | Select-Object ComputerName, KBUpdate, Title, IsMandatory, RebootRequired | Export-Csv -Path $ReportPath -NoTypeInformation
-        $MissingKBs = $ScanResults.KBUpdate | Sort-Object -Unique
-        $MissingKBs | Out-File -FilePath $KBListPath
-        Write-Host "Scan complete. Missing KBs saved to $KBListPath" -ForegroundColor Green
+        $ExistingKBs = if (Test-Path $KBListPath) { Get-Content $KBListPath } else { @() }
+        $NewKBs = $ScanResults.KBUpdate
+        $UniqueKBs = ($ExistingKBs + $NewKBs) | Where-Object { $_ } | Sort-Object -Unique
+        $UniqueKBs | Out-File -FilePath $KBListPath
+        Write-Host "Scan complete. Updated missing KBs saved to $KBListPath" -ForegroundColor Green
         Write-Host "Copy that folder (or the whole package) back to a host with access to Microsoft.com and run again with the -DownloadUpdates flag." -ForegroundColor Green
     } else {
         Write-Host "No missing updates found." -ForegroundColor Gray
