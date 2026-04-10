@@ -24,7 +24,7 @@
 .PARAMETER RepoFolder
     The local repository where .msu/.cab update files are downloaded and stored.
 
-.PARAMETER ExportFolder
+.PARAMETER ResultsFolder
     Directory where compliance reports and missing KB lists are exported.
 
 .PARAMETER PreparePackage
@@ -85,7 +85,7 @@ param (
     [string]$RepoFolder,
 
     [Parameter(Mandatory = $false)]
-    [string]$ExportFolder,
+    [string]$ResultsFolder,
 
     [Parameter(Mandatory = $false)]
     [string]$EndpointsPath,
@@ -116,9 +116,9 @@ if (-not $ModulesFolder)  { $ModulesFolder = Join-Path -Path $WorkingFolder -Chi
 if (-not $CatalogFolder)  { $CatalogFolder = Join-Path -Path $WorkingFolder -ChildPath "catalog" }
 if (-not $ScanFolder)     { $ScanFolder = Join-Path -Path $WorkingFolder -ChildPath "scan" }
 if (-not $RepoFolder)     { $RepoFolder = Join-Path -Path $WorkingFolder -ChildPath "repository" }
-if (-not $ExportFolder)   { $ExportFolder = Join-Path -Path $WorkingFolder -ChildPath "ScanResults" }
+if (-not $ResultsFolder)  { $ResultsFolder = Join-Path -Path $WorkingFolder -ChildPath "ScanResults" }
 if (-not $EndpointsPath)  { $EndpointsPath = Join-Path -Path $ScanFolder -ChildPath "endpoints.txt" }
-if (-not $MissingKBsPath) { $MissingKBsPath = Join-Path -Path $ExportFolder -ChildPath "MissingKBs.txt" }
+if (-not $MissingKBsPath) { $MissingKBsPath = Join-Path -Path $ResultsFolder -ChildPath "MissingKBs.txt" }
 if (-not $CabPath)        { $CabPath = Join-Path -Path $CatalogFolder -ChildPath "wsusscn2.cab" }
 
 # --- 1. INSTALL MODULE ---
@@ -197,7 +197,7 @@ if ($Scan) {
     }
     Write-Host "--- Operation: Scan ---" -ForegroundColor Gray
     if (-not (Test-Path $ScanFolder)) { New-Item -ItemType Directory -Path $ScanFolder -Force | Out-Null }
-    if (-not (Test-Path $ExportFolder)) { New-Item -ItemType Directory -Path $ExportFolder -Force | Out-Null }
+    if (-not (Test-Path $ResultsFolder)) { New-Item -ItemType Directory -Path $ResultsFolder -Force | Out-Null }
     Write-Host "Gathering AD Computers..." -ForegroundColor Gray
     Get-ADComputer -Filter {Enabled -eq $true -and OperatingSystem -like '*Windows*'} | Select-Object -ExpandProperty Name | Out-File -FilePath $EndpointsPath
     $TargetEndpoints = Get-Content $EndpointsPath
@@ -211,7 +211,7 @@ if ($Scan) {
         }
     }
     if ($ScanResults) {
-        $ReportPath = Join-Path $ExportFolder "Full_Compliance_Report_$((Get-Date).ToString('yyyyMMdd')).csv"
+        $ReportPath = Join-Path $ResultsFolder "Full_Compliance_Report_$((Get-Date).ToString('yyyyMMdd')).csv"
         $ScanResults | Select-Object ComputerName, KBUpdate, Title, IsMandatory, RebootRequired | Export-Csv -Path $ReportPath -NoTypeInformation
         $ExistingKBs = if (Test-Path $MissingKBsPath) { Get-Content $MissingKBsPath } else { @() }
         $NewKBs = $ScanResults.KBUpdate
@@ -238,7 +238,7 @@ if ($DownloadUpdates) {
         Write-Host "Found $($KBsToDownload.Count) required updates." -ForegroundColor Cyan
         foreach ($KB in $KBsToDownload) {
             Write-Host "Querying Catalog for $KB..." -ForegroundColor Yellow
-            $Update = Get-KbUpdate -Name $KB -Architecture x64 -AllNeeded -Verbose
+            $Update = Get-KbUpdate -Name $KB -Architecture x64 -Verbose
             if ($Update) {
                 foreach ($U in $Update) {
                     $TargetFilePath = Join-Path $RepoFolder $U.FileName
