@@ -182,7 +182,7 @@ $InstallRequired = $Scan, $DownloadUpdates, $DeployUpdates
 if ($InstallRequired -contains $true) {
     if (-not (Get-Module -ListAvailable -Name kbupdate)) {
         Write-Error "CRITICAL: The 'kbupdate' module is not installed. Please run this script with the -Install flag first."
-        return 
+        return
     }
 }
 
@@ -203,9 +203,9 @@ if ($Scan) {
     $TargetEndpoints = Get-Content $EndpointsPath
     $RemoteCabPath = "\\$env:COMPUTERNAME\$($CabPath -replace ':', '$')"
     $ScanResults = foreach ($endpoint in $TargetEndpoints) {
-        $scanAttempt = Get-KbNeededUpdate -ComputerName $endpoint -ScanFilePath $RemoteCabPath -AllNeeded -Verbose -WarningVariable warn -ErrorVariable err -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
+        $scanAttempt = Get-KbNeededUpdate -ComputerName $endpoint -ScanFilePath $RemoteCabPath -Verbose -WarningVariable warn -ErrorVariable err -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
         if ($warn -or $err -or (-not $scanAttempt)) {
-            Get-KbNeededUpdate -ComputerName $endpoint -ScanFilePath $RemoteCabPath -AllNeeded -Force -Verbose
+            Get-KbNeededUpdate -ComputerName $endpoint -ScanFilePath $RemoteCabPath -Force -Verbose
         } else {
             $scanAttempt
         }
@@ -218,6 +218,7 @@ if ($Scan) {
         $UniqueKBs = ($ExistingKBs + $NewKBs) | Where-Object { $_ } | Sort-Object -Unique
         $UniqueKBs | Out-File -FilePath $MissingKBsPath
         Write-Host "Scan complete. Updated missing KBs saved to $MissingKBsPath" -ForegroundColor Green
+        Write-Host "Copy the ScanFolder ($ScanFolder) back to a host with access to Microsoft.com and run this tool again with the -DownloadUpdates flag." -ForegroundColor Green
         if (-not $SkipReport) {
             Get-Item $ReportPath | Import-Csv | Out-GridView
         }
@@ -232,7 +233,7 @@ if ($DownloadUpdates) {
     if (-not (Test-Path $MissingKBsPath)) {
         Write-Error "Could not find the MissingKBs.txt list at $MissingKBsPath. Run -Scan first."
     } else {
-        if (-not (Test-Path $RepoFolder)) { New-Item -ItemType Directory -Path $RepoFolder -Force | Out-Null }
+        New-Item -ItemType Directory -Path $RepoFolder -Force | Out-Null
         $KBsToDownload = Get-Content $MissingKBsPath
         Write-Host "Found $($KBsToDownload.Count) required updates." -ForegroundColor Cyan
         foreach ($KB in $KBsToDownload) {
@@ -242,7 +243,7 @@ if ($DownloadUpdates) {
                 foreach ($U in $Update) {
                     $TargetFilePath = Join-Path $RepoFolder $U.FileName
                     if (Test-Path $TargetFilePath) {
-                        Write-Host "  -> Skipping: $($U.FileName) already exists." -ForegroundColor DarkGray
+                        Write-Host "  -> Skipping: $($U.FileName) already exists in repository." -ForegroundColor DarkGray
                     } else {
                         Write-Host "  -> Downloading: $($U.Title)" -ForegroundColor Green
                         $U | Save-KbUpdate -Path $RepoFolder -Verbose
