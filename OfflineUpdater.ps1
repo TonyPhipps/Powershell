@@ -4,25 +4,25 @@ param (
     [string]$WorkingFolder = (Join-Path -Path $PSScriptRoot -ChildPath "kbupdate"),
 
     [Parameter(Mandatory = $false)]
-    [switch]$ModulesFolder,
+    [string]$ModulesFolder,
 
     [Parameter(Mandatory = $false)]
-    [switch]$CatalogFolder,
+    [string]$CatalogFolder,
 
     [Parameter(Mandatory = $false)]
-    [switch]$ScanFolder,
+    [string]$ScanFolder,
 
     [Parameter(Mandatory = $false)]
-    [switch]$RepoFolder,
+    [string]$RepoFolder,
 
     [Parameter(Mandatory = $false)]
-    [switch]$ExportFolder,
+    [string]$ExportFolder,
 
     [Parameter(Mandatory = $false)]
-    [switch]$EndpointsPath,
+    [string]$EndpointsPath,
 
     [Parameter(Mandatory = $false)]
-    [switch]$CabPath,
+    [string]$CabPath,
 
     [Parameter(Mandatory = $false)]
     [switch]$PreparePackage,
