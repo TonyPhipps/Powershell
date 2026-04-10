@@ -218,7 +218,7 @@ if ($Scan) {
         Write-Host "Scan complete. Updated missing KBs saved to $MissingKBsPath" -ForegroundColor Green
         Write-Host "Copy the ScanFolder ($ScanFolder) back to a host with access to Microsoft.com and run this tool again with the -DownloadUpdates flag." -ForegroundColor Green
         if (-not $SkipReport) {
-            Get-Item $ReportPath | Import-Csv | Out-GridView
+            Import-Csv -Path $ReportPath | Out-GridView
         }
     } else {
         Write-Host "No missing updates found." -ForegroundColor Gray
