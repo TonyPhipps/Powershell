@@ -146,12 +146,13 @@ if ($Install) {
 if ($PreparePackage) {
     Write-Host "--- Operation: Prepare Package ---" -ForegroundColor Gray
     try {
-        Install-PackageProvider -Name NuGet -Force -Scope CurrentUser -ErrorAction SilentlyContinue
+        Install-PackageProvider -Name NuGet -Scope CurrentUser -ErrorAction SilentlyContinue
         $Url = "https://go.microsoft.com/fwlink/?linkid=74689"
         if (-not (Test-Path $WorkingFolder)) { New-Item -ItemType Directory -Path $WorkingFolder -Force | Out-Null }
+        if (-not (Test-Path $ModulesFolder)) { New-Item -ItemType Directory -Path $ModulesFolder -Force | Out-Null }
         if (-not (Test-Path $CatalogFolder)) { New-Item -ItemType Directory -Path $CatalogFolder -Force | Out-Null }
-        Write-Host "Saving module to $WorkingFolder..." -ForegroundColor Gray
-        Save-Module -Name kbupdate -Path $WorkingFolder -ErrorAction Stop -Verbose
+        Write-Host "Saving module to $ModulesFolder..." -ForegroundColor Gray
+        Save-Module -Name kbupdate -Path $ModulesFolder -ErrorAction Stop -Verbose
         Get-ChildItem -Path $WorkingFolder -Recurse | Unblock-File
         $ShouldDownload = $true
         if (Test-Path $CabPath) {
