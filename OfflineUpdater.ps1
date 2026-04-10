@@ -1,7 +1,28 @@
 [CmdletBinding()]
 param (
     [Parameter(Mandatory = $false)]
-    [string]$PrepFolder = "C:\kbupdate",
+    [string]$WorkingFolder = (Join-Path -Path $PSScriptRoot -ChildPath "kbupdate"),
+
+    [Parameter(Mandatory = $false)]
+    [switch]$ModulesFolder,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$CatalogFolder,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$ScanFolder,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$RepoFolder,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$ExportFolder,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$EndpointsPath,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$CabPath,
 
     [Parameter(Mandatory = $false)]
     [switch]$PreparePackage,
@@ -19,15 +40,14 @@ param (
     [switch]$DeployUpdates
 )
 
-# Common Path Definitions
-$ModulesFolder = Join-Path -Path $PrepFolder -ChildPath "modules"
-$CatalogFolder = Join-Path -Path $PrepFolder -ChildPath "catalog"
-$ScanFolder    = Join-Path -Path $PrepFolder -ChildPath "scan"
-$RepoFolder    = Join-Path -Path $PrepFolder -ChildPath "repository"
-$ExportFolder  = Join-Path -Path $PrepFolder -ChildPath "ScanResults"
-$EndpointsPath = Join-Path -Path $ScanFolder -ChildPath "endpoints.txt"
-$KBListPath    = Join-Path -Path $ExportFolder -ChildPath "MissingKBs.txt"
-$CabPath       = Join-Path -Path $CatalogFolder -ChildPath "wsusscn2.cab"
+if (-not $ModulesFolder)  { $ModulesFolder = Join-Path -Path $WorkingFolder -ChildPath "modules" }
+if (-not $CatalogFolder)  { $CatalogFolder = Join-Path -Path $WorkingFolder -ChildPath "catalog" }
+if (-not $ScanFolder)     { $ScanFolder = Join-Path -Path $WorkingFolder -ChildPath "scan" }
+if (-not $RepoFolder)     { $RepoFolder = Join-Path -Path $WorkingFolder -ChildPath "repository" }
+if (-not $ExportFolder)   { $ExportFolder = Join-Path -Path $WorkingFolder -ChildPath "ScanResults" }
+if (-not $EndpointsPath)  { $EndpointsPath = Join-Path -Path $ScanFolder -ChildPath "endpoints.txt" }
+if (-not $MissingKBsPath) { $MissingKBsPath = Join-Path -Path $ExportFolder -ChildPath "MissingKBs.txt" }
+if (-not $MissingKBsPath) { $CabPath = Join-Path -Path $CatalogFolder -ChildPath "wsusscn2.cab" }
 
 # --- 1. INSTALL MODULE ---
 if ($Install) {
@@ -57,11 +77,11 @@ if ($PreparePackage) {
     try {
         Install-PackageProvider -Name NuGet -Force -Scope CurrentUser -ErrorAction SilentlyContinue
         $Url = "https://go.microsoft.com/fwlink/?linkid=74689"
-        if (-not (Test-Path $PrepFolder)) { New-Item -ItemType Directory -Path $PrepFolder -Force | Out-Null }
+        if (-not (Test-Path $WorkingFolder)) { New-Item -ItemType Directory -Path $WorkingFolder -Force | Out-Null }
         if (-not (Test-Path $CatalogFolder)) { New-Item -ItemType Directory -Path $CatalogFolder -Force | Out-Null }
-        Write-Host "Saving module to $PrepFolder..." -ForegroundColor Gray
-        Save-Module -Name kbupdate -Path $PrepFolder -ErrorAction Stop
-        Get-ChildItem -Path $PrepFolder -Recurse | Unblock-File
+        Write-Host "Saving module to $WorkingFolder..." -ForegroundColor Gray
+        Save-Module -Name kbupdate -Path $WorkingFolder -ErrorAction Stop
+        Get-ChildItem -Path $WorkingFolder -Recurse | Unblock-File
         $ShouldDownload = $true
         if (Test-Path $CabPath) {
             if ((Get-Item $CabPath).LastWriteTime -ge (Get-Date).AddDays(-1)) {
@@ -73,11 +93,11 @@ if ($PreparePackage) {
             Write-Host "Downloading wsusscn2.cab (~1GB)..." -ForegroundColor Cyan
             Invoke-WebRequest -Uri $Url -OutFile $CabPath -UseBasicParsing
         }
-        $FolderName = Split-Path -Path $PrepFolder -Leaf
-        $ParentFolder = Split-Path -Path $PrepFolder -Parent
+        $FolderName = Split-Path -Path $WorkingFolder -Leaf
+        $ParentFolder = Split-Path -Path $WorkingFolder -Parent
         $DestinationZip = Join-Path -Path $ParentFolder -ChildPath "$FolderName.zip"
         Write-Host "Compressing folder to $DestinationZip..." -ForegroundColor Cyan
-        Compress-Archive -Path "$PrepFolder\*" -DestinationPath $DestinationZip -Force
+        Compress-Archive -Path "$WorkingFolder\*" -DestinationPath $DestinationZip -Force
         Write-Host "Success! Package ready at: $DestinationZip" -ForegroundColor Green
     }
     catch {
@@ -121,11 +141,11 @@ if ($Scan) {
     if ($ScanResults) {
         $ReportPath = Join-Path $ExportFolder "Full_Compliance_Report_$((Get-Date).ToString('yyyyMMdd')).csv"
         $ScanResults | Select-Object ComputerName, KBUpdate, Title, IsMandatory, RebootRequired | Export-Csv -Path $ReportPath -NoTypeInformation
-        $ExistingKBs = if (Test-Path $KBListPath) { Get-Content $KBListPath } else { @() }
+        $ExistingKBs = if (Test-Path $MissingKBsPath) { Get-Content $MissingKBsPath } else { @() }
         $NewKBs = $ScanResults.KBUpdate
         $UniqueKBs = ($ExistingKBs + $NewKBs) | Where-Object { $_ } | Sort-Object -Unique
-        $UniqueKBs | Out-File -FilePath $KBListPath
-        Write-Host "Scan complete. Updated missing KBs saved to $KBListPath" -ForegroundColor Green
+        $UniqueKBs | Out-File -FilePath $MissingKBsPath
+        Write-Host "Scan complete. Updated missing KBs saved to $MissingKBsPath" -ForegroundColor Green
         Write-Host "Copy that folder (or the whole package) back to a host with access to Microsoft.com and run again with the -DownloadUpdates flag." -ForegroundColor Green
     } else {
         Write-Host "No missing updates found." -ForegroundColor Gray
@@ -135,11 +155,11 @@ if ($Scan) {
 # --- 4. DOWNLOAD UPDATES ---
 if ($DownloadUpdates) {
     Write-Host "--- Operation: Download Updates ---" -ForegroundColor Gray
-    if (-not (Test-Path $KBListPath)) {
-        Write-Error "Could not find the MissingKBs.txt list at $KBListPath. Run -Scan first."
+    if (-not (Test-Path $MissingKBsPath)) {
+        Write-Error "Could not find the MissingKBs.txt list at $MissingKBsPath. Run -Scan first."
     } else {
         New-Item -ItemType Directory -Path $RepoFolder -Force | Out-Null
-        $KBsToDownload = Get-Content $KBListPath
+        $KBsToDownload = Get-Content $MissingKBsPath
         Write-Host "Found $($KBsToDownload.Count) required updates." -ForegroundColor Cyan
         foreach ($KB in $KBsToDownload) {
             Write-Host "Querying Catalog for $KB..." -ForegroundColor Yellow
