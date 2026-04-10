@@ -119,7 +119,7 @@ if (-not $RepoFolder)     { $RepoFolder = Join-Path -Path $WorkingFolder -ChildP
 if (-not $ExportFolder)   { $ExportFolder = Join-Path -Path $WorkingFolder -ChildPath "ScanResults" }
 if (-not $EndpointsPath)  { $EndpointsPath = Join-Path -Path $ScanFolder -ChildPath "endpoints.txt" }
 if (-not $MissingKBsPath) { $MissingKBsPath = Join-Path -Path $ExportFolder -ChildPath "MissingKBs.txt" }
-if (-not $MissingKBsPath) { $CabPath = Join-Path -Path $CatalogFolder -ChildPath "wsusscn2.cab" }
+if (-not $CabPath)        { $CabPath = Join-Path -Path $CatalogFolder -ChildPath "wsusscn2.cab" }
 
 # --- 1. INSTALL MODULE ---
 if ($Install) {
@@ -152,7 +152,7 @@ if ($PreparePackage) {
         if (-not (Test-Path $WorkingFolder)) { New-Item -ItemType Directory -Path $WorkingFolder -Force | Out-Null }
         if (-not (Test-Path $CatalogFolder)) { New-Item -ItemType Directory -Path $CatalogFolder -Force | Out-Null }
         Write-Host "Saving module to $WorkingFolder..." -ForegroundColor Gray
-        Save-Module -Name kbupdate -Path $WorkingFolder -ErrorAction Stop
+        Save-Module -Name kbupdate -Path $WorkingFolder -ErrorAction Stop -Verbose
         Get-ChildItem -Path $WorkingFolder -Recurse | Unblock-File
         $ShouldDownload = $true
         if (Test-Path $CabPath) {
@@ -182,7 +182,7 @@ $InstallRequired = $Scan, $DownloadUpdates, $DeployUpdates
 if ($InstallRequired -contains $true) {
     if (-not (Get-Module -ListAvailable -Name kbupdate)) {
         Write-Error "CRITICAL: The 'kbupdate' module is not installed. Please run this script with the -Install flag first."
-        return # Stops execution of the script
+        return 
     }
 }
 
@@ -203,9 +203,9 @@ if ($Scan) {
     $TargetEndpoints = Get-Content $EndpointsPath
     $RemoteCabPath = "\\$env:COMPUTERNAME\$($CabPath -replace ':', '$')"
     $ScanResults = foreach ($endpoint in $TargetEndpoints) {
-        $scanAttempt = Get-KbNeededUpdate -ComputerName $endpoint -ScanFilePath $RemoteCabPath -WarningVariable warn -ErrorVariable err -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
+        $scanAttempt = Get-KbNeededUpdate -ComputerName $endpoint -ScanFilePath $RemoteCabPath -AllNeeded -Verbose -WarningVariable warn -ErrorVariable err -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
         if ($warn -or $err -or (-not $scanAttempt)) {
-            Get-KbNeededUpdate -ComputerName $endpoint -ScanFilePath $RemoteCabPath -Force
+            Get-KbNeededUpdate -ComputerName $endpoint -ScanFilePath $RemoteCabPath -AllNeeded -Force -Verbose
         } else {
             $scanAttempt
         }
@@ -218,7 +218,6 @@ if ($Scan) {
         $UniqueKBs = ($ExistingKBs + $NewKBs) | Where-Object { $_ } | Sort-Object -Unique
         $UniqueKBs | Out-File -FilePath $MissingKBsPath
         Write-Host "Scan complete. Updated missing KBs saved to $MissingKBsPath" -ForegroundColor Green
-        Write-Host "Copy the ScanFolder ($ScanFolder) back to a host with access to Microsoft.com and run this tool again with the -DownloadUpdates flag." -ForegroundColor Green
         if (-not $SkipReport) {
             Get-Item $ReportPath | Import-Csv | Out-GridView
         }
@@ -233,20 +232,20 @@ if ($DownloadUpdates) {
     if (-not (Test-Path $MissingKBsPath)) {
         Write-Error "Could not find the MissingKBs.txt list at $MissingKBsPath. Run -Scan first."
     } else {
-        New-Item -ItemType Directory -Path $RepoFolder -Force | Out-Null
+        if (-not (Test-Path $RepoFolder)) { New-Item -ItemType Directory -Path $RepoFolder -Force | Out-Null }
         $KBsToDownload = Get-Content $MissingKBsPath
         Write-Host "Found $($KBsToDownload.Count) required updates." -ForegroundColor Cyan
         foreach ($KB in $KBsToDownload) {
             Write-Host "Querying Catalog for $KB..." -ForegroundColor Yellow
-            $Update = Get-KbUpdate -Name $KB -Architecture x64 -Simple
+            $Update = Get-KbUpdate -Name $KB -Architecture x64 -AllNeeded -Verbose
             if ($Update) {
                 foreach ($U in $Update) {
                     $TargetFilePath = Join-Path $RepoFolder $U.FileName
                     if (Test-Path $TargetFilePath) {
-                        Write-Host "  -> Skipping: $($U.FileName) already exists in repository." -ForegroundColor DarkGray
+                        Write-Host "  -> Skipping: $($U.FileName) already exists." -ForegroundColor DarkGray
                     } else {
                         Write-Host "  -> Downloading: $($U.Title)" -ForegroundColor Green
-                        $U | Save-KbUpdate -Path $RepoFolder
+                        $U | Save-KbUpdate -Path $RepoFolder -Verbose
                     }
                 }
             } else {
@@ -261,7 +260,7 @@ if ($DeployUpdates) {
     Write-Host "--- Operation: Deploy Updates ---" -ForegroundColor Gray
     if (Test-Path $EndpointsPath) {
         $TargetEndpoints = Get-Content $EndpointsPath
-        Install-KbUpdate -ComputerName $TargetEndpoints -FilePath $RepoFolder
+        Install-KbUpdate -ComputerName $TargetEndpoints -FilePath $RepoFolder -Verbose
         Write-Host "Deployment tasks submitted." -ForegroundColor Green
     } else {
         Write-Error "Endpoint list missing. Run -Scan first."
