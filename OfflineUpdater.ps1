@@ -59,7 +59,7 @@
     Prerequisites  : PowerShell 5.1+, Administrator privileges, RSAT (for -Scan)
     Version        : 1.0
     Date           : April 10, 2026
-    Copyright      : (c) 2026 Tony Phipps. MIT.
+    Copyright      : (c) 2026 Tony Phipps under the MIT License
 
 .LINK
     https://github.com/potatoqualitee/kbupdate
