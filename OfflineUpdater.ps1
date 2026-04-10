@@ -165,12 +165,8 @@ if ($PreparePackage) {
             Write-Host "Downloading wsusscn2.cab (~1GB)..." -ForegroundColor Cyan
             Invoke-WebRequest -Uri $Url -OutFile $CabPath -UseBasicParsing
         }
-        $FolderName = Split-Path -Path $WorkingFolder -Leaf
-        $ParentFolder = Split-Path -Path $WorkingFolder -Parent
-        $DestinationZip = Join-Path -Path $ParentFolder -ChildPath "$FolderName.zip"
-        Write-Host "Compressing folder to $DestinationZip..." -ForegroundColor Cyan
-        Compress-Archive -Path "$WorkingFolder\*" -DestinationPath $DestinationZip -Force
-        Write-Host "Success! Package ready at: $DestinationZip" -ForegroundColor Green
+        
+        Write-Host "Success! Package ready at: $WorkingFolder" -ForegroundColor Green
     }
     catch {
         Write-Error "Preparation failed: $($_.Exception.Message)"
