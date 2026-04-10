@@ -1,3 +1,72 @@
+<#
+.SYNOPSIS
+    A management wrapper for the kbupdate module to facilitate offline Windows patching.
+
+.DESCRIPTION
+    This script automates the end-to-end process of offline updating. It can bundle the 
+    kbupdate module and the Microsoft servicing stack (wsusscn2.cab), scan Active Directory 
+    endpoints for missing KBs, download required updates from the Microsoft Catalog 
+    on an internet-connected host, and deploy them to target endpoints in an air-gapped 
+    environment.
+
+.PARAMETER WorkingFolder
+    The root directory for script operations. Defaults to a 'kbupdate' folder in the script directory.
+
+.PARAMETER ModulesFolder
+    Path to the directory containing the kbupdate module and dependencies.
+
+.PARAMETER CatalogFolder
+    Path where the wsusscn2.cab (Offline Scan File) is stored or will be downloaded.
+
+.PARAMETER ScanFolder
+    Directory used to store endpoint lists (endpoints.txt).
+
+.PARAMETER RepoFolder
+    The local repository where .msu/.cab update files are downloaded and stored.
+
+.PARAMETER ExportFolder
+    Directory where compliance reports and missing KB lists are exported.
+
+.PARAMETER PreparePackage
+    Switch to download the kbupdate module and the latest wsusscn2.cab, then zip them for transport.
+
+.PARAMETER Install
+    Switch to install the kbupdate module from the local WorkingFolder to the system module path.
+
+.PARAMETER Scan
+    Switch to query Active Directory for computers and perform a remote compliance scan.
+
+.PARAMETER DownloadUpdates
+    Switch to read the 'MissingKBs.txt' list and download the actual update files from Microsoft.
+
+.PARAMETER DeployUpdates
+    Switch to push and install the downloaded updates from the RepoFolder to the target endpoints.
+
+.PARAMETER SkipReport
+    If set, the script will not automatically open the CSV scan results in Out-GridView.
+
+.EXAMPLE
+    .\OfflineUpdater.ps1 -PreparePackage
+    Downloads all necessary tools and the ~1GB scan catalog to prepare for an offline site visit.
+
+.EXAMPLE
+    .\OfflineUpdater.ps1 -Scan -WorkingFolder "D:\KBUpdate"
+    Scans AD computers and generates a report of what is missing using the specified working directory.
+
+.NOTES
+    File Name      : OfflineUpdater.ps1
+    Author         : Tony Phipps
+    Prerequisites  : PowerShell 5.1+, Administrator privileges, RSAT (for -Scan)
+    Version        : 1.0
+    Date           : April 10, 2026
+    Copyright      : (c) 2026 Tony Phipps. MIT.
+
+.LINK
+    https://github.com/potatoqualitee/kbupdate
+    https://github.com/TonyPhipps/Powershell
+    https://opensource.org/licenses/MIT
+#>
+
 [CmdletBinding()]
 param (
     [Parameter(Mandatory = $false)]
