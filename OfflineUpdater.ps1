@@ -232,23 +232,29 @@ if ($DownloadUpdates) {
         Write-Error "Could not find the MissingKBs.txt list at $MissingKBsPath. Run -Scan first."
     } else {
         New-Item -ItemType Directory -Path $RepoFolder -Force | Out-Null
-        $KBsToDownload = Get-Content $MissingKBsPath
-        Write-Host "Found $($KBsToDownload.Count) required updates." -ForegroundColor Cyan
+        $KBsToDownload = Get-Content $MissingKBsPath | ForEach-Object {
+            if ($_ -match "KB\d+") { $Matches[0] }
+        }
+        Write-Host "Found $($KBsToDownload.Count) valid KB IDs to process." -ForegroundColor Cyan
         foreach ($KB in $KBsToDownload) {
             Write-Host "Querying Catalog for $KB..." -ForegroundColor Yellow
-            $Update = Get-KbUpdate -Name $KB -Architecture x64 -Verbose
+            $Update = Get-KbUpdate -Name $KB -Architecture x64
             if ($Update) {
                 foreach ($U in $Update) {
-                    $TargetFilePath = Join-Path $RepoFolder $U.FileName
-                    if (Test-Path $TargetFilePath) {
-                        Write-Host "  -> Skipping: $($U.FileName) already exists in repository." -ForegroundColor DarkGray
-                    } else {
-                        Write-Host "  -> Downloading: $($U.Title)" -ForegroundColor Green
-                        $U | Save-KbUpdate -Path $RepoFolder -Verbose
+                    foreach ($Url in $U.Link) {
+                        $FileName = Split-Path $Url -Leaf
+                        $TargetFilePath = Join-Path $RepoFolder $FileName
+                        
+                        if (Test-Path $TargetFilePath) {
+                            Write-Host "   -> Skipping: $FileName already exists." -ForegroundColor DarkGray
+                        } else {
+                            Write-Host "   -> Downloading: $FileName" -ForegroundColor Green
+                            $U | Save-KbUpdate -Path $RepoFolder -Verbose
+                        }
                     }
                 }
             } else {
-                Write-Warning "  -> $KB not found in online catalog."
+                Write-Warning "   -> $KB not found in online catalog."
             }
         }
     }
