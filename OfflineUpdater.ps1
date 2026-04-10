@@ -235,19 +235,18 @@ if ($DownloadUpdates) {
         Write-Host "Found $($KBsToDownload.Count) valid KB IDs to process." -ForegroundColor Cyan
         foreach ($KB in $KBsToDownload) {
             Write-Host "Querying Catalog for $KB..." -ForegroundColor Yellow
-            $Update = Get-KbUpdate -Name $KB -Architecture x64
-            if ($Update) {
-                foreach ($U in $Update) {
-                    foreach ($Url in $U.Link) {
-                        $FileName = Split-Path $Url -Leaf
-                        $TargetFilePath = Join-Path $RepoFolder $FileName
-                        
-                        if (Test-Path $TargetFilePath) {
-                            Write-Host "   -> Skipping: $FileName already exists." -ForegroundColor DarkGray
-                        } else {
-                            Write-Host "   -> Downloading: $FileName" -ForegroundColor Green
-                            $U | Save-KbUpdate -Path $RepoFolder -Verbose
-                        }
+            $LatestUpdate = Get-KbUpdate -Name $KB -Architecture x64 | 
+                            Sort-Object Date -Descending | 
+                            Select-Object -First 1
+            if ($LatestUpdate) {
+                foreach ($Url in $LatestUpdate.Link) {
+                    $FileName = Split-Path $Url -Leaf
+                    $TargetFilePath = Join-Path $RepoFolder $FileName
+                    if (Test-Path $TargetFilePath) {
+                        Write-Host "   -> Skipping: $FileName already exists." -ForegroundColor DarkGray
+                    } else {
+                        Write-Host "   -> Downloading Latest: $FileName (Date: $($LatestUpdate.Date))" -ForegroundColor Green
+                        $LatestUpdate | Save-KbUpdate -Path $RepoFolder -Verbose
                     }
                 }
             } else {
