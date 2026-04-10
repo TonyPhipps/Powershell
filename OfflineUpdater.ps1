@@ -37,7 +37,10 @@ param (
     [switch]$DownloadUpdates,
 
     [Parameter(Mandatory = $false)]
-    [switch]$DeployUpdates
+    [switch]$DeployUpdates,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$SkipReport
 )
 
 if (-not $ModulesFolder)  { $ModulesFolder = Join-Path -Path $WorkingFolder -ChildPath "modules" }
@@ -146,7 +149,10 @@ if ($Scan) {
         $UniqueKBs = ($ExistingKBs + $NewKBs) | Where-Object { $_ } | Sort-Object -Unique
         $UniqueKBs | Out-File -FilePath $MissingKBsPath
         Write-Host "Scan complete. Updated missing KBs saved to $MissingKBsPath" -ForegroundColor Green
-        Write-Host "Copy that folder (or the whole package) back to a host with access to Microsoft.com and run again with the -DownloadUpdates flag." -ForegroundColor Green
+        Write-Host "Copy the ScanFolder ($ScanFolder) back to a host with access to Microsoft.com and run this tool again with the -DownloadUpdates flag." -ForegroundColor Green
+        if (-not $SkipReport) {
+            Get-Item $ReportPath | Import-Csv | Out-GridView
+        }
     } else {
         Write-Host "No missing updates found." -ForegroundColor Gray
     }
