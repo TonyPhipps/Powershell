@@ -172,8 +172,13 @@ if ($DownloadUpdates) {
             $Update = Get-KbUpdate -Name $KB -Architecture x64 -Simple
             if ($Update) {
                 foreach ($U in $Update) {
-                    Write-Host "  -> Downloading: $($U.Title)" -ForegroundColor Green
-                    $U | Save-KbUpdate -Path $RepoFolder
+                    $TargetFilePath = Join-Path $RepoFolder $U.FileName
+                    if (Test-Path $TargetFilePath) {
+                        Write-Host "  -> Skipping: $($U.FileName) already exists in repository." -ForegroundColor DarkGray
+                    } else {
+                        Write-Host "  -> Downloading: $($U.Title)" -ForegroundColor Green
+                        $U | Save-KbUpdate -Path $RepoFolder
+                    }
                 }
             } else {
                 Write-Warning "  -> $KB not found in online catalog."
