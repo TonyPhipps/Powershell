@@ -135,7 +135,6 @@ if ($Install) {
         Copy-Item -Path $Folder.FullName -Destination $Dest -Recurse -Force
     }
     Write-Host "Verifying installation..." -ForegroundColor Cyan
-    Import-Module kbupdate -Force
     if (Get-Command -Module kbupdate) {
         Write-Host "SUCCESS: kbupdate is ready for use." -ForegroundColor Green
     } else {
@@ -181,8 +180,7 @@ if ($PreparePackage) {
 $InstallRequired = $Scan, $DownloadUpdates, $DeployUpdates
 if ($InstallRequired -contains $true) {
     if (-not (Get-Module -ListAvailable -Name kbupdate)) {
-        Write-Error "CRITICAL: The 'kbupdate' module is not installed. Please run this script with the -Install flag first."
-        return
+        Install-Module kbupdate -Force -Scope CurrentUser
     }
 }
 
