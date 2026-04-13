@@ -202,13 +202,10 @@ if ($Scan) {
     $ScanResults = foreach ($endpoint in $TargetEndpoints) {
     $warn = $null
     $err = $null
-    $scanAttempt = Get-KbNeededUpdate -ComputerName $endpoint -ScanFilePath $RemoteCabPath -Verbose -WarningVariable warn -ErrorVariable err -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
-    
+    $scanAttempt = Get-KbNeededUpdate -ComputerName $endpoint -ScanFilePath $RemoteCabPath -Verbose -WarningVariable warn -ErrorVariable err -WarningAction SilentlyContinue -ErrorAction SilentlyContinue  
     if ($warn -or $err -or (-not $scanAttempt)) {
-        # CAPTURE the output of the second attempt
         $scanAttempt = Get-KbNeededUpdate -ComputerName $endpoint -ScanFilePath $RemoteCabPath -Force -Verbose
     }
-    # Output the object to the $ScanResults collection
     $scanAttempt
 }
     if ($ScanResults) {
