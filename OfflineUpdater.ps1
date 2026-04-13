@@ -200,14 +200,14 @@ if ($Scan) {
     $TargetEndpoints = Get-Content $EndpointsPath
     $RemoteCabPath = "\\$env:COMPUTERNAME\$($CabPath -replace ':', '$')"
     $ScanResults = foreach ($endpoint in $TargetEndpoints) {
-    $warn = $null
-    $err = $null
-    $scanAttempt = Get-KbNeededUpdate -ComputerName $endpoint -ScanFilePath $RemoteCabPath -Verbose -WarningVariable warn -ErrorVariable err -WarningAction SilentlyContinue -ErrorAction SilentlyContinue  
-    if ($warn -or $err -or (-not $scanAttempt)) {
-        $scanAttempt = Get-KbNeededUpdate -ComputerName $endpoint -ScanFilePath $RemoteCabPath -Force -Verbose
+        $warn = $null
+        $err = $null
+        $scanAttempt = Get-KbNeededUpdate -ComputerName $endpoint -ScanFilePath $RemoteCabPath -Verbose -WarningVariable warn -ErrorVariable err -WarningAction SilentlyContinue -ErrorAction SilentlyContinue  
+        if ($warn -or $err -or (-not $scanAttempt)) {
+            $scanAttempt = Get-KbNeededUpdate -ComputerName $endpoint -ScanFilePath $RemoteCabPath -Force -Verbose
+        }
+        $scanAttempt
     }
-    $scanAttempt
-}
     if ($ScanResults) {
         $ReportPath = Join-Path $ResultsFolder "Full_Compliance_Report_$((Get-Date).ToString('yyyyMMdd')).csv"
         $ScanResults | Select-Object ComputerName, KBUpdate, Title, IsMandatory, RebootRequired | Export-Csv -Path $ReportPath -NoTypeInformation
