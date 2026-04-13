@@ -209,15 +209,8 @@ if ($Scan) {
     Write-Host "Gathering AD Computers..." -ForegroundColor Gray
     Get-ADComputer -Filter {Enabled -eq $true -and OperatingSystem -like '*Windows*'} | Select-Object -ExpandProperty Name | Out-File -FilePath $EndpointsPath
     $TargetEndpoints = Get-Content $EndpointsPath
-    $RemoteCabPath = "\\$env:COMPUTERNAME\$($CabPath -replace ':', '$')"
     $ScanResults = foreach ($Endpoint in $TargetEndpoints) {
-        $Warn = $null
-        $Err = $null
-        $ScanAttempt = Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $RemoteCabPath -Verbose -WarningVariable warn -ErrorVariable err -WarningAction SilentlyContinue -ErrorAction SilentlyContinue  
-        if ($Warn -or $Err -or (-not $ScanAttempt)) {
-            $ScanAttempt = Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $RemoteCabPath -Force -Verbose
-        }
-        $ScanAttempt
+        Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $CabPath -Force -Verbose
     }
     if ($ScanResults) {
         $ReportPath = Join-Path $ResultsFolder "Full_Compliance_Report_$((Get-Date).ToString('yyyyMMdd')).csv"
@@ -273,9 +266,8 @@ if ($DeployUpdates) {
     Write-Host "--- Operation: Deploy Updates ---" -ForegroundColor Gray
     if (Test-Path $EndpointsPath) {
         $TargetEndpoints = Get-Content $EndpointsPath
-        $RemoteRepoFolder = "\\$env:COMPUTERNAME\$($RepoFolder -replace ':', '$')"
-		$RemoteCabPath = "\\$env:COMPUTERNAME\$($CabPath -replace ':', '$')"
-        Install-KbUpdate -AllNeeded -NoMultithreading -ComputerName $TargetEndpoints -ScanFilePath $RemoteCabPath -RepositoryPath $RemoteRepoFolder -Verbose
+        Get-KbNeededUpdate -ComputerName $TargetEndpoints -ScanFilePath $CabPath -Force -Verbose | 
+            Install-KbUpdate -RepositoryPath $RepoFolder -NoMultithreading -Verbose
         Write-Host "Deployment tasks submitted." -ForegroundColor Green
     } else {
         Write-Error "Endpoint list missing. Run -Scan first."
