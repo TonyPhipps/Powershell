@@ -261,7 +261,8 @@ if ($DeployUpdates) {
     Write-Host "--- Operation: Deploy Updates ---" -ForegroundColor Gray
     if (Test-Path $EndpointsPath) {
         $TargetEndpoints = Get-Content $EndpointsPath
-        Install-KbUpdate -ComputerName $TargetEndpoints -FilePath $RepoFolder -NoMultithreading -Verbose
+        $RemoteRepoFolder = "\\$env:COMPUTERNAME\$($RepoFolder -replace ':', '$')"
+        Install-KbUpdate -ComputerName $TargetEndpoints -FilePath $RemoteRepoFolder -NoMultithreading -Verbose
         Write-Host "Deployment tasks submitted." -ForegroundColor Green
     } else {
         Write-Error "Endpoint list missing. Run -Scan first."
