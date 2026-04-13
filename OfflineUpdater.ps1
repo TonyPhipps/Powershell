@@ -8,15 +8,16 @@
     endpoints for missing KBs, download required updates from the Microsoft Catalog 
     on an internet-connected host, and deploys them to target endpoints in an air-gapped
     environment. Below is the general approach and commands without optional file/folder redirects.
+
     Step 1: Prepare the package on an Internet-attached network. Copy the kbupdate folder and script to the offline network.
         .\OfflineUpdater.ps1 -PreparePackage
     Step 2: Install the modules on the offline network.
         .\OfflineUpdater.ps1 -Install
-    Step 2: Scan the Windows hosts on the offline network. Copy the MissingKBs.txt scan results to the online network.
+    Step 3: Scan the Windows hosts on the offline network. Copy the MissingKBs.txt scan results to the online network.
         .\OfflineUpdater.ps1 -Scan
-    Step 3: Download missing updates on Internet-attached network. Copy the repository folder to the offline network.
+    Step 4: Download missing updates on Internet-attached network. Copy the repository folder to the offline network.
         .\OfflineUpdater.ps1 -DownloadUpdates
-    Step 4: Deploy the updates on the offline network.
+    Step 5: Deploy the updates on the offline network.
         .\OfflineUpdater.ps1 -Deploy
 
 .PARAMETER WorkingFolder
