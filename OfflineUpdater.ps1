@@ -196,6 +196,7 @@ if ($InstallRequired -contains $true) {
 
 # --- 3. SCAN ENDPOINTS ---
 if ($Scan) {
+    Write-Host "--- Operation: Scan ---" -ForegroundColor Gray
     $isInstalled = (Get-WindowsFeature -Name RSAT-ADDS-Tools).Installed
     if ($isInstalled) {
         Write-Host "RSAT: Active Directory Users and Computers is installed." -ForegroundColor Green
@@ -203,7 +204,6 @@ if ($Scan) {
         Write-Host "RSAT: Active Directory Users and Computers is NOT installed." -ForegroundColor Red
         return
     }
-    Write-Host "--- Operation: Scan ---" -ForegroundColor Gray
     if (-not (Test-Path $ScanFolder)) { New-Item -ItemType Directory -Path $ScanFolder -Force | Out-Null }
     if (-not (Test-Path $ResultsFolder)) { New-Item -ItemType Directory -Path $ResultsFolder -Force | Out-Null }
     Write-Host "Gathering AD Computers..." -ForegroundColor Gray
@@ -214,13 +214,11 @@ if ($Scan) {
     }
     if ($ScanResults) {
         $ReportPath = Join-Path $ResultsFolder "Full_Compliance_Report_$((Get-Date).ToString('yyyyMMdd')).csv"
-        $ScanResults | Select-Object ComputerName, KBUpdate, Title, IsMandatory, RebootRequired | Export-Csv -Path $ReportPath -NoTypeInformation
-        $ExistingKBs = if (Test-Path $MissingKBsPath) { Get-Content $MissingKBsPath } else { @() }
-        $NewKBs = $ScanResults.KBUpdate
-        $UniqueKBs = ($ExistingKBs + $NewKBs) | Where-Object { $_ } | Sort-Object -Unique
-        $UniqueKBs | Out-File -FilePath $MissingKBsPath
-        Write-Host "Scan complete. Updated missing KBs saved to $MissingKBsPath" -ForegroundColor Green
-        Write-Host "Copy the ScanFolder ($ScanFolder) back to a host with access to Microsoft.com and run this tool again with the -DownloadUpdates flag." -ForegroundColor Green
+        $ScanResults | Export-Csv -Path $ReportPath -NoTypeInformation
+        $NewKBs = $ScanResults.KBUpdate | Where-Object { $_ } | Sort-Object -Unique
+        $NewKBs | Out-File -FilePath $MissingKBsPath
+        Write-Host "Scan complete. Detailed report saved to $ReportPath" -ForegroundColor Green
+        Write-Host "Copy the ScanResults folder to your online host for downloading." -ForegroundColor Cyan
         if (-not $SkipReport) {
             Import-Csv -Path $ReportPath | Out-GridView
         }
@@ -232,32 +230,25 @@ if ($Scan) {
 # --- 4. DOWNLOAD UPDATES ---
 if ($DownloadUpdates) {
     Write-Host "--- Operation: Download Updates ---" -ForegroundColor Gray
-    if (-not (Test-Path $MissingKBsPath)) {
-        Write-Error "Could not find the MissingKBs.txt list at $MissingKBsPath. Run -Scan first."
+    $LatestReport = Get-ChildItem -Path $ResultsFolder -Filter "Full_Compliance_Report_*.csv" | 
+                    Sort-Object LastWriteTime -Descending | 
+                    Select-Object -First 1
+    if (-not $LatestReport) {
+        Write-Error "Could not find a Compliance Report CSV in $ResultsFolder. Run -Scan first."
     } else {
-        New-Item -ItemType Directory -Path $RepoFolder -Force | Out-Null
-        $KBsToDownload = Get-Content $MissingKBsPath | ForEach-Object {
-            if ($_ -match "KB\d+") { $Matches[0] }
+        Write-Host "Processing updates based on report: $($LatestReport.Name)" -ForegroundColor Cyan
+        if (-not (Test-Path $RepoFolder)) { New-Item -ItemType Directory -Path $RepoFolder -Force | Out-Null }
+        $NeededUpdates = Import-Csv -Path $LatestReport.FullName
+        $UniqueUpdates = $NeededUpdates | Group-Object KBUpdate
+        foreach ($Group in $UniqueUpdates) {
+            $KB = $Group.Name
+            Write-Host "Querying Catalog for specific revision of $KB..." -ForegroundColor Yellow
+            $SpecificUpdate = $Group.Group[0] # Grab metadata from the first instance
+            Get-KbUpdate -Name $KB -Architecture x64 | 
+                Where-Object { $_.Title -eq $SpecificUpdate.Title } | 
+                Save-KbUpdate -Path $RepoFolder -Verbose
         }
-        Write-Host "Found $($KBsToDownload.Count) valid KB IDs to process." -ForegroundColor Cyan
-        foreach ($KB in $KBsToDownload) {
-            Write-Host "Querying Catalog for $KB..." -ForegroundColor Yellow
-            $LatestUpdate = Get-KbUpdate -Name $KB -Architecture x64 | Select-KbLatest
-            if ($LatestUpdate) {
-                foreach ($Url in $LatestUpdate.Link) {
-                    $FileName = Split-Path $Url -Leaf
-                    $TargetFilePath = Join-Path $RepoFolder $FileName
-                    if (Test-Path $TargetFilePath) {
-                        Write-Host "   -> Skipping: $FileName already exists." -ForegroundColor DarkGray
-                    } else {
-                        Write-Host "   -> Downloading Latest: $FileName (Date: $($LatestUpdate.Date))" -ForegroundColor Green
-                        $LatestUpdate | Save-KbUpdate -Path $RepoFolder -Verbose
-                    }
-                }
-            } else {
-                Write-Warning "   -> $KB not found in online catalog."
-            }
-        }
+        Write-Host "Download complete. Copy the Repository folder ($RepoFolder) to the offline network." -ForegroundColor Green
     }
 }
 
