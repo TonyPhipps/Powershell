@@ -121,6 +121,38 @@ if (-not $EndpointsPath)  { $EndpointsPath = Join-Path -Path $ScanFolder -ChildP
 if (-not $MissingKBsPath) { $MissingKBsPath = Join-Path -Path $ResultsFolder -ChildPath "MissingKBs.txt" }
 if (-not $CabPath)        { $CabPath = Join-Path -Path $CatalogFolder -ChildPath "wsusscn2.cab" }
 
+# --- 2. PREPARE PACKAGE (OFFLINE ASSETS) ---
+if ($PreparePackage) {
+    Write-Host "--- Operation: Prepare Package ---" -ForegroundColor Gray
+    try {
+        Install-PackageProvider -Name NuGet -Scope CurrentUser -ErrorAction SilentlyContinue
+        $Url = "https://go.microsoft.com/fwlink/?linkid=74689"
+        if (-not (Test-Path $WorkingFolder)) { New-Item -ItemType Directory -Path $WorkingFolder -Force | Out-Null }
+        if (-not (Test-Path $ModulesFolder)) { New-Item -ItemType Directory -Path $ModulesFolder -Force | Out-Null }
+        if (-not (Test-Path $CatalogFolder)) { New-Item -ItemType Directory -Path $CatalogFolder -Force | Out-Null }
+        Write-Host "Saving module to $ModulesFolder..." -ForegroundColor Gray
+        Save-Module -Name kbupdate -Path $ModulesFolder -ErrorAction Stop -Verbose
+        Save-Module -Name xWindowsUpdate -Path $ModulesFolder -ErrorAction Stop -Verbose
+        Get-ChildItem -Path $WorkingFolder -Recurse | Unblock-File
+        $ShouldDownload = $true
+        if (Test-Path $CabPath) {
+            if ((Get-Item $CabPath).LastWriteTime -ge (Get-Date).AddDays(-1)) {
+                Write-Host "The existing wsusscn2.cab is current." -ForegroundColor Green
+                $ShouldDownload = $false
+            }
+        }
+        if ($ShouldDownload) {
+            Write-Host "Downloading wsusscn2.cab (~1GB)..." -ForegroundColor Cyan
+            Invoke-WebRequest -Uri $Url -OutFile $CabPath -UseBasicParsing
+        }
+        
+        Write-Host "Success! Package ready at: $WorkingFolder" -ForegroundColor Green
+    }
+    catch {
+        Write-Error "Preparation failed: $($_.Exception.Message)"
+    }
+}
+
 # --- 1. INSTALL MODULE ---
 if ($Install) {
     Write-Host "--- Operation: Install ---" -ForegroundColor Gray
@@ -142,42 +174,12 @@ if ($Install) {
     }
 }
 
-# --- 2. PREPARE PACKAGE (OFFLINE ASSETS) ---
-if ($PreparePackage) {
-    Write-Host "--- Operation: Prepare Package ---" -ForegroundColor Gray
-    try {
-        Install-PackageProvider -Name NuGet -Scope CurrentUser -ErrorAction SilentlyContinue
-        $Url = "https://go.microsoft.com/fwlink/?linkid=74689"
-        if (-not (Test-Path $WorkingFolder)) { New-Item -ItemType Directory -Path $WorkingFolder -Force | Out-Null }
-        if (-not (Test-Path $ModulesFolder)) { New-Item -ItemType Directory -Path $ModulesFolder -Force | Out-Null }
-        if (-not (Test-Path $CatalogFolder)) { New-Item -ItemType Directory -Path $CatalogFolder -Force | Out-Null }
-        Write-Host "Saving module to $ModulesFolder..." -ForegroundColor Gray
-        Save-Module -Name kbupdate -Path $ModulesFolder -ErrorAction Stop -Verbose
-        Get-ChildItem -Path $WorkingFolder -Recurse | Unblock-File
-        $ShouldDownload = $true
-        if (Test-Path $CabPath) {
-            if ((Get-Item $CabPath).LastWriteTime -ge (Get-Date).AddDays(-1)) {
-                Write-Host "The existing wsusscn2.cab is current." -ForegroundColor Green
-                $ShouldDownload = $false
-            }
-        }
-        if ($ShouldDownload) {
-            Write-Host "Downloading wsusscn2.cab (~1GB)..." -ForegroundColor Cyan
-            Invoke-WebRequest -Uri $Url -OutFile $CabPath -UseBasicParsing
-        }
-        
-        Write-Host "Success! Package ready at: $WorkingFolder" -ForegroundColor Green
-    }
-    catch {
-        Write-Error "Preparation failed: $($_.Exception.Message)"
-    }
-}
-
 # --- Module Validation Check ---
 $InstallRequired = $Scan, $DownloadUpdates, $DeployUpdates
 if ($InstallRequired -contains $true) {
     if (-not (Get-Module -ListAvailable -Name kbupdate)) {
         Install-Module kbupdate -Force -Scope CurrentUser
+        Install-Module xWindowsUpdate -Force -Scope CurrentUser
     }
 }
 
