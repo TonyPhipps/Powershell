@@ -255,12 +255,22 @@ if ($DownloadUpdates) {
 # --- 5. DEPLOY UPDATES ---
 if ($DeployUpdates) {
     Write-Host "--- Operation: Deploy Updates ---" -ForegroundColor Gray
-    if (Test-Path $EndpointsPath) {
-        $TargetEndpoints = Get-Content $EndpointsPath
-        Get-KbNeededUpdate -ComputerName $TargetEndpoints -ScanFilePath $CabPath -Force -Verbose | 
-            Install-KbUpdate -RepositoryPath $RepoFolder -NoMultithreading -Verbose
-        Write-Host "Deployment tasks submitted." -ForegroundColor Green
+    $LatestReport = Get-ChildItem -Path $ResultsFolder -Filter "Full_Compliance_Report_*.csv" | 
+        Sort-Object LastWriteTime -Descending | 
+        Select-Object -First 1
+    if (-not $LatestReport) {
+        Write-Error "Could not find a Compliance Report CSV in $ResultsFolder. Run -Scan first."
+    } elseif (-not (Test-Path $RepoFolder)) {
+        Write-Error "Repository folder not found at $RepoFolder. Ensure updates were downloaded and moved to this network."
     } else {
-        Write-Error "Endpoint list missing. Run -Scan first."
+        Write-Host "Loading deployment manifest: $($LatestReport.Name)" -ForegroundColor Cyan
+        $NeededUpdates = Import-Csv -Path $LatestReport.FullName
+        if ($NeededUpdates.Count -eq 0) {
+            Write-Host "Manifest is empty. No updates to deploy." -ForegroundColor Yellow
+            return
+        }
+        Write-Host "Starting deployment to $( ($NeededUpdates.ComputerName | Select-Object -Unique).Count ) endpoints..." -ForegroundColor Yellow
+        $NeededUpdates | Install-KbUpdate -RepositoryPath $RepoFolder -NoMultithreading -Verbose
+        Write-Host "Deployment tasks completed." -ForegroundColor Green
     }
 }
