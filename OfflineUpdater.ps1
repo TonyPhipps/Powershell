@@ -266,7 +266,8 @@ if ($DeployUpdates) {
     if (Test-Path $EndpointsPath) {
         $TargetEndpoints = Get-Content $EndpointsPath
         $RemoteRepoFolder = "\\$env:COMPUTERNAME\$($RepoFolder -replace ':', '$')"
-        Install-KbUpdate -ComputerName $TargetEndpoints -FilePath $RemoteRepoFolder -NoMultithreading -Verbose
+		$RemoteCabPath = "\\$env:COMPUTERNAME\$($CabPath -replace ':', '$')"
+        Install-KbUpdate -AllNeeded -NoMultithreading -ComputerName $TargetEndpoints -ScanFilePath $RemoteCabPath -RepositoryPath $RemoteRepoFolder -Verbose
         Write-Host "Deployment tasks submitted." -ForegroundColor Green
     } else {
         Write-Error "Endpoint list missing. Run -Scan first."
