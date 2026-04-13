@@ -3,32 +3,42 @@
     A management wrapper for the kbupdate module to facilitate offline Windows patching.
 
 .DESCRIPTION
-    This script automates the end-to-end process of offline updating. It can bundle the 
-    kbupdate module and the Microsoft servicing stack (wsusscn2.cab), scan Active Directory 
+    This script automates the end-to-end process of offline updating. It bundles the 
+    necessary PowerShell modules and the Microsoft servicing stack (wsusscn2.cab), scans Active Directory 
     endpoints for missing KBs, download required updates from the Microsoft Catalog 
-    on an internet-connected host, and deploy them to target endpoints in an air-gapped 
-    environment.
+    on an internet-connected host, and deploys them to target endpoints in an air-gapped
+    environment. Below is the general approach and commands without optional file/folder redirects.
+    Step 1: Prepare the package on an Internet-attached network. Copy the kbupdate folder and script to the offline network.
+        .\OfflineUpdater.ps1 -PreparePackage
+    Step 2: Install the modules on the offline network.
+        .\OfflineUpdater.ps1 -Install
+    Step 2: Scan the Windows hosts on the offline network. Copy the MissingKBs.txt scan results to the online network.
+        .\OfflineUpdater.ps1 -Scan
+    Step 3: Download missing updates on Internet-attached network. Copy the repository folder to the offline network.
+        .\OfflineUpdater.ps1 -DownloadUpdates
+    Step 4: Deploy the updates on the offline network.
+        .\OfflineUpdater.ps1 -Deploy
 
 .PARAMETER WorkingFolder
     The root directory for script operations. Defaults to a 'kbupdate' folder in the script directory.
 
 .PARAMETER ModulesFolder
-    Path to the directory containing the kbupdate module and dependencies.
+    Path to the directory containing the kbupdate module and dependencies. Defaults to kbudate\modules.
 
 .PARAMETER CatalogFolder
-    Path where the wsusscn2.cab (Offline Scan File) is stored or will be downloaded.
+    Path where the wsusscn2.cab (Offline Scan File) is stored or will be downloaded. Defaults to kbudate\catalog.
 
 .PARAMETER ScanFolder
-    Directory used to store endpoint lists (endpoints.txt).
+    Directory used to store endpoint lists (endpoints.txt). Defaults to kbudate\scan.
 
 .PARAMETER RepoFolder
-    The local repository where .msu/.cab update files are downloaded and stored.
+    The local repository where .msu/.cab update files are downloaded and stored. Defaults to kbudate\repository.
 
 .PARAMETER ResultsFolder
-    Directory where compliance reports and missing KB lists are exported.
+    Directory where compliance reports and missing KB lists are exported. Defaults to kbudate\scanresults.
 
 .PARAMETER PreparePackage
-    Switch to download the kbupdate module and the latest wsusscn2.cab, then zip them for transport.
+    Switch to download the needed modules and the latest wsusscn2.cab.
 
 .PARAMETER Install
     Switch to install the kbupdate module from the local WorkingFolder to the system module path.
@@ -58,7 +68,7 @@
     Author         : Tony Phipps
     Prerequisites  : PowerShell 5.1+, Administrator privileges, RSAT (for -Scan)
     Version        : 1.0
-    Date           : April 10, 2026
+    Date           : April 13, 2026
     Copyright      : (c) 2026 Tony Phipps under the MIT License
 
 .LINK
@@ -199,14 +209,14 @@ if ($Scan) {
     Get-ADComputer -Filter {Enabled -eq $true -and OperatingSystem -like '*Windows*'} | Select-Object -ExpandProperty Name | Out-File -FilePath $EndpointsPath
     $TargetEndpoints = Get-Content $EndpointsPath
     $RemoteCabPath = "\\$env:COMPUTERNAME\$($CabPath -replace ':', '$')"
-    $ScanResults = foreach ($endpoint in $TargetEndpoints) {
-        $warn = $null
-        $err = $null
-        $scanAttempt = Get-KbNeededUpdate -ComputerName $endpoint -ScanFilePath $RemoteCabPath -Verbose -WarningVariable warn -ErrorVariable err -WarningAction SilentlyContinue -ErrorAction SilentlyContinue  
-        if ($warn -or $err -or (-not $scanAttempt)) {
-            $scanAttempt = Get-KbNeededUpdate -ComputerName $endpoint -ScanFilePath $RemoteCabPath -Force -Verbose
+    $ScanResults = foreach ($Endpoint in $TargetEndpoints) {
+        $Warn = $null
+        $Err = $null
+        $ScanAttempt = Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $RemoteCabPath -Verbose -WarningVariable warn -ErrorVariable err -WarningAction SilentlyContinue -ErrorAction SilentlyContinue  
+        if ($Warn -or $Err -or (-not $ScanAttempt)) {
+            $ScanAttempt = Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $RemoteCabPath -Force -Verbose
         }
-        $scanAttempt
+        $ScanAttempt
     }
     if ($ScanResults) {
         $ReportPath = Join-Path $ResultsFolder "Full_Compliance_Report_$((Get-Date).ToString('yyyyMMdd')).csv"
