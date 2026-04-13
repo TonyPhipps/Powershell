@@ -237,9 +237,7 @@ if ($DownloadUpdates) {
         Write-Host "Found $($KBsToDownload.Count) valid KB IDs to process." -ForegroundColor Cyan
         foreach ($KB in $KBsToDownload) {
             Write-Host "Querying Catalog for $KB..." -ForegroundColor Yellow
-            $LatestUpdate = Get-KbUpdate -Name $KB -Architecture x64 | 
-                            Sort-Object Date -Descending | 
-                            Select-Object -First 1
+            $LatestUpdate = Get-KbUpdate -Name $KB -Architecture x64 | Select-KbLatest
             if ($LatestUpdate) {
                 foreach ($Url in $LatestUpdate.Link) {
                     $FileName = Split-Path $Url -Leaf
