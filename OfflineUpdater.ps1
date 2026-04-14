@@ -89,7 +89,7 @@ param (
     [string]$Modules,
 
     [Parameter(Mandatory = $false)]
-    [alias("C", "Catalog")]
+    [alias("C", "cab")]
     [string]$Catalog,
 
     [Parameter(Mandatory = $false)]
