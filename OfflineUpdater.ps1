@@ -222,11 +222,11 @@ if ($Scan) {
 # --- 4. DOWNLOAD UPDATES ---
 if ($DownloadUpdates) {
     Write-Host "--- Operation: Download Updates ---" -ForegroundColor Gray
-    $LatestReport = Get-ChildItem -Path $ResultsFolder -Filter "Full_Compliance_Report_*.csv" | 
+    $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
                     Sort-Object LastWriteTime -Descending | 
                     Select-Object -First 1
     if (-not $LatestReport) {
-        Write-Error "Could not find a Compliance Report CSV in $ResultsFolder. Run -Scan first."
+        Write-Error "Could not find a Compliance Report CSV in $Results. Run -Scan first."
     } else {
         Write-Host "Processing updates based on report: $($LatestReport.Name)" -ForegroundColor Cyan
         if (-not (Test-Path $Repository)) { New-Item -ItemType Directory -Path $Repository -Force | Out-Null }
