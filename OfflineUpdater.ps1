@@ -32,10 +32,10 @@
 .PARAMETER Computers
     Path to file used to store list of hosts to scan. Defaults to kbudate\scan\hosts.txt.
 
-.PARAMETER RepoFolder
+.PARAMETER Repository
     The local repository where .msu/.cab update files are downloaded and stored. Defaults to kbudate\repository.
 
-.PARAMETER ResultsFolder
+.PARAMETER Results
     Directory where compliance reports and missing KB lists are exported. Defaults to kbudate\scanresults.
 
 .PARAMETER PreparePackage
