@@ -81,7 +81,7 @@
 [CmdletBinding()]
 param (
     [Parameter(Mandatory = $false)]
-    [string]$WorkingFolder = (Join-Path -Path $PSScriptRoot -ChildPath "kbupdate"),
+    [string]$WorkingFolder,
 
     [Parameter(Mandatory = $false)]
     [string]$Modules,
@@ -117,6 +117,14 @@ param (
     [switch]$SkipReport
 )
 
+if (-not $WorkingFolder) {
+        if ($psISE -and (Test-Path -Path $psISE.CurrentFile.FullPath)) {
+            $ScriptRoot = Split-Path -Path $psISE.CurrentFile.FullPath -Parent
+        } else {
+            $ScriptRoot = $PSScriptRoot
+    } 
+    $WorkingFolder = (Join-Path -Path $ScriptRoot -ChildPath "kbupdate")
+}
 if (-not $Modules)    { $Modules = Join-Path -Path $WorkingFolder -ChildPath "modules" }
 if (-not $Repository) { $Repository = Join-Path -Path $WorkingFolder -ChildPath "repository" }
 if (-not $Results)    { $Results = Join-Path -Path $WorkingFolder -ChildPath "ScanResults" }
@@ -204,8 +212,8 @@ if ($Scan) {
         Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force -Verbose
     }
     if ($ScanResults) {
-        $ReportPath = Join-Path $Results "Full_Compliance_Report_$((Get-Date).ToString('yyyyMMdd')).csv"
-        $MissingKBsPath = Join-Path -Path $Results -ChildPath "MissingKBs.txt"
+        $ReportPath = Join-Path $Results "Full_Compliance_Report_$((Get-Date).ToString('yyyyMMdd_HHmmSS')).csv"
+        $MissingKBsPath = Join-Path -Path $Results -ChildPath "MissingKBs.txt_$((Get-Date).ToString('yyyyMMdd_HHmmSS')).csv"
         $ScanResults | Export-Csv -Path $ReportPath -NoTypeInformation
         $NewKBs = $ScanResults.KBUpdate | Where-Object { $_ } | Sort-Object -Unique
         $NewKBs | Out-File -FilePath $MissingKBsPath
