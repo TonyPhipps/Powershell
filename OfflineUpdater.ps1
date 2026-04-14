@@ -81,39 +81,51 @@
 [CmdletBinding()]
 param (
     [Parameter(Mandatory = $false)]
+    [alias("w", "Working")]
     [string]$WorkingFolder,
 
     [Parameter(Mandatory = $false)]
+    [alias("M", "Modules")]
     [string]$Modules,
 
     [Parameter(Mandatory = $false)]
+    [alias("C", "Catalog")]
     [string]$Catalog,
 
     [Parameter(Mandatory = $false)]
+    [alias("R", "Repo")]
     [string]$Repository,
 
     [Parameter(Mandatory = $false)]
+    [alias("O", "Output")]
     [string]$Results,
 
     [Parameter(Mandatory = $false)]
+    [alias("H", "Hosts")]
     [string]$Computers,
 
     [Parameter(Mandatory = $false)]
+    [alias("P", "Prepare", "Package")]
     [switch]$PreparePackage,
 
     [Parameter(Mandatory = $false)]
+    [alias("I")]
     [switch]$Install,
 
     [Parameter(Mandatory = $false)]
+    [alias("S")]
     [switch]$Scan,
 
     [Parameter(Mandatory = $false)]
+    [alias("D", "Download")]
     [switch]$DownloadUpdates,
 
     [Parameter(Mandatory = $false)]
+    [alias("Deploy", "Push")]
     [switch]$DeployUpdates,
 
     [Parameter(Mandatory = $false)]
+    [alias("Skip")]
     [switch]$SkipReport
 )
 
