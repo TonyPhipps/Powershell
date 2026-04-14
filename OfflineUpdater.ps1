@@ -85,7 +85,7 @@ param (
     [string]$WorkingFolder,
 
     [Parameter(Mandatory = $false)]
-    [alias("M", "Modules")]
+    [alias("M", "Mod")]
     [string]$Modules,
 
     [Parameter(Mandatory = $false)]
@@ -125,8 +125,12 @@ param (
     [switch]$DeployUpdates,
 
     [Parameter(Mandatory = $false)]
-    [alias("Skip")]
-    [switch]$SkipReport
+    [alias("NoReport")]
+    [switch]$SkipReport,
+
+    [Parameter(Mandatory = $false)]
+    [alias("NoAD")]
+    [switch]$SkipAD
 )
 
 if (-not $WorkingFolder) {
@@ -148,7 +152,6 @@ if ($PreparePackage) {
     Write-Host "--- Operation: Prepare Package ---" -ForegroundColor Gray
     try {
         Install-PackageProvider -Name NuGet -Scope CurrentUser -ErrorAction SilentlyContinue
-        $Url = "https://go.microsoft.com/fwlink/?linkid=74689"
         if (-not (Test-Path $WorkingFolder)) { New-Item -ItemType Directory -Path $WorkingFolder -Force | Out-Null }
         if (-not (Test-Path $Modules)) { New-Item -ItemType Directory -Path $Modules -Force | Out-Null }
         $CatalogDir = Split-Path -Path $Catalog -Parent
@@ -166,6 +169,7 @@ if ($PreparePackage) {
         }
         if ($ShouldDownload) {
             Write-Host "Downloading wsusscn2.cab (~1GB)..." -ForegroundColor Cyan
+            $Url = "https://go.microsoft.com/fwlink/?linkid=74689"
             Invoke-WebRequest -Uri $Url -OutFile $Catalog -UseBasicParsing
         }
         Write-Host "Success! Package ready at: $WorkingFolder" -ForegroundColor Green
@@ -217,8 +221,10 @@ if ($Scan) {
     }
     if (-not (Test-Path $ScanFolder)) { New-Item -ItemType Directory -Path $ScanFolder -Force | Out-Null }
     if (-not (Test-Path $Results)) { New-Item -ItemType Directory -Path $Results -Force | Out-Null }
-    Write-Host "Gathering AD Computers..." -ForegroundColor Gray
-    Get-ADComputer -Filter {Enabled -eq $true -and OperatingSystem -like '*Windows*'} | Select-Object -ExpandProperty Name | Out-File -FilePath $Computers
+    if (-not $SkipAD) {
+        Write-Host "Gathering AD Computers..." -ForegroundColor Gray
+        Get-ADComputer -Filter {Enabled -eq $true -and OperatingSystem -like '*Windows*'} | Select-Object -ExpandProperty Name | Out-File -FilePath $Computers
+    }
     $TargetEndpoints = Get-Content $Computers
     $ScanResults = foreach ($Endpoint in $TargetEndpoints) {
         Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force -Verbose
@@ -271,7 +277,7 @@ if ($DeployUpdates) {
     Write-Host "--- Operation: Deploy Updates ---" -ForegroundColor Gray
     $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
         Sort-Object LastWriteTime -Descending | 
-        Select-Object -First 1
+            Select-Object -First 1
     if (-not $LatestReport) {
         Write-Error "Could not find a Compliance Report CSV in $Results. Run -Scan first."
     } elseif (-not (Test-Path $Repository)) {
