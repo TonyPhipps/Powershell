@@ -243,24 +243,26 @@ if ($Scan) {
 if ($DownloadUpdates) {
     Write-Host "--- Operation: Download Updates ---" -ForegroundColor Gray
     $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
-                    Sort-Object LastWriteTime -Descending | 
-                    Select-Object -First 1
+        Sort-Object LastWriteTime -Descending | 
+            Select-Object -First 1
     if (-not $LatestReport) {
-        Write-Error "Could not find a Compliance Report CSV in $Results. Run -Scan first."
+        Write-Error "No Compliance Report found in $Results."
     } else {
-        Write-Host "Processing updates based on report: $($LatestReport.Name)" -ForegroundColor Cyan
         if (-not (Test-Path $Repository)) { New-Item -ItemType Directory -Path $Repository -Force | Out-Null }
         $NeededUpdates = Import-Csv -Path $LatestReport.FullName
-        $UniqueUpdates = $NeededUpdates | Group-Object KBUpdate
-        foreach ($Group in $UniqueUpdates) {
-            $KB = $Group.Name
-            Write-Host "Querying Catalog for specific revision of $KB..." -ForegroundColor Yellow
-            $SpecificUpdate = $Group.Group[0] # Grab metadata from the first instance
-            Get-KbUpdate -Name $KB -Architecture x64 | 
-                Where-Object { $_.Title -eq $SpecificUpdate.Title } | 
-                Save-KbUpdate -Path $Repository -Verbose
+        $AllLinks = $NeededUpdates.Link | ForEach-Object { $_ -split " " } | 
+            Where-Object { $_ -like "http*" } | Select-Object -Unique
+        Write-Host "Found $($AllLinks.Count) unique files to download based on scan results." -ForegroundColor Cyan
+        foreach ($Url in $AllLinks) {
+            $FileName = Split-Path $Url -Leaf
+            Write-Host "Downloading: $FileName" -ForegroundColor Yellow
+            try {
+                Save-KbUpdate -Link $Url -Path $Repository -Verbose
+            } catch {
+                Write-Warning "Failed to download $FileName. Error: $($_.Exception.Message)"
+            }
         }
-        Write-Host "Download complete. Copy the Repository folder ($Repository) to the offline network." -ForegroundColor Green
+        Write-Host "Download complete. Total files in repository: $((Get-ChildItem $Repository).Count)" -ForegroundColor Green
     }
 }
 
