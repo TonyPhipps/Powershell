@@ -23,14 +23,14 @@
 .PARAMETER WorkingFolder
     The root directory for script operations. Defaults to a 'kbupdate' folder in the script directory.
 
-.PARAMETER ModulesFolder
+.PARAMETER Modules
     Path to the directory containing the kbupdate module and dependencies. Defaults to kbudate\modules.
 
-.PARAMETER CatalogFolder
+.PARAMETER Catalog
     Path where the wsusscn2.cab (Offline Scan File) is stored or will be downloaded. Defaults to kbudate\catalog.
 
-.PARAMETER ScanFolder
-    Directory used to store endpoint lists (endpoints.txt). Defaults to kbudate\scan.
+.PARAMETER Computers
+    Path to file used to store list of hosts to scan. Defaults to kbudate\scan\hosts.txt.
 
 .PARAMETER RepoFolder
     The local repository where .msu/.cab update files are downloaded and stored. Defaults to kbudate\repository.
@@ -84,25 +84,19 @@ param (
     [string]$WorkingFolder = (Join-Path -Path $PSScriptRoot -ChildPath "kbupdate"),
 
     [Parameter(Mandatory = $false)]
-    [string]$ModulesFolder,
+    [string]$Modules,
 
     [Parameter(Mandatory = $false)]
-    [string]$CatalogFolder,
+    [string]$Catalog,
 
     [Parameter(Mandatory = $false)]
-    [string]$ScanFolder,
+    [string]$Repository,
 
     [Parameter(Mandatory = $false)]
-    [string]$RepoFolder,
+    [string]$Results,
 
     [Parameter(Mandatory = $false)]
-    [string]$ResultsFolder,
-
-    [Parameter(Mandatory = $false)]
-    [string]$EndpointsPath,
-
-    [Parameter(Mandatory = $false)]
-    [string]$CabPath,
+    [string]$Computers,
 
     [Parameter(Mandatory = $false)]
     [switch]$PreparePackage,
@@ -123,14 +117,11 @@ param (
     [switch]$SkipReport
 )
 
-if (-not $ModulesFolder)  { $ModulesFolder = Join-Path -Path $WorkingFolder -ChildPath "modules" }
-if (-not $CatalogFolder)  { $CatalogFolder = Join-Path -Path $WorkingFolder -ChildPath "catalog" }
-if (-not $ScanFolder)     { $ScanFolder = Join-Path -Path $WorkingFolder -ChildPath "scan" }
-if (-not $RepoFolder)     { $RepoFolder = Join-Path -Path $WorkingFolder -ChildPath "repository" }
-if (-not $ResultsFolder)  { $ResultsFolder = Join-Path -Path $WorkingFolder -ChildPath "ScanResults" }
-if (-not $EndpointsPath)  { $EndpointsPath = Join-Path -Path $ScanFolder -ChildPath "endpoints.txt" }
-if (-not $MissingKBsPath) { $MissingKBsPath = Join-Path -Path $ResultsFolder -ChildPath "MissingKBs.txt" }
-if (-not $CabPath)        { $CabPath = Join-Path -Path $CatalogFolder -ChildPath "wsusscn2.cab" }
+if (-not $Modules)    { $Modules = Join-Path -Path $WorkingFolder -ChildPath "modules" }
+if (-not $Repository) { $Repository = Join-Path -Path $WorkingFolder -ChildPath "repository" }
+if (-not $Results)    { $Results = Join-Path -Path $WorkingFolder -ChildPath "ScanResults" }
+if (-not $Computers)  { $Computers = Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt" }
+if (-not $Catalog)    { $Catalog = Join-Path -Path $WorkingFolder -ChildPath "catalog\wsusscn2.cab" }
 
 # --- 2. PREPARE PACKAGE (OFFLINE ASSETS) ---
 if ($PreparePackage) {
@@ -139,24 +130,24 @@ if ($PreparePackage) {
         Install-PackageProvider -Name NuGet -Scope CurrentUser -ErrorAction SilentlyContinue
         $Url = "https://go.microsoft.com/fwlink/?linkid=74689"
         if (-not (Test-Path $WorkingFolder)) { New-Item -ItemType Directory -Path $WorkingFolder -Force | Out-Null }
-        if (-not (Test-Path $ModulesFolder)) { New-Item -ItemType Directory -Path $ModulesFolder -Force | Out-Null }
-        if (-not (Test-Path $CatalogFolder)) { New-Item -ItemType Directory -Path $CatalogFolder -Force | Out-Null }
-        Write-Host "Saving module to $ModulesFolder..." -ForegroundColor Gray
-        Save-Module -Name kbupdate -Path $ModulesFolder -ErrorAction Stop -Verbose
-        Save-Module -Name xWindowsUpdate -Path $ModulesFolder -ErrorAction Stop -Verbose
+        if (-not (Test-Path $Modules)) { New-Item -ItemType Directory -Path $Modules -Force | Out-Null }
+        $CatalogDir = Split-Path -Path $Catalog -Parent
+        if (-not (Test-Path -Path $CatalogDir)) { New-Item -ItemType Directory -Path $CatalogDir -Force | Out-Null }
+        Write-Host "Saving module to $Modules..." -ForegroundColor Gray
+        Save-Module -Name kbupdate -Path $Modules -ErrorAction Stop -Verbose
+        Save-Module -Name xWindowsUpdate -Path $Modules -ErrorAction Stop -Verbose
         Get-ChildItem -Path $WorkingFolder -Recurse | Unblock-File
         $ShouldDownload = $true
-        if (Test-Path $CabPath) {
-            if ((Get-Item $CabPath).LastWriteTime -ge (Get-Date).AddDays(-1)) {
+        if (Test-Path $Catalog) {
+            if ((Get-Item $Catalog).LastWriteTime -ge (Get-Date).AddDays(-1)) {
                 Write-Host "The existing wsusscn2.cab is current." -ForegroundColor Green
                 $ShouldDownload = $false
             }
         }
         if ($ShouldDownload) {
             Write-Host "Downloading wsusscn2.cab (~1GB)..." -ForegroundColor Cyan
-            Invoke-WebRequest -Uri $Url -OutFile $CabPath -UseBasicParsing
+            Invoke-WebRequest -Uri $Url -OutFile $Catalog -UseBasicParsing
         }
-        
         Write-Host "Success! Package ready at: $WorkingFolder" -ForegroundColor Green
     }
     catch {
@@ -167,14 +158,14 @@ if ($PreparePackage) {
 # --- 1. INSTALL MODULE ---
 if ($Install) {
     Write-Host "--- Operation: Install ---" -ForegroundColor Gray
-    $TargetModulePath = "C:\Program Files\WindowsPowerShell\Modules"
-    if (-not (Test-Path $TargetModulePath)) {
-        New-Item -ItemType Directory -Path $TargetModulePath -Force | Out-Null
+    $PowerShellModules = "C:\Program Files\WindowsPowerShell\Modules"
+    if (-not (Test-Path $PowerShellModules)) {
+        New-Item -ItemType Directory -Path $PowerShellModules -Force | Out-Null
     }
-    Write-Host "Installing kbupdate and dependencies to $TargetModulePath..." -ForegroundColor Cyan
-    $ModuleFolders = Get-ChildItem -Path $ModulesFolder -Directory
+    Write-Host "Installing kbupdate and dependencies to $PowerShellModules..." -ForegroundColor Cyan
+    $ModuleFolders = Get-ChildItem -Path $Modules -Directory
     foreach ($Folder in $ModuleFolders) {
-        $Dest = Join-Path $TargetModulePath $Folder.Name
+        $Dest = Join-Path $PowerShellModules $Folder.Name
         Copy-Item -Path $Folder.FullName -Destination $Dest -Recurse -Force
     }
     Write-Host "Verifying installation..." -ForegroundColor Cyan
@@ -205,15 +196,16 @@ if ($Scan) {
         return
     }
     if (-not (Test-Path $ScanFolder)) { New-Item -ItemType Directory -Path $ScanFolder -Force | Out-Null }
-    if (-not (Test-Path $ResultsFolder)) { New-Item -ItemType Directory -Path $ResultsFolder -Force | Out-Null }
+    if (-not (Test-Path $Results)) { New-Item -ItemType Directory -Path $Results -Force | Out-Null }
     Write-Host "Gathering AD Computers..." -ForegroundColor Gray
-    Get-ADComputer -Filter {Enabled -eq $true -and OperatingSystem -like '*Windows*'} | Select-Object -ExpandProperty Name | Out-File -FilePath $EndpointsPath
-    $TargetEndpoints = Get-Content $EndpointsPath
+    Get-ADComputer -Filter {Enabled -eq $true -and OperatingSystem -like '*Windows*'} | Select-Object -ExpandProperty Name | Out-File -FilePath $Computers
+    $TargetEndpoints = Get-Content $Computers
     $ScanResults = foreach ($Endpoint in $TargetEndpoints) {
-        Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $CabPath -Force -Verbose
+        Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force -Verbose
     }
     if ($ScanResults) {
-        $ReportPath = Join-Path $ResultsFolder "Full_Compliance_Report_$((Get-Date).ToString('yyyyMMdd')).csv"
+        $ReportPath = Join-Path $Results "Full_Compliance_Report_$((Get-Date).ToString('yyyyMMdd')).csv"
+        $MissingKBsPath = Join-Path -Path $Results -ChildPath "MissingKBs.txt"
         $ScanResults | Export-Csv -Path $ReportPath -NoTypeInformation
         $NewKBs = $ScanResults.KBUpdate | Where-Object { $_ } | Sort-Object -Unique
         $NewKBs | Out-File -FilePath $MissingKBsPath
@@ -237,7 +229,7 @@ if ($DownloadUpdates) {
         Write-Error "Could not find a Compliance Report CSV in $ResultsFolder. Run -Scan first."
     } else {
         Write-Host "Processing updates based on report: $($LatestReport.Name)" -ForegroundColor Cyan
-        if (-not (Test-Path $RepoFolder)) { New-Item -ItemType Directory -Path $RepoFolder -Force | Out-Null }
+        if (-not (Test-Path $Repository)) { New-Item -ItemType Directory -Path $Repository -Force | Out-Null }
         $NeededUpdates = Import-Csv -Path $LatestReport.FullName
         $UniqueUpdates = $NeededUpdates | Group-Object KBUpdate
         foreach ($Group in $UniqueUpdates) {
@@ -246,22 +238,22 @@ if ($DownloadUpdates) {
             $SpecificUpdate = $Group.Group[0] # Grab metadata from the first instance
             Get-KbUpdate -Name $KB -Architecture x64 | 
                 Where-Object { $_.Title -eq $SpecificUpdate.Title } | 
-                Save-KbUpdate -Path $RepoFolder -Verbose
+                Save-KbUpdate -Path $Repository -Verbose
         }
-        Write-Host "Download complete. Copy the Repository folder ($RepoFolder) to the offline network." -ForegroundColor Green
+        Write-Host "Download complete. Copy the Repository folder ($Repository) to the offline network." -ForegroundColor Green
     }
 }
 
 # --- 5. DEPLOY UPDATES ---
 if ($DeployUpdates) {
     Write-Host "--- Operation: Deploy Updates ---" -ForegroundColor Gray
-    $LatestReport = Get-ChildItem -Path $ResultsFolder -Filter "Full_Compliance_Report_*.csv" | 
+    $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
         Sort-Object LastWriteTime -Descending | 
         Select-Object -First 1
     if (-not $LatestReport) {
-        Write-Error "Could not find a Compliance Report CSV in $ResultsFolder. Run -Scan first."
-    } elseif (-not (Test-Path $RepoFolder)) {
-        Write-Error "Repository folder not found at $RepoFolder. Ensure updates were downloaded and moved to this network."
+        Write-Error "Could not find a Compliance Report CSV in $Results. Run -Scan first."
+    } elseif (-not (Test-Path $Repository)) {
+        Write-Error "Repository folder not found at $Repository. Ensure updates were downloaded and moved to this network."
     } else {
         Write-Host "Loading deployment manifest: $($LatestReport.Name)" -ForegroundColor Cyan
         $NeededUpdates = Import-Csv -Path $LatestReport.FullName
@@ -270,7 +262,7 @@ if ($DeployUpdates) {
             return
         }
         Write-Host "Starting deployment to $( ($NeededUpdates.ComputerName | Select-Object -Unique).Count ) endpoints..." -ForegroundColor Yellow
-        $NeededUpdates | Install-KbUpdate -RepositoryPath $RepoFolder -NoMultithreading -Verbose
+        $NeededUpdates | Install-KbUpdate -RepositoryPath $Repository -NoMultithreading -Verbose
         Write-Host "Deployment tasks completed." -ForegroundColor Green
     }
 }
