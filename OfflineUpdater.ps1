@@ -117,11 +117,11 @@ param (
     [switch]$Scan,
 
     [Parameter(Mandatory = $false)]
-    [alias("D", "Download")]
+    [alias("D", "Download", "DownloadUpdate")]
     [switch]$DownloadUpdates,
 
     [Parameter(Mandatory = $false)]
-    [alias("Deploy", "Push")]
+    [alias("Deploy", "DeployUpdate", "Push")]
     [switch]$DeployUpdates,
 
     [Parameter(Mandatory = $false)]
@@ -223,7 +223,9 @@ if ($Scan) {
     if (-not (Test-Path $Results)) { New-Item -ItemType Directory -Path $Results -Force | Out-Null }
     if (-not $SkipAD) {
         Write-Host "Gathering AD Computers..." -ForegroundColor Gray
-        Get-ADComputer -Filter {Enabled -eq $true -and OperatingSystem -like '*Windows*'} | Select-Object -ExpandProperty Name | Out-File -FilePath $Computers
+        Get-ADComputer -Filter {Enabled -eq $true -and OperatingSystem -like '*Windows*'} |
+            Select-Object -ExpandProperty Name |
+                Out-File -FilePath $Computers
     }
     $TargetEndpoints = Get-Content $Computers
     $ScanResults = foreach ($Endpoint in $TargetEndpoints) {
