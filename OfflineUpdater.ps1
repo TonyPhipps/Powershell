@@ -163,7 +163,7 @@ if ($PreparePackage) {
         $ShouldDownload = $true
         if (Test-Path $Catalog) {
             if ((Get-Item $Catalog).LastWriteTime -ge (Get-Date).AddDays(-1)) {
-                Write-Host "The existing wsusscn2.cab is current." -ForegroundColor Green
+                Write-Host "The existing wsusscn2.cab is current." -ForegroundColor Gray
                 $ShouldDownload = $false
             }
         }
@@ -214,7 +214,7 @@ if ($Scan) {
     Write-Host "--- Operation: Scan ---" -ForegroundColor Gray
     $isInstalled = (Get-WindowsFeature -Name RSAT-ADDS-Tools).Installed
     if ($isInstalled) {
-        Write-Host "RSAT: Active Directory Users and Computers is installed." -ForegroundColor Green
+        Write-Host "RSAT: Active Directory Users and Computers is installed." -ForegroundColor Gray
     } else {
         Write-Host "RSAT: Active Directory Users and Computers is NOT installed." -ForegroundColor Red
         return
@@ -269,17 +269,15 @@ if ($DownloadUpdates) {
                 $LastUpdate = (Get-Item $Destination).LastWriteTime
                 $TimeDiff = (Get-Date) - $LastUpdate
                 if ($TimeDiff.TotalHours -lt 24) {
-                    Write-Host "SKIPPING: $Arch\$FileName is current (Last updated: $($LastUpdate.ToString('MM/dd HH:mm')))" -ForegroundColor Gray
+                    Write-Host "SKIPPING: $Arch\$FileName is current (Last updated: $($LastUpdate.ToString('MM/dd HH:mm')))" -ForegroundColor Yellow
                     continue
                 }
             }
             try {
                 Write-Host "Downloading $Arch version to $Destination... " -NoNewline
                 Invoke-WebRequest -Uri $Url -OutFile $Destination -UseBasicParsing
-                Write-Host "[OK]" -ForegroundColor Green
             }
             catch {
-                Write-Host "[ERROR]" -ForegroundColor Red
                 Write-Warning "Failed to download $Arch version. Error: $($_.Exception.Message)"
             }
         }
@@ -305,7 +303,7 @@ if ($DownloadUpdates) {
                 Write-Warning "Failed to download $FileName. Error: $($_.Exception.Message)"
             }
         }
-        Write-Host "Download complete. Total files in repository: $((Get-ChildItem $Repository).Count)" -ForegroundColor Gray
+        Write-Host "Download complete. Total files in repository: $((Get-ChildItem $Repository).Count)" -ForegroundColor Green
     }
 }
 
@@ -328,32 +326,32 @@ if ($DeployUpdates) {
     $UncPath = "\\$($env:COMPUTERNAME)\$ShareName"
     Invoke-Command -ComputerName $TargetEndpoints -ScriptBlock {
         param($Path)
-    try {
-        $Svc = Get-Service -Name "WinDefend" -ErrorAction SilentlyContinue
-        if ($null -eq $Svc) {
-            Write-Host "SKIPPING: Defender (WinDefend) is not installed on $($env:COMPUTERNAME)." -ForegroundColor Gray
-            return
+        try {
+            $Svc = Get-Service -Name "WinDefend" -ErrorAction SilentlyContinue
+            if ($null -eq $Svc) {
+                Write-Host "SKIPPING: Defender (WinDefend) is not installed on $($env:COMPUTERNAME)." -ForegroundColor Yellow
+                return
+            }
+            if ($Svc.Status -ne 'Running') { # Check for other AV since Defender is stopped
+                $OtherAV = Get-CimInstance -Namespace root\SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction SilentlyContinue
+                $AVName = if ($OtherAV) { $OtherAV.displayName -join ", " } else { "Unknown/External Provider" }
+                Write-Host "SKIPPING: Defender service is $($Svc.Status) on $($env:COMPUTERNAME). Active AV: $AVName" -ForegroundColor Yellow
+                return
+            }
+            $Status = Get-MpComputerStatus
+            if ($Status.AMRunningMode -ne "Normal" -and $Status.AMRunningMode -ne 0) { # Service is running, now check the Running Mode
+                $OtherAV = Get-CimInstance -Namespace root\SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction SilentlyContinue
+                $AVName = if ($OtherAV) { $OtherAV.displayName -join ", " } else { "Unknown/External Provider" }
+                Write-Host "SKIPPING: Defender is in Passive Mode ($($Status.AMRunningMode)) on $($env:COMPUTERNAME). Active AV: $AVName" -ForegroundColor Yellow
+                return
+            }
+            Set-MpPreference -SignatureDefinitionUpdateFileSharesSources $Path
+            Update-MpSignature -UpdateSource FileShares
+            Write-Host "SUCCESS: $($env:COMPUTERNAME) updated." -ForegroundColor Green
         }
-        if ($Svc.Status -ne 'Running') { # Check for other AV since Defender is stopped
-            $OtherAV = Get-CimInstance -Namespace root\SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction SilentlyContinue
-            $AVName = if ($OtherAV) { $OtherAV.displayName -join ", " } else { "Unknown/External Provider" }
-            Write-Host "SKIPPING: Defender service is $($Svc.Status) on $($env:COMPUTERNAME). Active AV: $AVName" -ForegroundColor Yellow
-            return
+        catch {
+            Write-Host "CRITICAL ERROR on $($env:COMPUTERNAME): The Defender WMI provider is unresponsive (Service may be corrupted or disabled by policy)." -ForegroundColor Red
         }
-        $Status = Get-MpComputerStatus
-        if ($Status.AMRunningMode -ne "Normal" -and $Status.AMRunningMode -ne 0) { # 2. Service is running, now check the Running Mode
-            $OtherAV = Get-CimInstance -Namespace root\SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction SilentlyContinue
-            $AVName = if ($OtherAV) { $OtherAV.displayName -join ", " } else { "Unknown/External Provider" }
-            Write-Host "SKIPPING: Defender is in Passive Mode ($($Status.AMRunningMode)) on $($env:COMPUTERNAME). Active AV: $AVName" -ForegroundColor Yellow
-            return
-        }
-        Set-MpPreference -SignatureDefinitionUpdateFileSharesSources $Path
-        Update-MpSignature -UpdateSource FileShares
-        Write-Host "SUCCESS: $($env:COMPUTERNAME) updated." -ForegroundColor Green
-    }
-    catch {
-        Write-Host "CRITICAL ERROR on $($env:COMPUTERNAME): The Defender WMI provider is unresponsive (Service may be corrupted or disabled by policy)." -ForegroundColor Red
-    }
     } -ArgumentList $UncPath -ThrottleLimit 3
     Write-Host "Starting Windows KB deployment..." -ForegroundColor Gray
     $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
@@ -372,7 +370,7 @@ if ($DeployUpdates) {
         }
         Write-Host "Starting deployment to $( ($NeededUpdates.ComputerName | Select-Object -Unique).Count ) endpoints..." -ForegroundColor Gray
         $NeededUpdates | Install-KbUpdate -RepositoryPath $Repository -NoMultithreading -Verbose
-        Write-Host "Deployment tasks completed." -ForegroundColor Gray
+        Write-Host "Deployment tasks completed." -ForegroundColor Green
     }
 
     # --- REBOOT CHECK (Final Phase) ---
