@@ -232,15 +232,15 @@ if ($Scan) {
         Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force -Verbose
     }
     if ($ScanResults) {
-        $ReportPath = Join-Path $Results "Full_Compliance_Report_$((Get-Date).ToString('yyyyMMdd_HHmmSS')).csv"
-        $MissingKBsPath = Join-Path -Path $Results -ChildPath "MissingKBs.txt_$((Get-Date).ToString('yyyyMMdd_HHmmSS')).csv"
+        $ReportPath = Join-Path $Results -ChildPath "Full_Compliance_Report_$((Get-Date).ToString('yyyyMMdd_HHmmSS')).csv"
+        $MissingKBsPath = Join-Path -Path $Results -ChildPath "MissingKBs_$((Get-Date).ToString('yyyyMMdd_HHmmSS')).txt"
         $ScanResults | Export-Csv -Path $ReportPath -NoTypeInformation
         $NewKBs = $ScanResults.KBUpdate | Where-Object { $_ } | Sort-Object -Unique
         $NewKBs | Out-File -FilePath $MissingKBsPath
         Write-Host "Scan complete. Detailed report saved to $ReportPath" -ForegroundColor Green
         Write-Host "Copy the ScanResults folder to your online host for downloading." -ForegroundColor Cyan
         if (-not $SkipReport) {
-            Import-Csv -Path $ReportPath | Out-GridView
+            Import-Csv -Path $ReportPath | Select-Object ComputerName, KBUpdate, Title, Description | Out-GridView
         }
     } else {
         Write-Host "No missing updates found." -ForegroundColor Gray
