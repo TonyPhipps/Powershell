@@ -231,8 +231,8 @@ if ($Scan) {
         Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force -Verbose
     }
     if ($ScanResults) {
-        $ReportPath = Join-Path $Results -ChildPath "Full_Compliance_Report_$((Get-Date).ToString('yyyyMMdd_HHmmSS')).csv"
-        $MissingKBsPath = Join-Path -Path $Results -ChildPath "MissingKBs_$((Get-Date).ToString('yyyyMMdd_HHmmSS')).txt"
+        $ReportPath = Join-Path $Results -ChildPath "Full_Compliance_Report_$((Get-Date).ToString('yyyyMMdd_HHmm')).csv"
+        $MissingKBsPath = Join-Path -Path $Results -ChildPath "MissingKBs_$((Get-Date).ToString('yyyyMMdd_HHmm')).txt"
         $ScanResults | Export-Csv -Path $ReportPath -NoTypeInformation
         $NewKBs = $ScanResults.KBUpdate | Where-Object { $_ } | Sort-Object -Unique
         $NewKBs | Out-File -FilePath $MissingKBsPath
