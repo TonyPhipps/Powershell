@@ -219,7 +219,6 @@ if ($Scan) {
         Write-Host "RSAT: Active Directory Users and Computers is NOT installed." -ForegroundColor Red
         return
     }
-    if (-not (Test-Path $ScanFolder)) { New-Item -ItemType Directory -Path $ScanFolder -Force | Out-Null }
     if (-not (Test-Path $Results)) { New-Item -ItemType Directory -Path $Results -Force | Out-Null }
     if (-not $SkipAD) {
         Write-Host "Gathering AD Computers..." -ForegroundColor Gray
