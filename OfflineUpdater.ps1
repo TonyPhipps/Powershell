@@ -168,7 +168,7 @@ if ($PreparePackage) {
             }
         }
         if ($ShouldDownload) {
-            Write-Host "Downloading wsusscn2.cab (~1GB)..." -ForegroundColor Cyan
+            Write-Host "Downloading wsusscn2.cab (~1GB)..." -ForegroundColor Gray
             $Url = "https://go.microsoft.com/fwlink/?linkid=74689"
             Invoke-WebRequest -Uri $Url -OutFile $Catalog -UseBasicParsing
         }
@@ -186,13 +186,13 @@ if ($Install) {
     if (-not (Test-Path $PowerShellModules)) {
         New-Item -ItemType Directory -Path $PowerShellModules -Force | Out-Null
     }
-    Write-Host "Installing kbupdate and dependencies to $PowerShellModules..." -ForegroundColor Cyan
+    Write-Host "Installing kbupdate and dependencies to $PowerShellModules..." -ForegroundColor Gray
     $ModuleFolders = Get-ChildItem -Path $Modules -Directory
     foreach ($Folder in $ModuleFolders) {
         $Dest = Join-Path $PowerShellModules $Folder.Name
         Copy-Item -Path $Folder.FullName -Destination $Dest -Recurse -Force
     }
-    Write-Host "Verifying installation..." -ForegroundColor Cyan
+    Write-Host "Verifying installation..." -ForegroundColor Gray
     if (Get-Command -Module kbupdate) {
         Write-Host "SUCCESS: kbupdate is ready for use." -ForegroundColor Green
     } else {
@@ -249,7 +249,8 @@ if ($Scan) {
 # --- 4. DOWNLOAD UPDATES ---
 if ($DownloadUpdates) {
     Write-Host "--- Operation: Download Updates ---" -ForegroundColor Gray
-    Write-Host "Starting Defender definition downloads..." -ForegroundColor Cyan
+    Write-Host "Starting Defender definition downloads..." -ForegroundColor Gray
+    # https://www.catalog.update.microsoft.com/Search.aspx?q=Update+for+Microsoft+Defender+antivirus+platform
     $DefenderUpdates = Join-Path -Path $WorkingFolder -ChildPath "DefenderUpdates"
     if (-not (Test-Path $DefenderUpdates)) { New-Item -Path $DefenderUpdates -ItemType Directory }
         $ArchFolders = @{
@@ -282,7 +283,7 @@ if ($DownloadUpdates) {
                 Write-Warning "Failed to download $Arch version. Error: $($_.Exception.Message)"
             }
         }
-    Write-Host "Starting Windows KB downloads..." -ForegroundColor Cyan
+    Write-Host "Starting Windows KB downloads..." -ForegroundColor Gray
     $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
         Sort-Object LastWriteTime -Descending | 
             Select-Object -First 1
@@ -294,17 +295,17 @@ if ($DownloadUpdates) {
         $AllLinks = $NeededUpdates.Link | ForEach-Object { $_ -split " " } | 
             Where-Object { $_ -like "http*" } | 
                 Select-Object -Unique
-        Write-Host "Found $($AllLinks.Count) unique files to download based on scan results." -ForegroundColor Cyan
+        Write-Host "Found $($AllLinks.Count) unique files to download based on scan results." -ForegroundColor Gray
         foreach ($Url in $AllLinks) {
             $FileName = Split-Path $Url -Leaf
-            Write-Host "Downloading: $FileName" -ForegroundColor Yellow
+            Write-Host "Downloading: $FileName" -ForegroundColor Gray
             try {
                 Save-KbUpdate -Link $Url -Path $Repository -Verbose
             } catch {
                 Write-Warning "Failed to download $FileName. Error: $($_.Exception.Message)"
             }
         }
-        Write-Host "Download complete. Total files in repository: $((Get-ChildItem $Repository).Count)" -ForegroundColor Green
+        Write-Host "Download complete. Total files in repository: $((Get-ChildItem $Repository).Count)" -ForegroundColor Gray
     }
 }
 
@@ -354,7 +355,7 @@ if ($DeployUpdates) {
         Write-Host "CRITICAL ERROR on $($env:COMPUTERNAME): The Defender WMI provider is unresponsive (Service may be corrupted or disabled by policy)." -ForegroundColor Red
     }
     } -ArgumentList $UncPath -ThrottleLimit 3
-    Write-Host "Starting Windows KB deployment..." -ForegroundColor Cyan
+    Write-Host "Starting Windows KB deployment..." -ForegroundColor Gray
     $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
         Sort-Object LastWriteTime -Descending | 
             Select-Object -First 1
@@ -363,7 +364,7 @@ if ($DeployUpdates) {
     } elseif (-not (Test-Path $Repository)) {
         Write-Error "Repository folder not found at $Repository. Ensure updates were downloaded and moved to this network."
     } else {
-        Write-Host "Loading deployment manifest: $($LatestReport.Name)" -ForegroundColor Cyan
+        Write-Host "Loading deployment manifest: $($LatestReport.Name)" -ForegroundColor Gray
         $NeededUpdates = Import-Csv -Path $LatestReport.FullName
         if ($NeededUpdates.Count -eq 0) {
             Write-Host "Manifest is empty. No updates to deploy." -ForegroundColor Yellow
@@ -371,7 +372,7 @@ if ($DeployUpdates) {
         }
         Write-Host "Starting deployment to $( ($NeededUpdates.ComputerName | Select-Object -Unique).Count ) endpoints..." -ForegroundColor Yellow
         $NeededUpdates | Install-KbUpdate -RepositoryPath $Repository -NoMultithreading -Verbose
-        Write-Host "Deployment tasks completed." -ForegroundColor Green
+        Write-Host "Deployment tasks completed." -ForegroundColor Gray
     }
 }
 
