@@ -258,7 +258,8 @@ if ($DownloadUpdates) {
         if (-not (Test-Path $Repository)) { New-Item -ItemType Directory -Path $Repository -Force | Out-Null }
         $NeededUpdates = Import-Csv -Path $LatestReport.FullName
         $AllLinks = $NeededUpdates.Link | ForEach-Object { $_ -split " " } | 
-            Where-Object { $_ -like "http*" } | Select-Object -Unique
+            Where-Object { $_ -like "http*" } | 
+                Select-Object -Unique
         Write-Host "Found $($AllLinks.Count) unique files to download based on scan results." -ForegroundColor Cyan
         foreach ($Url in $AllLinks) {
             $FileName = Split-Path $Url -Leaf
