@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    A management wrapper for the kbupdate module to facilitate offline Windows patching.
+    A management wrapper for Defender updates and the kbupdate module to facilitate offline Windows patching.
 
 .DESCRIPTION
     This script automates the end-to-end process of offline updating. It bundles the 
@@ -9,7 +9,7 @@
     on an internet-connected host, and deploys them to target endpoints in an air-gapped
     environment. Below is the general approach and commands without optional file/folder redirects.
 
-    Step 1: Prepare the package on an Internet-attached network. Copy the kbupdate folder and script to the offline network.
+    Step 1: Prepare the package on an Internet-attached network. Copy the OfflineUpdate folder and script to the offline network.
         .\OfflineUpdater.ps1 -PreparePackage
     Step 2: Install the modules on the offline network.
         .\OfflineUpdater.ps1 -Install
@@ -21,10 +21,10 @@
         .\OfflineUpdater.ps1 -Deploy
 
 .PARAMETER WorkingFolder
-    The root directory for script operations. Defaults to a 'kbupdate' folder in the script directory.
+    The root directory for script operations. Defaults to a 'OfflineUpdate' folder in the script directory.
 
 .PARAMETER Modules
-    Path to the directory containing the kbupdate module and dependencies. Defaults to kbudate\modules.
+    Path to the directory containing the OfflineUpdate module and dependencies. Defaults to kbudate\modules.
 
 .PARAMETER Catalog
     Path where the wsusscn2.cab (Offline Scan File) is stored or will be downloaded. Defaults to kbudate\catalog.
@@ -42,7 +42,7 @@
     Switch to download the needed modules and the latest wsusscn2.cab.
 
 .PARAMETER Install
-    Switch to install the kbupdate module from the local WorkingFolder to the system module path.
+    Switch to install the OfflineUpdate module from the local WorkingFolder to the system module path.
 
 .PARAMETER Scan
     Switch to query Active Directory for computers and perform a remote compliance scan.
@@ -61,7 +61,7 @@
     Downloads all necessary tools and the ~1GB scan catalog to prepare for an offline site visit.
 
 .EXAMPLE
-    .\OfflineUpdater.ps1 -Scan -WorkingFolder "D:\KBUpdate"
+    .\OfflineUpdater.ps1 -Scan -WorkingFolder "D:\OfflineUpdate"
     Scans AD computers and generates a report of what is missing using the specified working directory.
 
 .NOTES
@@ -139,7 +139,7 @@ if (-not $WorkingFolder) {
         } else {
             $ScriptRoot = $PSScriptRoot
     } 
-    $WorkingFolder = (Join-Path -Path $ScriptRoot -ChildPath "kbupdate")
+    $WorkingFolder = (Join-Path -Path $ScriptRoot -ChildPath "OfflineUpdate")
 }
 if (-not $Modules)    { $Modules = Join-Path -Path $WorkingFolder -ChildPath "modules" }
 if (-not $Repository) { $Repository = Join-Path -Path $WorkingFolder -ChildPath "repository" }
