@@ -374,5 +374,30 @@ if ($DeployUpdates) {
         $NeededUpdates | Install-KbUpdate -RepositoryPath $Repository -NoMultithreading -Verbose
         Write-Host "Deployment tasks completed." -ForegroundColor Gray
     }
+
+    # --- REBOOT CHECK (Final Phase) ---
+    Write-Host "Validating post-deployment reboot requirements..." -ForegroundColor Gray
+    Invoke-Command -ComputerName $TargetEndpoints -ScriptBlock {
+        $NeedsReboot = $false
+        $Trigger = ""
+        if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending") {
+            $NeedsReboot = $true
+            $Trigger = "Component Based Servicing"
+        }
+        elseif (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired") {
+            $NeedsReboot = $true
+            $Trigger = "Windows Update Agent"
+        }
+        else {
+            $FileRename = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" -Name PendingFileRenameOperations -ErrorAction SilentlyContinue
+            if ($FileRename.PendingFileRenameOperations) {
+                $NeedsReboot = $true
+                $Trigger = "Pending File Rename"
+            }
+        }
+        if ($NeedsReboot) {
+            Write-Host "[!] $($env:COMPUTERNAME) REQUIRES REBOOT (Trigger: $Trigger)" -ForegroundColor Yellow
+        }
+    }
 }
 
