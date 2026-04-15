@@ -249,6 +249,40 @@ if ($Scan) {
 # --- 4. DOWNLOAD UPDATES ---
 if ($DownloadUpdates) {
     Write-Host "--- Operation: Download Updates ---" -ForegroundColor Gray
+    Write-Host "Starting Defender definition downloads..." -ForegroundColor Cyan
+    $DefenderUpdates = Join-Path -Path $WorkingFolder -ChildPath "DefenderUpdates"
+    if (-not (Test-Path $DefenderUpdates)) { New-Item -Path $DefenderUpdates -ItemType Directory }
+        $ArchFolders = @{
+            "x64" = "https://go.microsoft.com/fwlink/?LinkID=121721&arch=x64"
+            "x86" = "https://go.microsoft.com/fwlink/?LinkID=121721&arch=x86"
+        }
+        foreach ($Arch in $ArchFolders.Keys) {
+            $TargetFolder = Join-Path $DefenderUpdates $Arch
+            if (-not (Test-Path $TargetFolder)) { 
+                New-Item -Path $TargetFolder -ItemType Directory | Out-Null 
+            }
+            $FileName = "mpam-fe.exe"
+            $Destination = Join-Path $TargetFolder $FileName
+            $Url = $ArchFolders[$Arch]
+            if (Test-Path $Destination) {
+                $LastUpdate = (Get-Item $Destination).LastWriteTime
+                $TimeDiff = (Get-Date) - $LastUpdate
+                if ($TimeDiff.TotalHours -lt 24) {
+                    Write-Host "SKIPPING: $Arch\$FileName is current (Last updated: $($LastUpdate.ToString('MM/dd HH:mm')))" -ForegroundColor Gray
+                    continue
+                }
+            }
+            try {
+                Write-Host "Downloading $Arch version to $Destination... " -NoNewline
+                Invoke-WebRequest -Uri $Url -OutFile $Destination -UseBasicParsing
+                Write-Host "[OK]" -ForegroundColor Green
+            }
+            catch {
+                Write-Host "[ERROR]" -ForegroundColor Red
+                Write-Warning "Failed to download $Arch version. Error: $($_.Exception.Message)"
+            }
+        }
+    Write-Host "Starting Windows KB downloads..." -ForegroundColor Cyan
     $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
         Sort-Object LastWriteTime -Descending | 
             Select-Object -First 1
@@ -277,6 +311,50 @@ if ($DownloadUpdates) {
 # --- 5. DEPLOY UPDATES ---
 if ($DeployUpdates) {
     Write-Host "--- Operation: Deploy Updates ---" -ForegroundColor Gray
+    Write-Host "Starting Defender definition deployment..." -ForegroundColor Cyan
+    $ShareName = "DefenderUpdates"
+    $DefenderUpdates = Join-Path -Path $WorkingFolder -ChildPath $ShareName
+    if (-not (Test-Path $DefenderUpdates)) { New-Item -Path $DefenderUpdates -ItemType Directory }
+    $Acl = Get-Acl $DefenderUpdates
+    $Ar = New-Object System.Security.AccessControl.FileSystemAccessRule("Authenticated Users", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $Acl.SetAccessRule($Ar)
+    Set-Acl $DefenderUpdates $Acl
+    if (-not (Get-SmbShare -Name $ShareName -ErrorAction SilentlyContinue)) {
+        New-SmbShare -Name $ShareName -Path $DefenderUpdates -ReadAccess "Authenticated Users" -FullAccess "Administrators"
+        Write-Host "Share created successfully." -ForegroundColor Green
+    }
+    $TargetEndpoints = Get-Content $Computers
+    $UncPath = "\\$($env:COMPUTERNAME)\$ShareName"
+    Invoke-Command -ComputerName $TargetEndpoints -ScriptBlock {
+        param($Path)
+    try {
+        $Svc = Get-Service -Name "WinDefend" -ErrorAction SilentlyContinue
+        if ($null -eq $Svc) {
+            Write-Host "SKIPPING: Defender (WinDefend) is not installed on $($env:COMPUTERNAME)." -ForegroundColor Gray
+            return
+        }
+        if ($Svc.Status -ne 'Running') { # Check for other AV since Defender is stopped
+            $OtherAV = Get-CimInstance -Namespace root\SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction SilentlyContinue
+            $AVName = if ($OtherAV) { $OtherAV.displayName -join ", " } else { "Unknown/External Provider" }
+            Write-Host "SKIPPING: Defender service is $($Svc.Status) on $($env:COMPUTERNAME). Active AV: $AVName" -ForegroundColor Yellow
+            return
+        }
+        $Status = Get-MpComputerStatus
+        if ($Status.AMRunningMode -ne "Normal" -and $Status.AMRunningMode -ne 0) { # 2. Service is running, now check the Running Mode
+            $OtherAV = Get-CimInstance -Namespace root\SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction SilentlyContinue
+            $AVName = if ($OtherAV) { $OtherAV.displayName -join ", " } else { "Unknown/External Provider" }
+            Write-Host "SKIPPING: Defender is in Passive Mode ($($Status.AMRunningMode)) on $($env:COMPUTERNAME). Active AV: $AVName" -ForegroundColor Yellow
+            return
+        }
+        Set-MpPreference -SignatureDefinitionUpdateFileSharesSources $Path
+        Update-MpSignature -UpdateSource FileShares
+        Write-Host "SUCCESS: $($env:COMPUTERNAME) updated." -ForegroundColor Green
+    }
+    catch {
+        Write-Host "CRITICAL ERROR on $($env:COMPUTERNAME): The Defender WMI provider is unresponsive (Service may be corrupted or disabled by policy)." -ForegroundColor Red
+    }
+    } -ArgumentList $UncPath -ThrottleLimit 3
+    Write-Host "Starting Windows KB deployment..." -ForegroundColor Cyan
     $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
         Sort-Object LastWriteTime -Descending | 
             Select-Object -First 1
@@ -296,3 +374,4 @@ if ($DeployUpdates) {
         Write-Host "Deployment tasks completed." -ForegroundColor Green
     }
 }
+
