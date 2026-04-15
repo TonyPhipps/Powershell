@@ -312,7 +312,7 @@ if ($DownloadUpdates) {
 # --- 5. DEPLOY UPDATES ---
 if ($DeployUpdates) {
     Write-Host "--- Operation: Deploy Updates ---" -ForegroundColor Gray
-    Write-Host "Starting Defender definition deployment..." -ForegroundColor Cyan
+    Write-Host "Starting Defender definition deployment..." -ForegroundColor Gray
     $ShareName = "DefenderUpdates"
     $DefenderUpdates = Join-Path -Path $WorkingFolder -ChildPath $ShareName
     if (-not (Test-Path $DefenderUpdates)) { New-Item -Path $DefenderUpdates -ItemType Directory }
@@ -370,7 +370,7 @@ if ($DeployUpdates) {
             Write-Host "Manifest is empty. No updates to deploy." -ForegroundColor Yellow
             return
         }
-        Write-Host "Starting deployment to $( ($NeededUpdates.ComputerName | Select-Object -Unique).Count ) endpoints..." -ForegroundColor Yellow
+        Write-Host "Starting deployment to $( ($NeededUpdates.ComputerName | Select-Object -Unique).Count ) endpoints..." -ForegroundColor Gray
         $NeededUpdates | Install-KbUpdate -RepositoryPath $Repository -NoMultithreading -Verbose
         Write-Host "Deployment tasks completed." -ForegroundColor Gray
     }
