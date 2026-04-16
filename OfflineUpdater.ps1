@@ -64,6 +64,12 @@
     .\OfflineUpdater.ps1 -Scan -WorkingFolder "D:\OfflineUpdate"
     Scans AD computers and generates a report of what is missing using the specified working directory.
 
+.EXAMPLE
+    To install from a remote host that had issues, log into that remote machine, then:
+    Create a local copy at c:\offlineupdater.ps1, then run
+    C:\OfflineUpdater.ps1 -WorkingFolder \\otherpc\c$\OfflineUpdate -Install
+    C:\OfflineUpdater.ps1 -SkipAD -Scan -Computers yourlocalname
+
 .NOTES
     File Name      : OfflineUpdater.ps1
     Author         : Tony Phipps
