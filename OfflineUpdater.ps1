@@ -258,37 +258,50 @@ if ($Scan) {
 if ($DownloadUpdates) {
     Write-Host "--- Operation: Download Updates ---" -ForegroundColor Gray
     Write-Host "Starting Defender definition downloads..." -ForegroundColor Gray
-    # https://www.catalog.update.microsoft.com/Search.aspx?q=Update+for+Microsoft+Defender+antivirus+platform
     $DefenderUpdates = Join-Path -Path $WorkingFolder -ChildPath "DefenderUpdates"
     if (-not (Test-Path $DefenderUpdates)) { New-Item -Path $DefenderUpdates -ItemType Directory }
-        $ArchFolders = @{
-            "x64" = "https://go.microsoft.com/fwlink/?LinkID=121721&arch=x64"
-            "x86" = "https://go.microsoft.com/fwlink/?LinkID=121721&arch=x86"
+    $ArchFolders = @{
+        "x64" = "https://go.microsoft.com/fwlink/?LinkID=121721&arch=x64"
+        "x86" = "https://go.microsoft.com/fwlink/?LinkID=121721&arch=x86"
+    }
+    foreach ($Arch in $ArchFolders.Keys) {
+        $TargetFolder = Join-Path $DefenderUpdates $Arch
+        if (-not (Test-Path $TargetFolder)) { 
+            New-Item -Path $TargetFolder -ItemType Directory | Out-Null 
         }
-        foreach ($Arch in $ArchFolders.Keys) {
-            $TargetFolder = Join-Path $DefenderUpdates $Arch
-            if (-not (Test-Path $TargetFolder)) { 
-                New-Item -Path $TargetFolder -ItemType Directory | Out-Null 
-            }
-            $FileName = "mpam-fe.exe"
-            $Destination = Join-Path $TargetFolder $FileName
-            $Url = $ArchFolders[$Arch]
-            if (Test-Path $Destination) {
-                $LastUpdate = (Get-Item $Destination).LastWriteTime
-                $TimeDiff = (Get-Date) - $LastUpdate
-                if ($TimeDiff.TotalHours -lt 24) {
-                    Write-Host "SKIPPING: $Arch\$FileName is current (Last updated: $($LastUpdate.ToString('MM/dd HH:mm')))" -ForegroundColor Yellow
-                    continue
-                }
-            }
-            try {
-                Write-Host "Downloading $Arch version to $Destination... " -NoNewline
-                Invoke-WebRequest -Uri $Url -OutFile $Destination -UseBasicParsing
-            }
-            catch {
-                Write-Warning "Failed to download $Arch version. Error: $($_.Exception.Message)"
+        $FileName = "mpam-fe.exe"
+        $Destination = Join-Path $TargetFolder $FileName
+        $Url = $ArchFolders[$Arch]
+        if (Test-Path $Destination) {
+            $LastUpdate = (Get-Item $Destination).LastWriteTime
+            $TimeDiff = (Get-Date) - $LastUpdate
+            if ($TimeDiff.TotalHours -lt 24) {
+                Write-Host "SKIPPING: $Arch\$FileName is current (Last updated: $($LastUpdate.ToString('MM/dd HH:mm')))" -ForegroundColor Yellow
+                continue
             }
         }
+        try {
+            Write-Host "Downloading $Arch version to $Destination... " -NoNewline
+            Invoke-WebRequest -Uri $Url -OutFile $Destination -UseBasicParsing
+        }
+        catch {
+            Write-Warning "Failed to download $Arch version. Error: $($_.Exception.Message)"
+        }
+    }
+    Write-Host "Getting latest Defender Platform Update from https://www.catalog.update.microsoft.com/Search.aspx?q=Update+for+Microsoft+Defender+antivirus+platform" -ForegroundColor Gray
+    $CurrentFiles = Get-Item -Path "$DefenderUpdates\updateplatform*.exe" -ErrorAction SilentlyContinue
+    if ($CurrentFiles -and ($CurrentFiles | Sort-Object LastWriteTime | Select-Object -First 1).LastWriteTime -ge (Get-Date).AddDays(-1)) {
+        Write-Host "The existing Defender Platform Update files are current." -ForegroundColor Green
+        $ShouldDownload = $false
+    } else {
+        $DefenderPlatformUpdate = Get-KbUpdate -KB 4052623 | 
+            Sort-Object -Property LastModified -Descending | 
+                Select-Object -First 1
+        foreach ($link in $DefenderPlatformUpdate.Link) {
+            $Update | Save-KbUpdate -Link $link -Path $DefenderUpdates -Verbose
+        }
+    }
+    
     Write-Host "Starting Windows KB downloads..." -ForegroundColor Gray
     $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
         Sort-Object LastWriteTime -Descending | 
