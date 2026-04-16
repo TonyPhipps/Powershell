@@ -326,9 +326,7 @@ if ($DeployUpdates) {
         New-SmbShare -Name $ShareName -Path $DefenderUpdates -ReadAccess "Authenticated Users", "Domain Computers" -FullAccess "Administrators"
         Grant-SmbShareAccess -Name $ShareName -AccountName "Domain Computers" -AccessRight Read -Force
         Write-Host "Share '$ShareName' created successfully with Authenticated Users and Domain Computers read access." -ForegroundColor Green
-        
     }
-    $TargetEndpoints = Get-Content $Computers
     $UncPath = "\\$($env:COMPUTERNAME)\$ShareName"
     Invoke-Command -ComputerName $TargetEndpoints -ScriptBlock {
         param($Path)
