@@ -323,7 +323,7 @@ if ($DeployUpdates) {
     if (-not (Get-SmbShare -Name $ShareName -ErrorAction SilentlyContinue)) {
         New-SmbShare -Name $ShareName -Path $DefenderUpdates -ReadAccess "Authenticated Users", "Domain Computers" -FullAccess "Administrators"
         Grant-SmbShareAccess -Name $ShareName -AccountName "Domain Computers" -AccessRight Read -Force
-        Write-Host "Share '$ShareName' created successfully with Authenticated Users and Computer Account access." -ForegroundColor Green
+        Write-Host "Share '$ShareName' created successfully with Authenticated Users and Domain Computers read access." -ForegroundColor Green
         
     }
     $TargetEndpoints = Get-Content $Computers
