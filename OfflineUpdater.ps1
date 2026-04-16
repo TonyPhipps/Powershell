@@ -155,6 +155,35 @@ if (-not $Computers)  { $Computers = Join-Path -Path $WorkingFolder -ChildPath "
 if ($Computers.Count -eq 1 -and (Test-Path -Path $Computers[0] -PathType Leaf)) { $TargetEndpoints = Get-Content -Path $Computers[0] } 
 else { $TargetEndpoints = $Computers }
 
+# --- 0. INTERACTIVE MENU (FOR NON-PS USERS) ---
+# This block triggers only if no main action switches are selected
+$NoActionSelected = -not ($PreparePackage -or $Install -or $Scan -or $DownloadUpdates -or $DeployUpdates)
+if ($NoActionSelected) {
+    do {
+        Clear-Host
+        Write-Host "==========================================================" -ForegroundColor Cyan
+        Write-Host "            OFFLINE WINDOWS UPDATER - MAIN MENU           " -ForegroundColor Cyan
+        Write-Host "==========================================================" -ForegroundColor Cyan
+        Write-Host " 1) -Prepare Package  (Run on INTERNET-CONNECTED computer)"
+        Write-Host " 2) -Install Modules  (Run on AIR-GAPPED computer)"
+        Write-Host " 3) -Scan Endpoints   (Run on AIR-GAPPED computer)"
+        Write-Host " 4) -Download Updates (Run on INTERNET-CONNECTED computer)"
+        Write-Host " 5) -Deploy Updates   (Run on AIR-GAPPED computer)"
+        Write-Host " Q) Quit"
+        Write-Host "==========================================================" -ForegroundColor Cyan
+        $Choice = Read-Host "Select an option [1-5 or Q]"
+        switch ($Choice) {
+            "1" { $PreparePackage = $true;  $Continue = $false }
+            "2" { $Install = $true;         $Continue = $false }
+            "3" { $Scan = $true;            $Continue = $false }
+            "4" { $DownloadUpdates = $true; $Continue = $false }
+            "5" { $DeployUpdates = $true;   $Continue = $false }
+            "Q" { exit }
+            default { Write-Host "Invalid selection, try again." -ForegroundColor Red; Start-Sleep -Seconds 1; $Continue = $true }
+        }
+    } while ($Continue)
+}
+
 # --- 2. PREPARE PACKAGE (OFFLINE ASSETS) ---
 if ($PreparePackage) {
     Write-Host "--- Operation: Prepare Package ---" -ForegroundColor Gray
