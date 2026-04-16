@@ -30,7 +30,7 @@
     Path where the wsusscn2.cab (Offline Scan File) is stored or will be downloaded. Defaults to kbudate\catalog.
 
 .PARAMETER Computers
-    Path to file used to store list of hosts to scan. Defaults to kbudate\scan\hosts.txt.
+    Path to file used to store list of hosts to scan. Defaults to kbudate\scan\hosts.txt. A list is also accepted directly.
 
 .PARAMETER Repository
     The local repository where .msu/.cab update files are downloaded and stored. Defaults to kbudate\repository.
@@ -102,7 +102,7 @@ param (
 
     [Parameter(Mandatory = $false)]
     [alias("H", "Hosts")]
-    [string]$Computers,
+    [string[]]$Computers,
 
     [Parameter(Mandatory = $false)]
     [alias("P", "Prepare", "Package")]
@@ -144,8 +144,10 @@ if (-not $WorkingFolder) {
 if (-not $Modules)    { $Modules = Join-Path -Path $WorkingFolder -ChildPath "modules" }
 if (-not $Repository) { $Repository = Join-Path -Path $WorkingFolder -ChildPath "repository" }
 if (-not $Results)    { $Results = Join-Path -Path $WorkingFolder -ChildPath "ScanResults" }
-if (-not $Computers)  { $Computers = Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt" }
 if (-not $Catalog)    { $Catalog = Join-Path -Path $WorkingFolder -ChildPath "catalog\wsusscn2.cab" }
+if (-not $Computers)  { $Computers = Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt" }
+if ($Computers.Count -eq 1 -and (Test-Path -Path $Computers[0] -PathType Leaf)) { $TargetEndpoints = Get-Content -Path $Computers[0] } 
+else { $TargetEndpoints = $Computers }
 
 # --- 2. PREPARE PACKAGE (OFFLINE ASSETS) ---
 if ($PreparePackage) {
@@ -212,21 +214,21 @@ if ($InstallRequired -contains $true) {
 # --- 3. SCAN ENDPOINTS ---
 if ($Scan) {
     Write-Host "--- Operation: Scan ---" -ForegroundColor Gray
-    $isInstalled = (Get-WindowsFeature -Name RSAT-ADDS-Tools).Installed
-    if ($isInstalled) {
-        Write-Host "RSAT: Active Directory Users and Computers is installed." -ForegroundColor Gray
-    } else {
-        Write-Host "RSAT: Active Directory Users and Computers is NOT installed." -ForegroundColor Red
-        return
-    }
     if (-not (Test-Path $Results)) { New-Item -ItemType Directory -Path $Results -Force | Out-Null }
-    if (-not $SkipAD) {
+    if (-not $SkipAD -and ($Computers.Count -eq 1 -and (Test-Path $Computers[0]))) {
+        $isInstalled = (Get-WindowsFeature -Name RSAT-ADDS-Tools).Installed
+        if ($isInstalled) {
+            Write-Host "RSAT: Active Directory Users and Computers is installed." -ForegroundColor Gray
+        } else {
+            Write-Host "RSAT: Active Directory Users and Computers is NOT installed." -ForegroundColor Red
+            return
+        }
         Write-Host "Gathering AD Computers..." -ForegroundColor Gray
         Get-ADComputer -Filter {Enabled -eq $true -and OperatingSystem -like '*Windows*'} |
             Select-Object -ExpandProperty Name |
-                Out-File -FilePath $Computers
+                Out-File -FilePath $Computers[0]
+        $TargetEndpoints = Get-Content $Computers[0]
     }
-    $TargetEndpoints = Get-Content $Computers
     $ScanResults = foreach ($Endpoint in $TargetEndpoints) {
         Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force -Verbose
     }
