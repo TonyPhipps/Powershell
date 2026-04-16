@@ -101,11 +101,11 @@ param (
     [string]$Results,
 
     [Parameter(Mandatory = $false)]
-    [alias("H", "Hosts")]
+    [alias("H", "Hosts", "Host", "Computer")]
     [string[]]$Computers,
 
     [Parameter(Mandatory = $false)]
-    [alias("P", "Prepare", "Package")]
+    [alias("P", "Prepare", "Package", "Update", "UpdatePackage")]
     [switch]$PreparePackage,
 
     [Parameter(Mandatory = $false)]
