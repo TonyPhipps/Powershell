@@ -315,12 +315,18 @@ if ($DeployUpdates) {
     $DefenderUpdates = Join-Path -Path $WorkingFolder -ChildPath $ShareName
     if (-not (Test-Path $DefenderUpdates)) { New-Item -Path $DefenderUpdates -ItemType Directory }
     $Acl = Get-Acl $DefenderUpdates
-    $Ar = New-Object System.Security.AccessControl.FileSystemAccessRule("Authenticated Users", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
-    $Acl.SetAccessRule($Ar)
+    $ArAuth = New-Object System.Security.AccessControl.FileSystemAccessRule("Authenticated Users", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $Acl.SetAccessRule($ArAuth)
+    $ArComp = New-Object System.Security.AccessControl.FileSystemAccessRule("Domain Computers", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $Acl.SetAccessRule($ArComp)
     Set-Acl $DefenderUpdates $Acl
     if (-not (Get-SmbShare -Name $ShareName -ErrorAction SilentlyContinue)) {
-        New-SmbShare -Name $ShareName -Path $DefenderUpdates -ReadAccess "Authenticated Users" -FullAccess "Administrators"
-        Write-Host "Share created successfully." -ForegroundColor Green
+        New-SmbShare -Name $ShareName -Path $DefenderUpdates -ReadAccess "Authenticated Users", "Domain Computers" -FullAccess "Administrators"
+        Write-Host "Share '$ShareName' created successfully with Computer Account access." -ForegroundColor Green
+    }
+    else {
+        Grant-SmbShareAccess -Name $ShareName -AccountName "Domain Computers" -AccessRight Read -Force
+        Write-Host "Updated existing share '$ShareName' to include Domain Computers." -ForegroundColor Cyan
     }
     $TargetEndpoints = Get-Content $Computers
     $UncPath = "\\$($env:COMPUTERNAME)\$ShareName"
