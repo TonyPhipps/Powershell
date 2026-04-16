@@ -294,6 +294,8 @@ if ($DownloadUpdates) {
         Write-Host "The existing Defender Platform Update files are current." -ForegroundColor Green
         $ShouldDownload = $false
     } else {
+        Write-Host "The existing Defender Platform Update files are outdated or missing. Downloading new packages..." -ForegroundColor Yellow
+        Remove-Item -Path "$DefenderUpdates\updateplatform*.exe" -Force -ErrorAction SilentlyContinue -Verbose
         $DefenderPlatformUpdate = Get-KbUpdate -KB 4052623 | 
             Sort-Object -Property LastModified -Descending | 
                 Select-Object -First 1
@@ -301,7 +303,6 @@ if ($DownloadUpdates) {
             $Update | Save-KbUpdate -Link $link -Path $DefenderUpdates -Verbose
         }
     }
-    
     Write-Host "Starting Windows KB downloads..." -ForegroundColor Gray
     $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
         Sort-Object LastWriteTime -Descending | 
