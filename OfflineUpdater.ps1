@@ -289,6 +289,7 @@ if ($DownloadUpdates) {
         Write-Error "No Compliance Report found in $Results."
     } else {
         if (-not (Test-Path $Repository)) { New-Item -ItemType Directory -Path $Repository -Force | Out-Null }
+        Write-Host "Loading results file: $($LatestReport.FullName)" -ForegroundColor Gray
         $NeededUpdates = Import-Csv -Path $LatestReport.FullName
         $AllLinks = $NeededUpdates.Link | ForEach-Object { $_ -split " " } | 
             Where-Object { $_ -like "http*" } | 
@@ -296,7 +297,6 @@ if ($DownloadUpdates) {
         Write-Host "Found $($AllLinks.Count) unique files to download based on scan results." -ForegroundColor Gray
         foreach ($Url in $AllLinks) {
             $FileName = Split-Path $Url -Leaf
-            Write-Host "Downloading: $FileName" -ForegroundColor Gray
             try {
                 Save-KbUpdate -Link $Url -Path $Repository -Verbose
             } catch {
@@ -395,6 +395,9 @@ if ($DeployUpdates) {
         }
         if ($NeedsReboot) {
             Write-Host "[!] $($env:COMPUTERNAME) REQUIRES REBOOT (Trigger: $Trigger)" -ForegroundColor Yellow
+        }
+        else {
+            Write-Host "$($env:COMPUTERNAME) does not appear to need a reboot." -ForegroundColor Gray
         }
     }
 }
