@@ -185,6 +185,38 @@ if ($NoActionSelected) {
     } while ($Continue)
 }
 
+# --- HELPER FUNCTIONS ---
+function Get-TargetComputers {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Computers,
+        
+        [Parameter(Mandatory = $false)]
+        [switch]$SkipAD
+    )
+
+    if ($Computers.Count -eq 1 -and (Test-Path -Path $Computers[0] -PathType Leaf)) {
+        $List = Get-Content -Path $Computers[0]
+    } else {
+        $List = $Computers
+    }
+    if (-not $SkipAD -and ($Computers.Count -eq 1)) {
+        $isInstalled = (Get-WindowsFeature -Name RSAT-ADDS-Tools -ErrorAction SilentlyContinue).Installed
+        if ($isInstalled) {
+            Write-Host "RSAT: Active Directory Users and Computers is installed. Gathering enabled Windows hosts..." -ForegroundColor Gray
+            $ADHosts = Get-ADComputer -Filter {Enabled -eq $true -and OperatingSystem -like '*Windows*'} | Select-Object -ExpandProperty Name
+            if ($ADHosts) {
+                $ADHosts | Out-File -FilePath $Computers[0] -Force
+                return $ADHosts
+            }
+        } else {
+            Write-Warning "RSAT: Active Directory Tools are NOT installed. Falling back to local host list."
+        }
+    }
+    return $List
+}
+
 # --- 2. PREPARE PACKAGE (OFFLINE ASSETS) ---
 if ($PreparePackage) {
     Write-Host "--- Operation: Prepare Package ---" -ForegroundColor Gray
@@ -251,19 +283,10 @@ if ($InstallRequired -contains $true) {
 if ($Scan) {
     Write-Host "--- Operation: Scan ---" -ForegroundColor Gray
     if (-not (Test-Path $Results)) { New-Item -ItemType Directory -Path $Results -Force | Out-Null }
-    if (-not $SkipAD -and ($Computers.Count -eq 1 -and (Test-Path $Computers[0]))) {
-        $isInstalled = (Get-WindowsFeature -Name RSAT-ADDS-Tools).Installed
-        if ($isInstalled) {
-            Write-Host "RSAT: Active Directory Users and Computers is installed." -ForegroundColor Gray
-        } else {
-            Write-Host "RSAT: Active Directory Users and Computers is NOT installed." -ForegroundColor Red
-            return
-        }
-        Write-Host "Gathering AD Computers..." -ForegroundColor Gray
-        Get-ADComputer -Filter {Enabled -eq $true -and OperatingSystem -like '*Windows*'} |
-            Select-Object -ExpandProperty Name |
-                Out-File -FilePath $Computers[0]
-        $TargetEndpoints = Get-Content $Computers[0]
+    $TargetEndpoints = Get-TargetComputers -Computers $Computers -SkipAD:$SkipAD
+    if (-not $TargetEndpoints) {
+        Write-Error "No target computers found to scan."
+        return
     }
     $ScanResults = foreach ($Endpoint in $TargetEndpoints) {
         Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force -Verbose
@@ -362,6 +385,11 @@ if ($DownloadUpdates) {
 # --- 5. DEPLOY UPDATES ---
 if ($DeployUpdates) {
     Write-Host "--- Operation: Deploy Updates ---" -ForegroundColor Gray
+    $TargetEndpoints = Get-TargetComputers -Computers $Computers -SkipAD $SkipAD
+    if (-not $TargetEndpoints) {
+        Write-Error "No target computers found for deployment."
+        return
+    }
     Write-Host "Starting Defender definition deployment..." -ForegroundColor Gray
     $ShareName = "DefenderUpdates"
     $DefenderUpdates = Join-Path -Path $WorkingFolder -ChildPath $ShareName
