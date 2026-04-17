@@ -427,7 +427,28 @@ if ($DeployUpdates) {
         Write-Host "Deployment tasks completed." -ForegroundColor Green
     }
 
-    # --- REBOOT CHECK (Final Phase) ---
+    # --- CLEANUP ---
+    Write-Host "Cleaning up patch files on endpoints..." -ForegroundColor Gray
+    Invoke-Command -ComputerName $TargetEndpoints -ScriptBlock {
+        $StagingPath = Join-Path $Home "Downloads"
+        if (Test-Path $StagingPath) {
+            $PatchFiles = Get-ChildItem -Path $StagingPath -Include *.msu, *.cab, *.exe -Recurse -ErrorAction SilentlyContinue | 
+                Where-Object { 
+                    $_.Name -match "KB\d{6,}" -or 
+                    $_.Name -match "aspnetcore|dotnet|vcredist|windowsdesktop" 
+                }
+            foreach ($File in $PatchFiles) {
+                try {
+                    Remove-Item -Path $File.FullName -Force -ErrorAction Stop
+                    Write-Host "Removed: $($File.Name)" -ForegroundColor Gray
+                } catch {
+                    Write-Warning "Could not remove $($File.Name): $($_.Exception.Message)"
+                }
+            }
+        }
+    }
+
+    # --- REBOOT CHECK ---
     Write-Host "Validating post-deployment reboot requirements..." -ForegroundColor Gray
     Invoke-Command -ComputerName $TargetEndpoints -ScriptBlock {
         $NeedsReboot = $false
