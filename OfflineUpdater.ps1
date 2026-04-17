@@ -378,7 +378,7 @@ if ($DeployUpdates) {
         Write-Host "Share '$ShareName' created successfully with Authenticated Users and Domain Computers read access." -ForegroundColor Green
     }
     $UncPath = "\\$($env:COMPUTERNAME)\$ShareName"
-    Invoke-Command -ComputerName $TargetEndpoints -ScriptBlock {
+    Invoke-Command -ComputerName $TargetEndpoints -ArgumentList $UncPath -ThrottleLimit 3 -ScriptBlock {
         param($Path)
         try {
             $Svc = Get-Service -Name "WinDefend" -ErrorAction SilentlyContinue
@@ -406,7 +406,7 @@ if ($DeployUpdates) {
         catch {
             Write-Host "CRITICAL ERROR on $($env:COMPUTERNAME): The Defender WMI provider is unresponsive (Service may be corrupted or disabled by policy)." -ForegroundColor Red
         }
-    } -ArgumentList $UncPath -ThrottleLimit 3
+    }
     Write-Host "Starting Windows KB deployment..." -ForegroundColor Gray
     $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
         Sort-Object LastWriteTime -Descending | 
