@@ -161,16 +161,16 @@ $NoActionSelected = -not ($PreparePackage -or $Install -or $Scan -or $DownloadUp
 if ($NoActionSelected) {
     do {
         Clear-Host
-        Write-Host "==========================================================" -ForegroundColor Cyan
-        Write-Host "            OFFLINE WINDOWS UPDATER - MAIN MENU           " -ForegroundColor Cyan
-        Write-Host "==========================================================" -ForegroundColor Cyan
-        Write-Host " 1) -Prepare Package  (Run on INTERNET-CONNECTED computer)"
+        Write-Host "===========================================================" -ForegroundColor Cyan
+        Write-Host "            OFFLINE WINDOWS UPDATER - MAIN MENU            " -ForegroundColor Cyan
+        Write-Host "===========================================================" -ForegroundColor Cyan
+        Write-Host " 1) -Prepare Package  (Run on INTERNET-CONNECTED computer) "
         Write-Host " 2) -Install Modules  (Run on AIR-GAPPED computer)"
         Write-Host " 3) -Scan Endpoints   (Run on AIR-GAPPED computer)"
-        Write-Host " 4) -Download Updates (Run on INTERNET-CONNECTED computer)"
+        Write-Host " 4) -Download Updates (Run on INTERNET-CONNECTED computer) "
         Write-Host " 5) -Deploy Updates   (Run on AIR-GAPPED computer)"
         Write-Host " Q) Quit"
-        Write-Host "==========================================================" -ForegroundColor Cyan
+        Write-Host "===========================================================" -ForegroundColor Cyan
         $Choice = Read-Host "Select an option [1-5 or Q]"
         switch ($Choice) {
             "1" { $PreparePackage = $true;  $Continue = $false }
