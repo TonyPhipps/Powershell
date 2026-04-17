@@ -385,7 +385,7 @@ if ($DownloadUpdates) {
 # --- 5. DEPLOY UPDATES ---
 if ($DeployUpdates) {
     Write-Host "--- Operation: Deploy Updates ---" -ForegroundColor Gray
-    $TargetEndpoints = Get-TargetComputers -Computers $Computers -SkipAD $SkipAD
+    $TargetEndpoints = Get-TargetComputers -Computers $Computers -SkipAD:$SkipAD
     if (-not $TargetEndpoints) {
         Write-Error "No target computers found for deployment."
         return
