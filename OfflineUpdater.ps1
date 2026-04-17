@@ -72,6 +72,11 @@
     C:\OfflineUpdater.ps1 -Deploy -Repository \\otherpc\c$\OfflineUpdate\repository
 
 .NOTES
+    Manual Fallbacks are provided below for when kbupdate fails repeatedly on the last few remaining patches.
+        wusa.exe "C:\Path\To\Your\Patch\Windows11.0-KB50XXXXX-x64.msu" /norestart
+        Dism /Online /Add-Package /PackagePath:"C:\Path\To\Your\windows10.0-kb5066139-x64-ndp48...cab"
+
+.NOTES
     File Name      : OfflineUpdater.ps1
     Author         : Tony Phipps
     Prerequisites  : PowerShell 5.1+, Administrator privileges, RSAT (for -Scan)
