@@ -65,17 +65,18 @@
     Scans AD computers and generates a report of what is missing using the specified working directory.
 
 .EXAMPLE
-    To install from a remote host that had issues, log into that remote machine, then:
-    Create a local copy at c:\offlineupdater.ps1, then run
-    C:\OfflineUpdater.ps1 -WorkingFolder \\otherpc\c$\OfflineUpdate -Install
-    C:\OfflineUpdater.ps1 -SkipAD -Scan -Computers yourlocalname
+    To install from a remote host that had issues, log into that machine interactively, then:
+    Create a local copy at c:\offlineupdater.ps1 and the OfflineUpdate\catalog\wsusscn2.cab file, then run
+    C:\OfflineUpdater.ps1 -Install -WorkingFolder \\otherpc\c$\OfflineUpdate
+    C:\OfflineUpdater.ps1 -Scan -SkipAD -Computers yourlocalname
+    C:\OfflineUpdater.ps1 -Deploy -Repository \\otherpc\c$\OfflineUpdate\repository
 
 .NOTES
     File Name      : OfflineUpdater.ps1
     Author         : Tony Phipps
     Prerequisites  : PowerShell 5.1+, Administrator privileges, RSAT (for -Scan)
     Version        : 1.0
-    Date           : April 13, 2026
+    Date           : April 17, 2026
     Copyright      : (c) 2026 Tony Phipps under the MIT License
 
 .LINK
