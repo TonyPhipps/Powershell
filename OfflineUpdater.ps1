@@ -53,6 +53,9 @@
 .PARAMETER DeployUpdates
     Switch to push and install the downloaded updates from the RepoFolder to the target endpoints.
 
+.PARAMETER DeployUpdatesLocal
+    Switch to push and install the downloaded updates from the RepoFolder to the LOCAL endpoint.
+
 .PARAMETER SkipReport
     If set, the script will not automatically open the CSV scan results in Out-GridView.
 
@@ -137,6 +140,10 @@ param (
     [switch]$DeployUpdates,
 
     [Parameter(Mandatory = $false)]
+    [alias("DeployLocal", "DeployUpdateLocal", "UpdateLocal")]
+    [switch]$DeployUpdatesLocal,
+
+    [Parameter(Mandatory = $false)]
     [alias("NoReport")]
     [switch]$SkipReport,
 
@@ -163,27 +170,29 @@ else { $TargetEndpoints = $Computers }
 
 # --- 0. INTERACTIVE MENU (FOR NON-PS USERS) ---
 # This block triggers only if no main action switches are selected
-$NoActionSelected = -not ($PreparePackage -or $Install -or $Scan -or $DownloadUpdates -or $DeployUpdates)
+$NoActionSelected = -not ($PreparePackage -or $Install -or $Scan -or $DownloadUpdates -or $DeployUpdates -or $DeployUpdatesLocal)
 if ($NoActionSelected) {
     do {
         Clear-Host
-        Write-Host "===========================================================" -ForegroundColor Cyan
-        Write-Host "            OFFLINE WINDOWS UPDATER - MAIN MENU            " -ForegroundColor Cyan
-        Write-Host "===========================================================" -ForegroundColor Cyan
-        Write-Host " 1) -Prepare Package  (Run on INTERNET-CONNECTED computer) "
-        Write-Host " 2) -Install Modules  (Run on AIR-GAPPED computer)"
-        Write-Host " 3) -Scan Endpoints   (Run on AIR-GAPPED computer)"
-        Write-Host " 4) -Download Updates (Run on INTERNET-CONNECTED computer) "
-        Write-Host " 5) -Deploy Updates   (Run on AIR-GAPPED computer)"
+        Write-Host "================================================================" -ForegroundColor Cyan
+        Write-Host "               OFFLINE WINDOWS UPDATER - MAIN MENU              " -ForegroundColor Cyan
+        Write-Host "================================================================" -ForegroundColor Cyan
+        Write-Host " 1) -Prepare Package       (Run on INTERNET-CONNECTED computer) "
+        Write-Host " 2) -Install Modules       (Run on AIR-GAPPED computer)"
+        Write-Host " 3) -Scan Endpoints        (Run on AIR-GAPPED computer)"
+        Write-Host " 4) -Download Updates      (Run on INTERNET-CONNECTED computer) "
+        Write-Host " 5) -Deploy Updates        (Run on AIR-GAPPED computer)"
+        Write-Host " 6) -DeployLocal Updates   (Run on AIR-GAPPED computer)"
         Write-Host " Q) Quit"
-        Write-Host "===========================================================" -ForegroundColor Cyan
+        Write-Host "================================================================" -ForegroundColor Cyan
         $Choice = Read-Host "Select an option [1-5 or Q]"
         switch ($Choice) {
-            "1" { $PreparePackage = $true;  $Continue = $false }
-            "2" { $Install = $true;         $Continue = $false }
-            "3" { $Scan = $true;            $Continue = $false }
-            "4" { $DownloadUpdates = $true; $Continue = $false }
-            "5" { $DeployUpdates = $true;   $Continue = $false }
+            "1" { $PreparePackage = $true;       $Continue = $false }
+            "2" { $Install = $true;              $Continue = $false }
+            "3" { $Scan = $true;                 $Continue = $false }
+            "4" { $DownloadUpdates = $true;      $Continue = $false }
+            "5" { $DeployUpdates = $true;        $Continue = $false }
+            "6" { $DeployUpdatesLocal = $true;   $Continue = $false }
             "Q" { exit }
             default { Write-Host "Invalid selection, try again." -ForegroundColor Red; Start-Sleep -Seconds 1; $Continue = $true }
         }
@@ -577,10 +586,55 @@ if ($DeployUpdates) {
     Remove-TempFiles($TargetEndpoints)
 }
 
+# --- DEPLOY LOCAL ---
+if ($DeployUpdatesLocal) {
+    Write-Host "--- Operation: Deploy Updates to Local Host ---" -ForegroundColor Gray
+    $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
+                    Sort-Object Name -Descending | 
+                    Select-Object -First 1
+    if (-not $LatestReport) {
+        Write-Error "No compliance reports found in $Results."
+        return
+    }
+    Write-Host "Analyzing latest report: $($LatestReport.Name)" -ForegroundColor Gray
+    $LocalHost = $env:COMPUTERNAME
+    $MissingUpdates = Import-Csv -Path $LatestReport.FullName | Where-Object { $_.ComputerName -eq $LocalHost }
+    if ($null -eq $MissingUpdates) {
+        Write-Host "No missing updates found for $LocalHost in this report." -ForegroundColor Gray
+        return
+    }
+    foreach ($Update in $MissingUpdates) {
+        $FileName = Split-Path -Leaf $Update.Link
+        $LocalPath = Join-Path $Repository $FileName
+        $KB = $Update.KBUpdate
+        Write-Host "Targeting $KB ($FileName)..." -NoNewline -ForegroundColor Gray
+        if (Test-Path $LocalPath) {
+            Write-Host " Found." -ForegroundColor Green
+            try {
+                Unblock-File -Path $LocalPath -ErrorAction SilentlyContinue
+                if ($FileName -match "\.cab$") {
+                    Write-Host "  -> Installing CAB via DISM..." -ForegroundColor Yellow
+                    dism.exe /Online /Add-Package /PackagePath:"$LocalPath" /NoRestart
+                }
+                elseif ($FileName -match "\.exe$") {
+                    Write-Host "  -> Running MSRT Tool..." -ForegroundColor Yellow
+                    Start-Process -FilePath "$LocalPath" -ArgumentList "/quiet /norestart" -Wait
+                }
+                elseif ($FileName -match "\.msu$") {
+                    Write-Host "  -> Installing via WUSA..." -ForegroundColor Yellow
+                    Start-Process -FilePath "wusa.exe" -ArgumentList "`"$LocalPath`" /quiet /norestart" -Wait
+                }
+            }
+            catch {
+                Write-Warning "  [!] Error installing $KB. Check permissions."
+            }
         }
         else {
-            Write-Host "$($env:COMPUTERNAME) does not appear to need a reboot." -ForegroundColor Gray
+            Write-Host " NOT FOUND in $Repository" -ForegroundColor Red
         }
     }
+    Write-Host "--- Local Deployment Cycle Finished ---" -ForegroundColor Green
+    Get-RebootStatus
+    Remove-TempFiles
 }
 
