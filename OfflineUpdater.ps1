@@ -237,6 +237,115 @@ function Get-Wsusscn2 {
         }
 }
 
+function Get-RebootStatus {
+    [CmdletBinding()]
+    param(
+        [Parameter(ValueFromPipeline = $true)]
+        [string[]]$ComputerNames = $env:COMPUTERNAME
+    )
+    $RebootCheckBlock = {
+        $Status = [PSCustomObject]@{
+            ComputerName = $env:COMPUTERNAME
+            NeedsReboot  = $false
+            Trigger      = "None"
+        }
+        if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending") {
+            $Status.NeedsReboot = $true
+            $Status.Trigger = "Component Based Servicing"
+        }
+        elseif (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired") {
+            $Status.NeedsReboot = $true
+            $Status.Trigger = "Windows Update Agent"
+        }
+        else {
+            $Rename = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" -Name PendingFileRenameOperations -ErrorAction SilentlyContinue
+            if ($Rename.PendingFileRenameOperations) {
+                $Status.NeedsReboot = $true
+                $Status.Trigger = "Pending File Rename"
+            }
+        }
+        return $Status
+    }
+    Write-Host "--- Validating Reboot Status ---" -ForegroundColor Gray
+    foreach ($Computer in $ComputerNames) {
+        try {
+            $Result = if ($Computer -eq $env:COMPUTERNAME -or $Computer -eq "localhost") {
+                & $RebootCheckBlock
+            }
+            else {
+                Invoke-Command -ComputerName $Computer -ScriptBlock $RebootCheckBlock -ErrorAction Stop
+            }
+            if ($Result.NeedsReboot) {
+                Write-Host "[!] $($Result.ComputerName): REBOOT REQUIRED ($($Result.Trigger))" -ForegroundColor Yellow
+            }
+            else {
+                Write-Host "[√] $($Result.ComputerName): No reboot pending." -ForegroundColor Gray
+            }
+        }
+        catch {
+            Write-Host "[X] $($Computer): Connection Failed." -ForegroundColor Red
+        }
+    }
+}
+
+function Remove-TempFiles {
+    [CmdletBinding()]
+    param(
+        [Parameter(ValueFromPipeline = $true)]
+        [string[]]$ComputerNames = $env:COMPUTERNAME,
+
+        [Parameter()]
+        [string]$CustomStagingPath = (Join-Path $Home "Downloads")
+    )
+    $CleanupBlock = {
+        param($TargetPath)
+        $Results = [System.Collections.Generic.List[string]]::new()
+        if (Test-Path $TargetPath) {
+            $PatchFiles = Get-ChildItem -Path $TargetPath -Include *.msu, *.cab, *.exe -Recurse -ErrorAction SilentlyContinue | 
+                Where-Object { 
+                    $_.Name -match "KB\d{6,}" -or 
+                    $_.Name -match "aspnetcore|dotnet|vcredist|windowsdesktop-runtime" 
+                }
+            foreach ($File in $PatchFiles) {
+                try {
+                    Remove-Item -Path $File.FullName -Force -ErrorAction Stop
+                    $Results.Add("Successfully removed: $($File.Name)")
+                } catch {
+                    $Results.Add("FAILED to remove $($File.Name): $($_.Exception.Message)")
+                }
+            }
+        }
+        return [PSCustomObject]@{
+            ComputerName = $env:COMPUTERNAME
+            Logs         = $Results
+            FoundFiles   = ($PatchFiles.Count -gt 0)
+        }
+    }
+    Write-Host "--- Initiating Patch Cleanup ---" -ForegroundColor Cyan
+    foreach ($Computer in $ComputerNames) {
+        Write-Host "Checking $Computer..." -ForegroundColor Gray
+        try {
+            $Output = if ($Computer -eq $env:COMPUTERNAME -or $Computer -eq "localhost") {
+                & $CleanupBlock -TargetPath $CustomStagingPath
+            }
+            else {
+                Invoke-Command -ComputerName $Computer -ScriptBlock $CleanupBlock -ArgumentList $CustomStagingPath -ErrorAction Stop
+            }
+            if ($Output.FoundFiles) {
+                foreach ($LogEntry in $Output.Logs) {
+                    $Color = if ($LogEntry -match "FAILED") { "Red" } else { "Gray" }
+                    Write-Host "  [!] $LogEntry" -ForegroundColor $Color
+                }
+            } else {
+                Write-Host "  [√] No temporary patch files found." -ForegroundColor DarkGray
+            }
+        }
+        catch {
+            Write-Host "  [X] $($Computer): Connection Failed." -ForegroundColor Red
+        }
+    }
+}
+
 # --- 2. PREPARE PACKAGE (OFFLINE ASSETS) ---
 if ($PreparePackage) {
     Write-Host "--- Operation: Prepare Package ---" -ForegroundColor Gray
@@ -464,50 +573,10 @@ if ($DeployUpdates) {
         $NeededUpdates | Install-KbUpdate -RepositoryPath $Repository -NoMultithreading -Verbose
         Write-Host "Deployment tasks completed." -ForegroundColor Green
     }
+    Get-RebootStatus($TargetEndpoints)
+    Remove-TempFiles($TargetEndpoints)
+}
 
-    # --- CLEANUP ---
-    Write-Host "Cleaning up patch files on endpoints..." -ForegroundColor Gray
-    Invoke-Command -ComputerName $TargetEndpoints -ScriptBlock {
-        $StagingPath = Join-Path $Home "Downloads"
-        if (Test-Path $StagingPath) {
-            $PatchFiles = Get-ChildItem -Path $StagingPath -Include *.msu, *.cab, *.exe -Recurse -ErrorAction SilentlyContinue | 
-                Where-Object { 
-                    $_.Name -match "KB\d{6,}" -or 
-                    $_.Name -match "aspnetcore|dotnet|vcredist|windowsdesktop" 
-                }
-            foreach ($File in $PatchFiles) {
-                try {
-                    Remove-Item -Path $File.FullName -Force -ErrorAction Stop
-                    Write-Host "Removed: $($File.Name)" -ForegroundColor Gray
-                } catch {
-                    Write-Warning "Could not remove $($File.Name): $($_.Exception.Message)"
-                }
-            }
-        }
-    }
-
-    # --- REBOOT CHECK ---
-    Write-Host "Validating post-deployment reboot requirements..." -ForegroundColor Gray
-    Invoke-Command -ComputerName $TargetEndpoints -ScriptBlock {
-        $NeedsReboot = $false
-        $Trigger = ""
-        if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending") {
-            $NeedsReboot = $true
-            $Trigger = "Component Based Servicing"
-        }
-        elseif (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired") {
-            $NeedsReboot = $true
-            $Trigger = "Windows Update Agent"
-        }
-        else {
-            $FileRename = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" -Name PendingFileRenameOperations -ErrorAction SilentlyContinue
-            if ($FileRename.PendingFileRenameOperations) {
-                $NeedsReboot = $true
-                $Trigger = "Pending File Rename"
-            }
-        }
-        if ($NeedsReboot) {
-            Write-Host "[!] $($env:COMPUTERNAME) REQUIRES REBOOT (Trigger: $Trigger)" -ForegroundColor Yellow
         }
         else {
             Write-Host "$($env:COMPUTERNAME) does not appear to need a reboot." -ForegroundColor Gray
