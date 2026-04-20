@@ -222,6 +222,21 @@ function Get-TargetComputers {
     return $List
 }
 
+function Get-Wsusscn2 {
+    $ShouldDownload = $true
+        if (Test-Path $Catalog) {
+            if ((Get-Item $Catalog).LastWriteTime -ge (Get-Date).AddDays(-1)) {
+                Write-Host "The existing wsusscn2.cab is current." -ForegroundColor Gray
+                $ShouldDownload = $false
+            }
+        }
+        if ($ShouldDownload) {
+            Write-Host "Downloading wsusscn2.cab (~1GB)..." -ForegroundColor Gray
+            $Url = "https://go.microsoft.com/fwlink/?linkid=74689"
+            Invoke-WebRequest -Uri $Url -OutFile $Catalog -UseBasicParsing
+        }
+}
+
 # --- 2. PREPARE PACKAGE (OFFLINE ASSETS) ---
 if ($PreparePackage) {
     Write-Host "--- Operation: Prepare Package ---" -ForegroundColor Gray
@@ -235,18 +250,7 @@ if ($PreparePackage) {
         Save-Module -Name kbupdate -Path $Modules -ErrorAction Stop -Verbose
         Save-Module -Name xWindowsUpdate -Path $Modules -ErrorAction Stop -Verbose
         Get-ChildItem -Path $WorkingFolder -Recurse | Unblock-File
-        $ShouldDownload = $true
-        if (Test-Path $Catalog) {
-            if ((Get-Item $Catalog).LastWriteTime -ge (Get-Date).AddDays(-1)) {
-                Write-Host "The existing wsusscn2.cab is current." -ForegroundColor Gray
-                $ShouldDownload = $false
-            }
-        }
-        if ($ShouldDownload) {
-            Write-Host "Downloading wsusscn2.cab (~1GB)..." -ForegroundColor Gray
-            $Url = "https://go.microsoft.com/fwlink/?linkid=74689"
-            Invoke-WebRequest -Uri $Url -OutFile $Catalog -UseBasicParsing
-        }
+        Get-Wsusscn2
         Write-Host "Success! Package ready at: $WorkingFolder" -ForegroundColor Green
     }
     catch {
@@ -315,6 +319,7 @@ if ($Scan) {
 # --- 4. DOWNLOAD UPDATES ---
 if ($DownloadUpdates) {
     Write-Host "--- Operation: Download Updates ---" -ForegroundColor Gray
+    Get-Wsusscn2
     Write-Host "Starting Defender definition downloads..." -ForegroundColor Gray
     $DefenderUpdates = Join-Path -Path $WorkingFolder -ChildPath "DefenderUpdates"
     if (-not (Test-Path $DefenderUpdates)) { New-Item -Path $DefenderUpdates -ItemType Directory }
