@@ -578,15 +578,29 @@ if ($DeployUpdates) {
             Write-Host "Manifest is empty. No updates to deploy." -ForegroundColor Yellow
             return
         }
-        Write-Host "Starting deployment to $( ($NeededUpdates.ComputerName | Select-Object -Unique).Count ) endpoints..." -ForegroundColor Gray
-        $NeededUpdates | Install-KbUpdate -RepositoryPath $Repository -NoMultithreading -Verbose
-        Write-Host "Deployment tasks completed." -ForegroundColor Green
+        $VerifiedUpdates = @()
+        foreach ($Update in $NeededUpdates) {
+            $FileName = Split-Path -Leaf $Update.Link
+            $LocalPath = Join-Path $Repository $FileName
+            if (Test-Path $LocalPath) {
+                $VerifiedUpdates.Add($Update)
+            } else {
+                Write-Host "SKIPPING: $($Update.KBUpdate) ($FileName) - File not found in Repository." -ForegroundColor Red
+            }
+        }
+        if ($VerifiedUpdates.Count -gt 0) {
+            Write-Host "Starting deployment of $($VerifiedUpdates.Count) verified files..." -ForegroundColor Gray
+            $VerifiedUpdates | Install-KbUpdate -RepositoryPath $Repository -NoMultithreading -Verbose
+            Write-Host "Deployment tasks completed." -ForegroundColor Green
+        } else {
+            Write-Warning "No matching update files found in $Repository. Nothing to deploy."
+        }
     }
     Get-RebootStatus($TargetEndpoints)
     Remove-TempFiles($TargetEndpoints)
 }
 
-# --- DEPLOY LOCAL ---
+# --- 6. DEPLOY LOCAL ---
 if ($DeployUpdatesLocal) {
     Write-Host "--- Operation: Deploy Updates to Local Host ---" -ForegroundColor Gray
     $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
