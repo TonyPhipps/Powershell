@@ -343,14 +343,14 @@ function Remove-TempFiles {
             if ($Output.FoundFiles) {
                 foreach ($LogEntry in $Output.Logs) {
                     $Color = if ($LogEntry -match "FAILED") { "Red" } else { "Gray" }
-                    Write-Host "  [!] $LogEntry" -ForegroundColor $Color
+                    Write-Host "[!] $LogEntry" -ForegroundColor $Color
                 }
             } else {
-                Write-Host "  [√] No temporary patch files found." -ForegroundColor DarkGray
+                Write-Host " No temporary patch files found." -ForegroundColor DarkGray
             }
         }
         catch {
-            Write-Host "  [X] $($Computer): Connection Failed." -ForegroundColor Red
+            Write-Host "$($Computer): Connection Failed." -ForegroundColor Red
         }
     }
 }
