@@ -346,7 +346,7 @@ function Remove-TempFiles {
                     Write-Host "[!] $LogEntry" -ForegroundColor $Color
                 }
             } else {
-                Write-Host " No temporary patch files found." -ForegroundColor DarkGray
+                Write-Host "No temporary patch files found." -ForegroundColor DarkGray
             }
         }
         catch {
@@ -596,8 +596,8 @@ if ($DeployUpdates) {
             Write-Warning "No matching update files found in $Repository. Nothing to deploy."
         }
     }
-    Get-RebootStatus($TargetEndpoints)
     Remove-TempFiles($TargetEndpoints)
+    Get-RebootStatus($TargetEndpoints)
 }
 
 # --- 6. DEPLOY LOCAL ---
