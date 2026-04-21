@@ -570,12 +570,12 @@ if ($DeployUpdates) {
     if (-not $LatestReport) {
         Write-Error "Could not find a Compliance Report CSV in $Results. Run -Scan first."
     } elseif (-not (Test-Path $Repository)) {
-        Write-Error "Repository folder not found at $Repository. Ensure updates were downloaded and moved to this network."
+        Write-Error "Repository folder not found at $Repository."
     } else {
         Write-Host "Loading deployment manifest: $($LatestReport.Name)" -ForegroundColor Gray
         $NeededUpdates = Import-Csv -Path $LatestReport.FullName
         if ($NeededUpdates.Count -eq 0) {
-            Write-Host "Manifest is empty. No updates to deploy." -ForegroundColor Yellow
+            Write-Host "Manifest is empty. No updates to deploy." -ForegroundColor Red
             return
         }
         $VerifiedUpdates = @()
