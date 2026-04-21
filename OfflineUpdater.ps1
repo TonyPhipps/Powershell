@@ -153,12 +153,18 @@ param (
 )
 
 if (-not $WorkingFolder) {
+    $DiskD = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID = 'D:' and DriveType = 3"
+
+    if ($DiskD) {
+        $WorkingFolder = "D:\OfflineUpdate"
+    } else {
         if ($psISE -and (Test-Path -Path $psISE.CurrentFile.FullPath)) {
             $ScriptRoot = Split-Path -Path $psISE.CurrentFile.FullPath -Parent
         } else {
             $ScriptRoot = $PSScriptRoot
-    } 
-    $WorkingFolder = (Join-Path -Path $ScriptRoot -ChildPath "OfflineUpdate")
+        }
+        $WorkingFolder = (Join-Path -Path $ScriptRoot -ChildPath "OfflineUpdate")
+    }
 }
 if (-not $Modules)    { $Modules = Join-Path -Path $WorkingFolder -ChildPath "modules" }
 if (-not $Repository) { $Repository = Join-Path -Path $WorkingFolder -ChildPath "repository" }
