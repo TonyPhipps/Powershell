@@ -9,7 +9,7 @@
     on an internet-connected host, and deploys them to target endpoints in an air-gapped
     environment. Below is the general approach and commands without optional file/folder redirects.
 
-    Step 1: Prepare the package on an Internet-attached network. Copy the OfflineUpdate folder and script to the offline network.
+    Step 1: Prepare the package on an Internet-attached network. Copy the OfflineUpdater folder and script to the offline network.
         .\OfflineUpdater.ps1 -PreparePackage
     Step 2: Install the modules on the offline network.
         .\OfflineUpdater.ps1 -Install
@@ -21,28 +21,28 @@
         .\OfflineUpdater.ps1 -Deploy
 
 .PARAMETER WorkingFolder
-    The root directory for script operations. Defaults to a 'OfflineUpdate' folder in the script directory.
+    The root directory for script operations. Defaults to a 'OfflineUpdater' folder in the script directory.
 
 .PARAMETER Modules
-    Path to the directory containing the OfflineUpdate module and dependencies. Defaults to kbudate\modules.
+    Path to the directory containing the kbupdate module and dependencies. Defaults to \modules\ subirectory of WorkingFolder.
 
 .PARAMETER Catalog
-    Path where the wsusscn2.cab (Offline Scan File) is stored or will be downloaded. Defaults to kbudate\catalog.
+    Path where the wsusscn2.cab (Offline Scan File) is stored or will be downloaded. Defaults to \catalog\ of WorkingFolder.
 
 .PARAMETER Computers
-    Path to file used to store list of hosts to scan. Defaults to kbudate\scan\hosts.txt. A list is also accepted directly.
+    Path to file used to store list of hosts to scan. Defaults to \scan\hosts.txt within WorkingFolder. A list is also accepted directly.
 
 .PARAMETER Repository
-    The local repository where .msu/.cab update files are downloaded and stored. Defaults to kbudate\repository.
+    The local repository where .msu/.cab update files are downloaded and stored. Defaults to \repository\ subirectory of WorkingFolder.
 
 .PARAMETER Results
-    Directory where compliance reports and missing KB lists are exported. Defaults to kbudate\scanresults.
+    Directory where compliance reports and missing KB lists are exported. Defaults to \scanresults\ subirectory of WorkingFolder.
 
 .PARAMETER PreparePackage
     Switch to download the needed modules and the latest wsusscn2.cab.
 
 .PARAMETER Install
-    Switch to install the OfflineUpdate module from the local WorkingFolder to the system module path.
+    Switch to install the kbupdate module from the local WorkingFolder to the system module path.
 
 .PARAMETER Scan
     Switch to query Active Directory for computers and perform a remote compliance scan.
@@ -64,15 +64,15 @@
     Downloads all necessary tools and the ~1GB scan catalog to prepare for an offline site visit.
 
 .EXAMPLE
-    .\OfflineUpdater.ps1 -Scan -WorkingFolder "D:\OfflineUpdate"
+    .\OfflineUpdater.ps1 -Scan -WorkingFolder "D:\OfflineUpdater"
     Scans AD computers and generates a report of what is missing using the specified working directory.
 
 .EXAMPLE
     To install from a remote host that had issues, log into that machine interactively, then:
-    Create a local copy at c:\offlineupdater.ps1 and the OfflineUpdate\catalog\wsusscn2.cab file, then run
-    C:\OfflineUpdater.ps1 -Install -WorkingFolder \\otherpc\c$\OfflineUpdate
+    Create a local copy at c:\offlineupdater.ps1 and the OfflineUpdater\catalog\wsusscn2.cab file, then run
+    C:\OfflineUpdater.ps1 -Install -WorkingFolder \\otherpc\c$\OfflineUpdater
     C:\OfflineUpdater.ps1 -Scan -SkipAD -Computers yourlocalname
-    C:\OfflineUpdater.ps1 -Deploy -Repository \\otherpc\c$\OfflineUpdate\repository
+    C:\OfflineUpdater.ps1 -Deploy -Repository \\otherpc\c$\OfflineUpdater\repository
 
 .NOTES
     Manual Fallbacks are provided below for when kbupdate fails repeatedly on the last few remaining patches.
@@ -156,14 +156,14 @@ if (-not $WorkingFolder) {
     $DiskD = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID = 'D:' and DriveType = 3"
 
     if ($DiskD) {
-        $WorkingFolder = "D:\OfflineUpdate"
+        $WorkingFolder = "D:\OfflineUpdater"
     } else {
         if ($psISE -and (Test-Path -Path $psISE.CurrentFile.FullPath)) {
             $ScriptRoot = Split-Path -Path $psISE.CurrentFile.FullPath -Parent
         } else {
             $ScriptRoot = $PSScriptRoot
         }
-        $WorkingFolder = (Join-Path -Path $ScriptRoot -ChildPath "OfflineUpdate")
+        $WorkingFolder = (Join-Path -Path $ScriptRoot -ChildPath "OfflineUpdater")
     }
 }
 if (-not $Modules)    { $Modules = Join-Path -Path $WorkingFolder -ChildPath "modules" }
