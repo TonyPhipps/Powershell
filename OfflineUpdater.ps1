@@ -584,7 +584,7 @@ if ($DeployUpdates) {
             Write-Host "Manifest is empty. No updates to deploy." -ForegroundColor Red
             return
         }
-        $VerifiedUpdates = @()
+        $VerifiedUpdates = [System.Collections.Generic.List[PSCustomObject]]::new()
         foreach ($Update in $NeededUpdates) {
             $FileName = Split-Path -Leaf $Update.Link
             $LocalPath = Join-Path $Repository $FileName
