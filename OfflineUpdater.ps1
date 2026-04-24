@@ -330,12 +330,23 @@ function Install-DefenderUpdates {
     $UncPath = "\\$($env:COMPUTERNAME)\$ShareName"
     Invoke-Command -ComputerName $TargetEndpoints -ArgumentList $UncPath -ScriptBlock {
         param($Path)
-        if (Get-Service "WinDefend" -ErrorAction SilentlyContinue) {
+        try {
+            $DefService = Get-Service -Name "WinDefend" -ErrorAction SilentlyContinue
+            if ($null -eq $DefService -or $DefService.Status -ne 'Running') {
+                Write-Host "SKIPPING: $($env:COMPUTERNAME) - Defender service is not active (may be disabled/missing)." -ForegroundColor Yellow
+                return
+            }
+            $ActiveAV = Get-CimInstance -Namespace root\SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction SilentlyContinue | 
+                        Where-Object { $_.productState -match '262144|266240|393216|397312' }
+            if ($ActiveAV -and $ActiveAV.displayName -notmatch "Windows Defender") {
+                Write-Host "SKIPPING: $($env:COMPUTERNAME) - Third-party AV ($($ActiveAV.displayName)) is active." -ForegroundColor Yellow
+                return
+            }
             Set-MpPreference -SignatureDefinitionUpdateFileSharesSources $Path
             Update-MpSignature -UpdateSource FileShares
             Write-Host "[o] $($env:COMPUTERNAME): Defender Updated." -ForegroundColor Green
-        } else {
-            Write-Warning "[!] $($env:COMPUTERNAME): Defender not installed or service missing."
+        } catch {
+            Write-Host "[!] $($env:COMPUTERNAME): Failed to update. Defender may be in Passive mode." -ForegroundColor Red
         }
     }
 }
