@@ -325,28 +325,32 @@ function Install-DefenderUpdates {
     )
     Write-Host "--- Operation: Deploying Defender Definitions ---" -ForegroundColor Gray
     if (-not (Get-SmbShare -Name $ShareName -ErrorAction SilentlyContinue)) {
-        New-SmbShare -Name $ShareName -Path $DefenderUpdatesPath -ReadAccess "Authenticated Users", "Domain Computers" -FullAccess "Administrators" -Force | Out-Null
+        New-SmbShare -Name $ShareName -Path $DefenderUpdatesPath -ReadAccess "Authenticated Users", "Domain Computers" -FullAccess "Administrators" | Out-Null
     }
     $UncPath = "\\$($env:COMPUTERNAME)\$ShareName"
     Invoke-Command -ComputerName $TargetEndpoints -ArgumentList $UncPath -ScriptBlock {
         param($Path)
         try {
+            $ActiveAV = Get-CimInstance -Namespace root\SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction SilentlyContinue | 
+                Where-Object { $_.productState -in 262144, 266240, 393216, 397312 }
+            if ($ActiveAV) {
+                $PrimaryAV = $ActiveAV.displayName
+                if ($PrimaryAV -notmatch "Windows Defender") {
+                    Write-Host "SKIPPING: $($env:COMPUTERNAME) - Third-party AV ($PrimaryAV) is managing protection." -ForegroundColor Yellow
+                    return
+                }
+            }
             $DefService = Get-Service -Name "WinDefend" -ErrorAction SilentlyContinue
             if ($null -eq $DefService -or $DefService.Status -ne 'Running') {
-                Write-Host "SKIPPING: $($env:COMPUTERNAME) - Defender service is not active (may be disabled/missing)." -ForegroundColor Yellow
+                Write-Host "SKIPPING: $($env:COMPUTERNAME) - Defender service is stopped or disabled." -ForegroundColor Yellow
                 return
             }
-            $ActiveAV = Get-CimInstance -Namespace root\SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction SilentlyContinue | 
-                        Where-Object { $_.productState -match '262144|266240|393216|397312' }
-            if ($ActiveAV -and $ActiveAV.displayName -notmatch "Windows Defender") {
-                Write-Host "SKIPPING: $($env:COMPUTERNAME) - Third-party AV ($($ActiveAV.displayName)) is active." -ForegroundColor Yellow
-                return
-            }
-            Set-MpPreference -SignatureDefinitionUpdateFileSharesSources $Path
-            Update-MpSignature -UpdateSource FileShares
+            Set-MpPreference -SignatureDefinitionUpdateFileSharesSources $Path -ErrorAction Stop
+            Update-MpSignature -UpdateSource FileShares -ErrorAction Stop
             Write-Host "[o] $($env:COMPUTERNAME): Defender Updated." -ForegroundColor Green
         } catch {
-            Write-Host "[!] $($env:COMPUTERNAME): Failed to update. Defender may be in Passive mode." -ForegroundColor Red
+            Write-Host "[!] $($env:COMPUTERNAME): Defender is present but refused update (likely Passive/Limited mode)." -ForegroundColor Gray
+            Write-Verbose "Detail: $($_.Exception.Message)"
         }
     }
 }
