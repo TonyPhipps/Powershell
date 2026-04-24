@@ -327,34 +327,49 @@ function Install-DefenderUpdates {
         [Parameter(Mandatory = $true)] [string]$DefenderUpdatesPath,
         [string]$ShareName = "DefenderUpdates"
     )
-    Write-Host "--- Operation: Deploying Defender Definitions ---" -ForegroundColor Gray
+    Write-Host "--- Operation: Deploying Defender Platform and Definitions ---" -ForegroundColor Gray
+    $RepoManifest = @{}
+    Get-ChildItem -Path $DefenderUpdatesPath -Filter "updateplatform*.exe" | ForEach-Object {
+        $Arch = if ($_.Name -match "amd64") { "x64" } elseif ($_.Name -match "x86") { "x86" } else { "arm64" }
+        $RepoManifest[$Arch] = @{
+            Name    = $_.Name
+            Version = [version]$_.VersionInfo.FileVersion
+        }
+    }
     if (-not (Get-SmbShare -Name $ShareName -ErrorAction SilentlyContinue)) {
         New-SmbShare -Name $ShareName -Path $DefenderUpdatesPath -ReadAccess "Authenticated Users", "Domain Computers" -FullAccess "Administrators" | Out-Null
     }
     $UncPath = "\\$($env:COMPUTERNAME)\$ShareName"
-    Invoke-Command -ComputerName $TargetEndpoints -ArgumentList $UncPath -ScriptBlock {
-        param($Path)
+    Invoke-Command -ComputerName $TargetEndpoints -ArgumentList $UncPath, $RepoManifest -ScriptBlock {
+        param($Path, $RepoManifest)
         try {
             $ActiveAV = Get-CimInstance -Namespace root\SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction SilentlyContinue | 
                 Where-Object { $_.productState -in 262144, 266240, 393216, 397312 }
-            if ($ActiveAV) {
-                $PrimaryAV = $ActiveAV.displayName
-                if ($PrimaryAV -notmatch "Windows Defender") {
-                    Write-Host "SKIPPING: $($env:COMPUTERNAME) - Third-party AV ($PrimaryAV) is managing protection." -ForegroundColor Yellow
-                    return
-                }
+            
+            if ($ActiveAV -and $ActiveAV.displayName -notmatch "Windows Defender") {
+                Write-Host "SKIPPING: $($env:COMPUTERNAME) - Third-party AV ($($ActiveAV.displayName)) active." -ForegroundColor Yellow
+                return
             }
             $DefService = Get-Service -Name "WinDefend" -ErrorAction SilentlyContinue
             if ($null -eq $DefService -or $DefService.Status -ne 'Running') {
-                Write-Host "SKIPPING: $($env:COMPUTERNAME) - Defender service is stopped or disabled." -ForegroundColor Yellow
+                Write-Host "SKIPPING: $($env:COMPUTERNAME) - Defender service stopped." -ForegroundColor Yellow
                 return
             }
-            Set-MpPreference -SignatureDefinitionUpdateFileSharesSources $Path -ErrorAction Stop
+            $OSArch = (Get-CimInstance Win32_OperatingSystem).OSArchitecture
+            $ArchKey = if ($OSArch -match "64-bit") { "x64" } elseif ($OSArch -match "arm") { "arm64" } else { "x86" }
+            $Match = $RepoManifest[$ArchKey]
+            $Status = Get-MpComputerStatus
+            $CurrentProduct = [version]$Status.AMProductVersion
+            if ($Match -and $CurrentProduct -lt $Match.Version) {
+                Write-Host "[>] $($env:COMPUTERNAME): Updating $ArchKey Platform ($CurrentProduct -> $($Match.Version))..." -ForegroundColor Cyan
+                $FullInstallerPath = Join-Path $Path $Match.Name
+                Start-Process -FilePath $FullInstallerPath -ArgumentList "/quiet", "/norestart" -Wait -ErrorAction Stop
+            }
+            Set-MpPreference -SignatureDefinitionUpdateFileSharesSources $Path
             Update-MpSignature -UpdateSource FileShares -ErrorAction Stop
-            Write-Host "[o] $($env:COMPUTERNAME): Defender Updated." -ForegroundColor Green
+            Write-Host "[o] $($env:COMPUTERNAME): Defender updated/refreshed successfully." -ForegroundColor Green
         } catch {
-            Write-Host "[!] $($env:COMPUTERNAME): Defender is present but refused update (likely Passive/Limited mode)." -ForegroundColor Gray
-            Write-Verbose "Detail: $($_.Exception.Message)"
+            Write-Host "[!] $($env:COMPUTERNAME): Failed. Detail: $($_.Exception.Message)" -ForegroundColor Red
         }
     }
 }
