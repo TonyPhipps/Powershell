@@ -278,7 +278,7 @@ function Invoke-UpdateDownload {
         if ($Url -match "LinkID=121721" -and ((Get-Date) - $LastUpdate).TotalHours -gt 24) { # defender age check
             Write-Host "OUTDATED (Re-downloading)" -ForegroundColor Yellow
         } else {
-            Write-Host "EXISTS" -ForegroundColor Yellow
+            Write-Host "EXISTS and current." -ForegroundColor Yellow
             return
         }
     }
@@ -305,14 +305,14 @@ function Get-DefenderUpdates {
         $TargetFolder = Join-Path $DefenderUpdatesPath $Arch
         if (-not (Test-Path $TargetFolder)) { New-Item -Path $TargetFolder -ItemType Directory | Out-Null }
         $Destination = Join-Path $TargetFolder "mpam-fe.exe"
-        Invoke-FileDownload -Url $ArchFolders[$Arch] -Destination $Destination
+        Invoke-UpdateDownload -Url $ArchFolders[$Arch] -Destination $Destination
     }
     Write-Host "Checking for latest Defender Platform Update..." -ForegroundColor Gray
     $PlatformUpdate = Get-KbUpdate -KB 4052623 | Sort-Object LastModified -Descending | Select-Object -First 1
     foreach ($link in $PlatformUpdate.Link) {
         $FileName = Split-Path $link -Leaf
         $Destination = Join-Path $DefenderUpdatesPath $FileName
-        Invoke-FileDownload -Url $link -Destination $Destination
+        Invoke-UpdateDownload -Url $link -Destination $Destination
     }
 }
 
