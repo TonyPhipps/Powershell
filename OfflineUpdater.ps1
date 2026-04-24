@@ -71,7 +71,7 @@
     To install locally (for hosts that had remote issues), log into that machine interactively, then:
     Create a local copy at c:\offlineupdater.ps1 and the OfflineUpdater\catalog\wsusscn2.cab file, then run
     C:\OfflineUpdater.ps1 -Install -WorkingFolder \\otherpc\c$\OfflineUpdater
-    C:\OfflineUpdater.ps1 -Scan -SkipAD -Computers yourlocalname
+    C:\OfflineUpdater.ps1 -Scan -SkipAD
     C:\OfflineUpdater.ps1 -DeployLocal -Repository \\otherpc\c$\OfflineUpdater\repository
 
 .NOTES
@@ -176,9 +176,10 @@ if (-not $Modules)    { $Modules = Join-Path -Path $WorkingFolder -ChildPath "mo
 if (-not $Repository) { $Repository = Join-Path -Path $WorkingFolder -ChildPath "repository" }
 if (-not $Results)    { $Results = Join-Path -Path $WorkingFolder -ChildPath "ScanResults" }
 if (-not $Catalog)    { $Catalog = Join-Path -Path $WorkingFolder -ChildPath "catalog\wsusscn2.cab" }
-if (-not $Computers)  { $Computers = Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt" }
-if ($Computers.Count -eq 1 -and (Test-Path -Path $Computers[0] -PathType Leaf)) { $TargetEndpoints = Get-Content -Path $Computers[0] } 
-else { $TargetEndpoints = $Computers }
+if (-not $Computers -and -not $SkipAD) { $Computers = Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt" }
+if ($Computers.Count -eq 1 -and (Test-Path -Path $Computers[0] -PathType Leaf)) 
+    { $TargetEndpoints = Get-Content -Path $Computers[0] 
+} else { $TargetEndpoints = $Computers }
 
 # --- 0. INTERACTIVE MENU (FOR NON-PS USERS) ---
 # This block triggers only if no main action switches are selected
@@ -450,8 +451,15 @@ if ($InstallRequired -contains $true) {
 # --- 3. SCAN ENDPOINTS ---
 if ($Scan) {
     Write-Host "--- Operation: Scan ---" -ForegroundColor Gray
-    if (-not (Test-Path $Results)) { New-Item -ItemType Directory -Path $Results -Force | Out-Null }
-    $TargetEndpoints = Get-TargetComputers -Computers $Computers -SkipAD:$SkipAD
+    if (-not (Test-Path $Results)) {
+        New-Item -ItemType Directory -Path $Results -Force | Out-Null
+    }
+    if ($SkipAD -and ($null -eq $Computers -or $Computers -eq "")) {
+        $TargetEndpoints = $env:COMPUTERNAME
+        Write-Host "SkipAD detected with no target list. Defaulting to local scan: $TargetEndpoints" -ForegroundColor Cyan
+    } else {
+        $TargetEndpoints = Get-TargetComputers -Computers $Computers -SkipAD:$SkipAD
+    }
     if (-not $TargetEndpoints) {
         Write-Error "No target computers found to scan."
         return
