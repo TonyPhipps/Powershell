@@ -327,52 +327,78 @@ function Install-DefenderUpdates {
         [Parameter(Mandatory = $true)] [string]$DefenderUpdatesPath,
         [string]$ShareName = "DefenderUpdates"
     )
-
-    Write-Host "--- Operation: Deploying Defender Definitions ---" -ForegroundColor Gray
-
-    # Ensure SMB Share exists for remote access
-    if (-not (Get-SmbShare -Name $ShareName -ErrorAction SilentlyContinue)) {
-        New-SmbShare -Name $ShareName -Path $DefenderUpdatesPath -ReadAccess "Authenticated Users", "Domain Computers" -FullAccess "Administrators" | Out-Null
+    Write-Host "--- Operation: Deploying Defender Platform & Signatures ---" -ForegroundColor Gray
+    $RepoManifest = @{}
+    $PlatformFiles = Get-ChildItem -Path $DefenderUpdatesPath -Filter "updateplatform*.exe"
+    foreach ($File in $PlatformFiles) {
+        $Arch = if ($File.Name -match "amd64") { "x64" } elseif ($File.Name -match "x86") { "x86" } else { "arm64" }
+        $RepoManifest[$Arch] = @{
+            LocalPath = $File.FullName
+            FileName  = $File.Name
+            Version   = [version]$File.VersionInfo.FileVersion
+        }
     }
-
+    if (-not (Get-SmbShare -Name $ShareName -ErrorAction SilentlyContinue)) {
+        New-SmbShare -Name $ShareName -Path $DefenderUpdatesPath -ReadAccess "Domain Computers", "Authenticated Users" -FullAccess "Administrators" | Out-Null
+    }
     $UncPath = "\\$($env:COMPUTERNAME)\$ShareName"
-
-    Invoke-Command -ComputerName $TargetEndpoints -ArgumentList $UncPath -ScriptBlock {
-        param($Path)
+    foreach ($Computer in $TargetEndpoints) {
+        $Session = $null
         try {
-            # 1. Safety Check: Third-Party AV
-            $ActiveAV = Get-CimInstance -Namespace root\SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction SilentlyContinue | 
-                Where-Object { $_.productState -in 262144, 266240, 393216, 397312 }
-            
-            if ($ActiveAV) {
-                $PrimaryAV = $ActiveAV.displayName
-                if ($PrimaryAV -notmatch "Windows Defender") {
-                    Write-Host "SKIPPING: $($env:COMPUTERNAME) - Third-party AV ($PrimaryAV) is managing protection." -ForegroundColor Yellow
-                    return
+            $Session = New-PSSession -ComputerName $Computer -ErrorAction Stop
+            $RemoteStatus = Invoke-Command -Session $Session -ScriptBlock {
+                $ActiveAV = Get-CimInstance -Namespace root\SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction SilentlyContinue | 
+                            Where-Object { $_.productState -in 262144, 266240, 393216, 397312 }
+                if ($ActiveAV -and $ActiveAV.displayName -notmatch "Windows Defender") {
+                    return @{ Skip = $true; Reason = "Third-party AV ($($ActiveAV.displayName)) is managing protection." }
+                }
+                $DefService = Get-Service -Name "WinDefend" -ErrorAction SilentlyContinue
+                if ($null -eq $DefService -or $DefService.Status -ne 'Running') {
+                    return @{ Skip = $true; Reason = "Defender service is stopped or disabled." }
+                }
+                $Status = Get-MpComputerStatus
+                $OSArch = (Get-CimInstance Win32_OperatingSystem).OSArchitecture
+                return @{
+                    Skip         = $false
+                    PlatformVer  = [version]$Status.AMProductVersion
+                    SignatureVer = $Status.AntivirusSignatureVersion
+                    ArchKey      = if ($OSArch -match "64-bit") { "x64" } elseif ($OSArch -match "arm") { "arm64" } else { "x86" }
                 }
             }
-
-            # 2. Safety Check: Service Status
-            $DefService = Get-Service -Name "WinDefend" -ErrorAction SilentlyContinue
-            if ($null -eq $DefService -or $DefService.Status -ne 'Running') {
-                Write-Host "SKIPPING: $($env:COMPUTERNAME) - Defender service is stopped or disabled." -ForegroundColor Yellow
-                return
+            if ($RemoteStatus.Skip) {
+                Write-Host "SKIPPING: $($Computer) - $($RemoteStatus.Reason)" -ForegroundColor Yellow
+                continue
             }
-
-            # 3. Capture "Before" version [cite: 146]
-            $BeforeSig = (Get-MpComputerStatus).AntivirusSignatureVersion
-
-            # 4. Perform Update
-            Set-MpPreference -SignatureDefinitionUpdateFileSharesSources $Path -ErrorAction Stop
-            Update-MpSignature -UpdateSource FileShares -ErrorAction Stop
-
-            # 5. Capture "After" version and report [cite: 147]
-            $AfterSig = (Get-MpComputerStatus).AntivirusSignatureVersion
-            
-            Write-Host "[o] $($env:COMPUTERNAME): Defender Updated ($BeforeSig -> $AfterSig)." -ForegroundColor Green
+            $Match = $RepoManifest[$RemoteStatus.ArchKey]
+            $PlatformWasUpdated = $false
+            if ($Match -and ($RemoteStatus.PlatformVer -lt $Match.Version)) {
+                Write-Host "$($Computer): Updating Defender Platform ($($RemoteStatus.PlatformVer) -> $($Match.Version))..." -ForegroundColor Cyan
+                $StagingPath = "C:\Windows\Temp\$($Match.FileName)"
+                Copy-Item -Path $Match.LocalPath -Destination $StagingPath -ToSession $Session -Force
+                Invoke-Command -Session $Session -ArgumentList $StagingPath -ScriptBlock {
+                    param($InstallerPath)
+                    Start-Process -FilePath $InstallerPath -ArgumentList "/quiet", "/norestart" -Wait
+                    Remove-Item -Path $InstallerPath -Force
+                }
+                $PlatformWasUpdated = $true
+            } else {
+                Write-Host "$($Computer): Platform is current ($($RemoteStatus.PlatformVer))." -ForegroundColor Gray
+            }
+            Invoke-Command -Session $Session -ArgumentList $UncPath -ScriptBlock {
+                param($Path)
+                Set-MpPreference -SignatureDefinitionUpdateFileSharesSources $Path
+                Update-MpSignature -UpdateSource FileShares -ErrorAction Stop
+            }
+            $FinalSig = Invoke-Command -Session $Session -ScriptBlock { (Get-MpComputerStatus).AntivirusSignatureVersion }
+            if ($PlatformWasUpdated -or ($RemoteStatus.SignatureVer -ne $FinalSig)) {
+                Write-Host "$($Computer): Update successful ($($RemoteStatus.SignatureVer) -> $($FinalSig))." -ForegroundColor Green
+            } else {
+                Write-Host "$($Computer): Signatures are current ($($RemoteStatus.SignatureVer))." -ForegroundColor Gray
+            }
         } catch {
-            Write-Host "[!] $($env:COMPUTERNAME): Defender is present but refused update (likely Passive/Limited mode)." -ForegroundColor Gray
-            Write-Verbose "Detail: $($_.Exception.Message)"
+            Write-Host "[!] $($Computer): Failed to update. $($_.Exception.Message)" -ForegroundColor Red
+        } finally {
+            if ($Session) { Remove-PSSession $Session }
         }
     }
 }
