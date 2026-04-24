@@ -248,46 +248,42 @@ function Get-TargetComputers {
     return $List
 }
 
-function Get-Wsusscn2 {
-    $ShouldDownload = $true
-        if (Test-Path $Catalog) {
-            if ((Get-Item $Catalog).LastWriteTime -ge (Get-Date).AddDays(-1)) {
-                Write-Host "The existing wsusscn2.cab is current." -ForegroundColor Gray
-                $ShouldDownload = $false
-            }
-        }
-        if ($ShouldDownload) {
-            Write-Host "Downloading wsusscn2.cab (~1GB)..." -ForegroundColor Gray
-            $Url = "https://go.microsoft.com/fwlink/?linkid=74689"
-            Invoke-WebRequest -Uri $Url -OutFile $Catalog -UseBasicParsing
-        }
-}
-
 function Invoke-UpdateDownload {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)] [string]$Url,
-        [Parameter(Mandatory = $true)] [string]$Destination,
-        [Parameter()] [string]$Label = "File"
+        [Parameter(Mandatory = $true)] [string]$DestinationPath,
+        [Parameter(Mandatory = $false)] [switch]$CheckExpiration
     )
-
-    $FileName = Split-Path $Destination -Leaf
-    Write-Host "Checking $($Label): $FileName... " -NoNewline
-    if (Test-Path $Destination) {
-        $LastUpdate = (Get-Item $Destination).LastWriteTime
-        if ($Url -match "LinkID=121721" -and ((Get-Date) - $LastUpdate).TotalHours -gt 24) { # defender age check
-            Write-Host "OUTDATED (Re-downloading)" -ForegroundColor Yellow
-        } else {
-            Write-Host "EXISTS and current." -ForegroundColor Yellow
+    $FileName = Split-Path $Url -Leaf
+    $FullDestination = if (Test-Path $DestinationPath -PathType Container) { 
+        Join-Path $DestinationPath $FileName 
+    } else { 
+        $DestinationPath 
+    }
+    if ($CheckExpiration -and (Test-Path $FullDestination)) {
+        $LastModified = (Get-Item $FullDestination).LastWriteTime
+        if ($LastModified -ge (Get-Date).AddDays(-1)) {
+            Write-Host "[o] $FileName is current (Updated: $($LastModified.ToString('MM/dd HH:mm')))." -ForegroundColor Gray
             return
         }
     }
+    if (-not $CheckExpiration -and (Test-Path $FullDestination)) {
+        Write-Host "SKIPPING: $FileName (Already exists)" -ForegroundColor Yellow
+        return
+    }
+    $ParentDir = Split-Path $FullDestination -Parent
+    if (-not (Test-Path $ParentDir)) {
+        New-Item -ItemType Directory -Path $ParentDir -Force | Out-Null
+    }
     try {
-        Write-Host "DOWNLOADING..." -ForegroundColor Cyan
-        Invoke-WebRequest -Uri $Url -OutFile $Destination -UseBasicParsing
-        Write-Host "SUCCESS" -ForegroundColor Green
-    } catch {
-        Write-Host "FAILED" -ForegroundColor Red
+        $StatusMsg = if ($CheckExpiration) { "Refreshing $FileName..." } else { "Downloading $FileName..." }
+        Write-Host "$StatusMsg " -ForegroundColor Cyan -NoNewline
+        Invoke-WebRequest -Uri $Url -OutFile $FullDestination -UseBasicParsing
+        Write-Host "[Success]" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "[FAILED]" -ForegroundColor Red
         Write-Warning "Error: $($_.Exception.Message)"
     }
 }
@@ -308,6 +304,14 @@ function Get-DefenderUpdates {
         Invoke-UpdateDownload -Url $ArchFolders[$Arch] -Destination $Destination
     }
     Write-Host "Checking for latest Defender Platform Update..." -ForegroundColor Gray
+    $CurrentFiles = Get-Item -Path "$DefenderUpdatesPath\updateplatform*" -ErrorAction SilentlyContinue 
+    if ($CurrentFiles) {
+        $OldestFile = $CurrentFiles | Sort-Object LastWriteTime | Select-Object -First 1
+        if ($OldestFile.LastWriteTime -lt (Get-Date).AddDays(-1)) {
+            Write-Host "[!] Platform updates are outdated. Cleaning up old files..." -ForegroundColor Yellow
+            Remove-Item -Path "$DefenderUpdatesPath\updateplatform*" -Force -ErrorAction SilentlyContinue
+        }
+    }
     $PlatformUpdate = Get-KbUpdate -KB 4052623 | Sort-Object LastModified -Descending | Select-Object -First 1
     foreach ($link in $PlatformUpdate.Link) {
         $FileName = Split-Path $link -Leaf
@@ -477,7 +481,7 @@ if ($PreparePackage) {
         Save-Module -Name kbupdate -Path $Modules -ErrorAction Stop -Verbose
         Save-Module -Name xWindowsUpdate -Path $Modules -ErrorAction Stop -Verbose
         Get-ChildItem -Path $WorkingFolder -Recurse | Unblock-File
-        Get-Wsusscn2
+        Invoke-UpdateDownload -Url "https://go.microsoft.com/fwlink/?linkid=74689" -DestinationPath $Catalog -CheckExpiration
         Write-Host "Success! Package ready at: $WorkingFolder" -ForegroundColor Green
     }
     catch {
@@ -556,24 +560,26 @@ if ($DownloadUpdates) {
         $DefenderPath = Join-Path $WorkingFolder "DefenderUpdates"
         Get-DefenderUpdates -DefenderUpdatesPath $DefenderPath
     }
-    Write-Host "Starting Windows KB downloads..." -ForegroundColor Gray
-    $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
-        Sort-Object LastWriteTime -Descending | 
-            Select-Object -First 1
-    if (-not $LatestReport) {
-        Write-Error "No Compliance Report found in $Results."
-    } else {
-        if (-not (Test-Path $Repository)) { New-Item -ItemType Directory -Path $Repository -Force | Out-Null }
-        Write-Host "Loading results file: $($LatestReport.FullName)" -ForegroundColor Gray
-        $NeededUpdates = Import-Csv -Path $LatestReport.FullName
-        $AllLinks = $NeededUpdates.Link | ForEach-Object { $_ -split " " } | 
-            Where-Object { $_ -like "http*" } | 
-                Select-Object -Unique
-        Write-Host "Found $($AllLinks.Count) unique files to download based on scan results." -ForegroundColor Gray
-        foreach ($Url in $AllLinks) {
-            $FileName = Split-Path $Url -Leaf
-            $Destination = Join-Path $Repository $FileName
-            Invoke-UpdateDownload -Url $Url -Destination $Destination -Label "KB Update"
+    if (-not $DefenderOnly){
+        Write-Host "--- Checking wsusscn2.cab for age ---" -ForegroundColor Gray
+        Invoke-UpdateDownload -Url "https://go.microsoft.com/fwlink/?linkid=74689" -DestinationPath $Catalog -CheckExpiration
+        Write-Host "Starting Windows KB downloads..." -ForegroundColor Gray
+        $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
+            Sort-Object LastWriteTime -Descending | 
+                Select-Object -First 1
+        if (-not $LatestReport) {
+            Write-Error "No Compliance Report found in $Results."
+        } else {
+            if (-not (Test-Path $Repository)) { New-Item -ItemType Directory -Path $Repository -Force | Out-Null }
+            Write-Host "Loading results file: $($LatestReport.FullName)" -ForegroundColor Gray
+            $NeededUpdates = Import-Csv -Path $LatestReport.FullName
+            $AllLinks = $NeededUpdates.Link | ForEach-Object { $_ -split " " } | 
+                Where-Object { $_ -like "http*" } | 
+                    Select-Object -Unique
+            Write-Host "Found $($AllLinks.Count) unique files to download based on scan results." -ForegroundColor Gray
+            foreach ($Url in $AllLinks) {
+                Invoke-UpdateDownload -Url $Url -DestinationPath $Repository
+            }
         }
         Write-Host "Download complete. Total files in repository: $((Get-ChildItem $Repository).Count)" -ForegroundColor Green
     }
