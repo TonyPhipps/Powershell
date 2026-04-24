@@ -382,7 +382,7 @@ function Install-DefenderUpdates {
                 }
                 $PlatformWasUpdated = $true
             } else {
-                Write-Host "$($Computer): Platform is current ($($RemoteStatus.PlatformVer))." -ForegroundColor Gray
+                Write-Host "$($Computer): Defender Platform is current ($($RemoteStatus.PlatformVer))." -ForegroundColor Gray
             }
             Invoke-Command -Session $Session -ArgumentList $UncPath -ScriptBlock {
                 param($Path)
@@ -391,12 +391,12 @@ function Install-DefenderUpdates {
             }
             $FinalSig = Invoke-Command -Session $Session -ScriptBlock { (Get-MpComputerStatus).AntivirusSignatureVersion }
             if ($PlatformWasUpdated -or ($RemoteStatus.SignatureVer -ne $FinalSig)) {
-                Write-Host "$($Computer): Update successful ($($RemoteStatus.SignatureVer) -> $($FinalSig))." -ForegroundColor Green
+                Write-Host "$($Computer): Defender Signatures updated successful ($($RemoteStatus.SignatureVer) -> $($FinalSig))." -ForegroundColor Green
             } else {
-                Write-Host "$($Computer): Signatures are current ($($RemoteStatus.SignatureVer))." -ForegroundColor Gray
+                Write-Host "$($Computer): Defender Signatures are current ($($RemoteStatus.SignatureVer))." -ForegroundColor Gray
             }
         } catch {
-            Write-Host "[!] $($Computer): Failed to update. $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "[!] $($Computer): Failed to update Defender. $($_.Exception.Message)" -ForegroundColor Red
         } finally {
             if ($Session) { Remove-PSSession $Session }
         }
