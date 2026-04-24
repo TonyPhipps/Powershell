@@ -294,7 +294,7 @@ function Get-RebootStatus {
                 Write-Host "[!] $($Result.ComputerName): REBOOT REQUIRED ($($Result.Trigger))" -ForegroundColor Yellow
             }
             else {
-                Write-Host "[√] $($Result.ComputerName): No reboot pending." -ForegroundColor Gray
+                Write-Host "[o] $($Result.ComputerName): No reboot pending." -ForegroundColor Gray
             }
         }
         catch {
