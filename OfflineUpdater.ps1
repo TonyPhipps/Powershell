@@ -654,6 +654,7 @@ if ($DeployUpdatesLocal) {
             Write-Host " Found." -ForegroundColor Green
             try {
                 Unblock-File -Path $LocalPath -ErrorAction SilentlyContinue
+                $env:SEE_MASK_NOZONECHECKS = 1
                 if ($FileName -match "\.cab$") {
                     Write-Host "  -> Installing CAB via DISM..." -ForegroundColor Yellow
                     dism.exe /Online /Add-Package /PackagePath:"$LocalPath" /NoRestart
