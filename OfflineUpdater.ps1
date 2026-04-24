@@ -135,6 +135,10 @@ param (
     [alias("D", "Download", "DownloadUpdate")]
     [switch]$DownloadUpdates,
 
+    [Parameter(Mandatory = $false)] 
+    [alias("Defender")]
+    [switch]$DefenderOnly,
+
     [Parameter(Mandatory = $false)]
     [alias("Deploy", "DeployUpdate", "Push")]
     [switch]$DeployUpdates,
@@ -285,6 +289,54 @@ function Invoke-UpdateDownload {
     } catch {
         Write-Host "FAILED" -ForegroundColor Red
         Write-Warning "Error: $($_.Exception.Message)"
+    }
+}
+
+function Get-DefenderUpdates {
+    [CmdletBinding()]
+    param([string]$DefenderUpdatesPath)
+    Write-Host "--- Operation: Download Defender Definitions ---" -ForegroundColor Gray
+    if (-not (Test-Path $DefenderUpdatesPath)) { New-Item -Path $DefenderUpdatesPath -ItemType Directory | Out-Null }
+    $ArchFolders = @{ 
+        "x64" = "https://go.microsoft.com/fwlink/?LinkID=121721&arch=x64"
+        "x86" = "https://go.microsoft.com/fwlink/?LinkID=121721&arch=x86"
+    }
+    foreach ($Arch in $ArchFolders.Keys) {
+        $TargetFolder = Join-Path $DefenderUpdatesPath $Arch
+        if (-not (Test-Path $TargetFolder)) { New-Item -Path $TargetFolder -ItemType Directory | Out-Null }
+        $Destination = Join-Path $TargetFolder "mpam-fe.exe"
+        Invoke-FileDownload -Url $ArchFolders[$Arch] -Destination $Destination
+    }
+    Write-Host "Checking for latest Defender Platform Update..." -ForegroundColor Gray
+    $PlatformUpdate = Get-KbUpdate -KB 4052623 | Sort-Object LastModified -Descending | Select-Object -First 1
+    foreach ($link in $PlatformUpdate.Link) {
+        $FileName = Split-Path $link -Leaf
+        $Destination = Join-Path $DefenderUpdatesPath $FileName
+        Invoke-FileDownload -Url $link -Destination $Destination
+    }
+}
+
+function Install-DefenderUpdates {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)] [string[]]$TargetEndpoints,
+        [Parameter(Mandatory = $true)] [string]$DefenderUpdatesPath,
+        [string]$ShareName = "DefenderUpdates"
+    )
+    Write-Host "--- Operation: Deploying Defender Definitions ---" -ForegroundColor Gray
+    if (-not (Get-SmbShare -Name $ShareName -ErrorAction SilentlyContinue)) {
+        New-SmbShare -Name $ShareName -Path $DefenderUpdatesPath -ReadAccess "Authenticated Users", "Domain Computers" -FullAccess "Administrators" -Force | Out-Null
+    }
+    $UncPath = "\\$($env:COMPUTERNAME)\$ShareName"
+    Invoke-Command -ComputerName $TargetEndpoints -ArgumentList $UncPath -ScriptBlock {
+        param($Path)
+        if (Get-Service "WinDefend" -ErrorAction SilentlyContinue) {
+            Set-MpPreference -SignatureDefinitionUpdateFileSharesSources $Path
+            Update-MpSignature -UpdateSource FileShares
+            Write-Host "[o] $($env:COMPUTERNAME): Defender Updated." -ForegroundColor Green
+        } else {
+            Write-Warning "[!] $($env:COMPUTERNAME): Defender not installed or service missing."
+        }
     }
 }
 
@@ -485,35 +537,9 @@ if ($Scan) {
 
 # --- 4. DOWNLOAD UPDATES ---
 if ($DownloadUpdates) {
-    Write-Host "--- Operation: Download Updates ---" -ForegroundColor Gray
-    Get-Wsusscn2
-    Write-Host "Starting Defender definition downloads..." -ForegroundColor Gray
-    $DefenderUpdates = Join-Path -Path $WorkingFolder -ChildPath "DefenderUpdates"
-    if (-not (Test-Path $DefenderUpdates)) { New-Item -Path $DefenderUpdates -ItemType Directory -Force | Out-Null }
-    $ArchFolders = @{
-        "x64" = "https://go.microsoft.com/fwlink/?LinkID=121721&arch=x64"
-        "x86" = "https://go.microsoft.com/fwlink/?LinkID=121721&arch=x86"
-    }
-    foreach ($Arch in $ArchFolders.Keys) {
-        $TargetFolder = Join-Path $DefenderUpdates $Arch
-        if (-not (Test-Path $TargetFolder)) { New-Item -Path $TargetFolder -ItemType Directory | Out-Null }
-        $Destination = Join-Path $TargetFolder "mpam-fe.exe"
-        Invoke-UpdateDownload -Url $ArchFolders[$Arch] -Destination $Destination -Label "Defender ($Arch)"
-    }
-    Write-Host "Getting latest Defender Platform Update from https://www.catalog.update.microsoft.com/Search.aspx?q=Update+for+Microsoft+Defender+antivirus+platform" -ForegroundColor Gray
-    $CurrentFiles = Get-Item -Path "$DefenderUpdates\updateplatform*.exe" -ErrorAction SilentlyContinue
-    if ($CurrentFiles -and ($CurrentFiles | Sort-Object LastWriteTime | Select-Object -First 1).LastWriteTime -ge (Get-Date).AddDays(-1)) {
-        Write-Host "The existing Defender Platform Update files are current." -ForegroundColor Green
-        $ShouldDownload = $false
-    } else {
-        Write-Host "The existing Defender Platform Update files are outdated or missing. Downloading new packages..." -ForegroundColor Yellow
-        Remove-Item -Path "$DefenderUpdates\updateplatform*.exe" -Force -ErrorAction SilentlyContinue -Verbose
-        $DefenderPlatformUpdate = Get-KbUpdate -KB 4052623 | 
-            Sort-Object -Property LastModified -Descending | 
-                Select-Object -First 1
-        foreach ($link in $DefenderPlatformUpdate.Link) {
-            Invoke-WebRequest -Uri $link -OutFile (Join-Path $Repository $FileName) -UseBasicParsing -Verbose
-        }
+    if ($DownloadUpdates -or $DefenderOnly) {
+        $DefenderPath = Join-Path $WorkingFolder "DefenderUpdates"
+        Get-DefenderUpdates -DefenderUpdatesPath $DefenderPath
     }
     Write-Host "Starting Windows KB downloads..." -ForegroundColor Gray
     $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
@@ -539,93 +565,47 @@ if ($DownloadUpdates) {
 }
 
 # --- 5. DEPLOY UPDATES ---
-if ($DeployUpdates) {
-    Write-Host "--- Operation: Deploy Updates ---" -ForegroundColor Gray
+if ($DeployUpdates -or $DefenderOnly) {
+    $DefenderPath = Join-Path $WorkingFolder "DefenderUpdates"
     $TargetEndpoints = Get-TargetComputers -Computers $Computers -SkipAD:$SkipAD
-    if (-not $TargetEndpoints) {
-        Write-Error "No target computers found for deployment."
-        return
-    }
-    Write-Host "Starting Defender definition deployment..." -ForegroundColor Gray
-    $ShareName = "DefenderUpdates"
-    $DefenderUpdates = Join-Path -Path $WorkingFolder -ChildPath $ShareName
-    if (-not (Test-Path $DefenderUpdates)) { New-Item -Path $DefenderUpdates -ItemType Directory }
-    $Acl = Get-Acl $DefenderUpdates
-    $ArAuth = New-Object System.Security.AccessControl.FileSystemAccessRule("Authenticated Users", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
-    $Acl.SetAccessRule($ArAuth)
-    $ArComp = New-Object System.Security.AccessControl.FileSystemAccessRule("Domain Computers", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
-    $Acl.SetAccessRule($ArComp)
-    Set-Acl $DefenderUpdates $Acl
-    if (-not (Get-SmbShare -Name $ShareName -ErrorAction SilentlyContinue)) {
-        New-SmbShare -Name $ShareName -Path $DefenderUpdates -ReadAccess "Authenticated Users", "Domain Computers" -FullAccess "Administrators"
-        Grant-SmbShareAccess -Name $ShareName -AccountName "Domain Computers" -AccessRight Read -Force
-        Write-Host "Share '$ShareName' created successfully with Authenticated Users and Domain Computers read access." -ForegroundColor Green
-    }
-    $UncPath = "\\$($env:COMPUTERNAME)\$ShareName"
-    Invoke-Command -ComputerName $TargetEndpoints -ArgumentList $UncPath -ThrottleLimit 3 -ScriptBlock {
-        param($Path)
-        try {
-            $Svc = Get-Service -Name "WinDefend" -ErrorAction SilentlyContinue
-            if ($null -eq $Svc) {
-                Write-Host "SKIPPING: Defender (WinDefend) is not installed on $($env:COMPUTERNAME)." -ForegroundColor Yellow
-                return
-            }
-            if ($Svc.Status -ne 'Running') { # Check for other AV since Defender is stopped
-                $OtherAV = Get-CimInstance -Namespace root\SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction SilentlyContinue
-                $AVName = if ($OtherAV) { $OtherAV.displayName -join ", " } else { "Unknown/External Provider" }
-                Write-Host "SKIPPING: Defender service is $($Svc.Status) on $($env:COMPUTERNAME). Active AV: $AVName" -ForegroundColor Yellow
-                return
-            }
-            $Status = Get-MpComputerStatus
-            if ($Status.AMRunningMode -ne "Normal" -and $Status.AMRunningMode -ne 0) { # Service is running, now check the Running Mode
-                $OtherAV = Get-CimInstance -Namespace root\SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction SilentlyContinue
-                $AVName = if ($OtherAV) { $OtherAV.displayName -join ", " } else { "Unknown/External Provider" }
-                Write-Host "SKIPPING: Defender is in Passive Mode ($($Status.AMRunningMode)) on $($env:COMPUTERNAME). Active AV: $AVName" -ForegroundColor Yellow
-                return
-            }
-            Set-MpPreference -SignatureDefinitionUpdateFileSharesSources $Path
-            Update-MpSignature -UpdateSource FileShares
-            Write-Host "SUCCESS: $($env:COMPUTERNAME) updated." -ForegroundColor Green
-        }
-        catch {
-            Write-Host "CRITICAL ERROR on $($env:COMPUTERNAME): The Defender WMI provider is unresponsive (Service may be corrupted or disabled by policy)." -ForegroundColor Red
-        }
-    }
-    Write-Host "Starting Windows KB deployment..." -ForegroundColor Gray
-    $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
-        Sort-Object LastWriteTime -Descending | 
-            Select-Object -First 1
-    if (-not $LatestReport) {
-        Write-Error "Could not find a Compliance Report CSV in $Results. Run -Scan first."
-    } elseif (-not (Test-Path $Repository)) {
-        Write-Error "Repository folder not found at $Repository."
-    } else {
-        Write-Host "Loading deployment manifest: $($LatestReport.Name)" -ForegroundColor Gray
-        $NeededUpdates = Import-Csv -Path $LatestReport.FullName
-        if ($NeededUpdates.Count -eq 0) {
-            Write-Host "Manifest is empty. No updates to deploy." -ForegroundColor Red
-            return
-        }
-        $VerifiedUpdates = [System.Collections.Generic.List[PSCustomObject]]::new()
-        foreach ($Update in $NeededUpdates) {
-            $FileName = Split-Path -Leaf $Update.Link
-            $LocalPath = Join-Path $Repository $FileName
-            if (Test-Path $LocalPath) {
-                $VerifiedUpdates.Add($Update)
-            } else {
-                Write-Host "SKIPPING: $($Update.KBUpdate) ($FileName) - File not found in Repository." -ForegroundColor Red
-            }
-        }
-        if ($VerifiedUpdates.Count -gt 0) {
-            Write-Host "Starting deployment of $($VerifiedUpdates.Count) verified files..." -ForegroundColor Gray
-            $VerifiedUpdates | Install-KbUpdate -RepositoryPath $Repository -NoMultithreading -Verbose
-            Write-Host "Deployment tasks completed." -ForegroundColor Green
+    Install-DefenderUpdates -TargetEndpoints $TargetEndpoints -DefenderUpdatesPath $DefenderPath
+    if ($DeployUpdates -and (-not $DefenderOnly)) {
+        Write-Host "Starting Windows KB deployment..." -ForegroundColor Gray
+        $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
+            Sort-Object LastWriteTime -Descending | 
+                Select-Object -First 1
+        if (-not $LatestReport) {
+            Write-Error "Could not find a Compliance Report CSV in $Results. Run -Scan first."
+        } elseif (-not (Test-Path $Repository)) {
+            Write-Error "Repository folder not found at $Repository."
         } else {
-            Write-Warning "No matching update files found in $Repository. Nothing to deploy."
+            Write-Host "Loading deployment manifest: $($LatestReport.Name)" -ForegroundColor Gray
+            $NeededUpdates = Import-Csv -Path $LatestReport.FullName
+            if ($NeededUpdates.Count -eq 0) {
+                Write-Host "Manifest is empty. No updates to deploy." -ForegroundColor Red
+                return
+            }
+            $VerifiedUpdates = [System.Collections.Generic.List[PSCustomObject]]::new()
+            foreach ($Update in $NeededUpdates) {
+                $FileName = Split-Path -Leaf $Update.Link
+                $LocalPath = Join-Path $Repository $FileName
+                if (Test-Path $LocalPath) {
+                    $VerifiedUpdates.Add($Update)
+                } else {
+                    Write-Host "SKIPPING: $($Update.KBUpdate) ($FileName) - File not found in Repository." -ForegroundColor Red
+                }
+            }
+            if ($VerifiedUpdates.Count -gt 0) {
+                Write-Host "Starting deployment of $($VerifiedUpdates.Count) verified files..." -ForegroundColor Gray
+                $VerifiedUpdates | Install-KbUpdate -RepositoryPath $Repository -NoMultithreading -Verbose
+                Write-Host "Deployment tasks completed." -ForegroundColor Green
+            } else {
+                Write-Warning "No matching update files found in $Repository. Nothing to deploy."
+            }
         }
+        Remove-TempFiles($TargetEndpoints)
+        Get-RebootStatus($TargetEndpoints)
     }
-    Remove-TempFiles($TargetEndpoints)
-    Get-RebootStatus($TargetEndpoints)
 }
 
 # --- 6. DEPLOY LOCAL ---
