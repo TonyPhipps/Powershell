@@ -446,7 +446,7 @@ if ($DownloadUpdates) {
     Get-Wsusscn2
     Write-Host "Starting Defender definition downloads..." -ForegroundColor Gray
     $DefenderUpdates = Join-Path -Path $WorkingFolder -ChildPath "DefenderUpdates"
-    if (-not (Test-Path $DefenderUpdates)) { New-Item -Path $DefenderUpdates -ItemType Directory }
+    if (-not (Test-Path $DefenderUpdates)) { New-Item -Path $DefenderUpdates -ItemType Directory -Force | Out-Null }
     $ArchFolders = @{
         "x64" = "https://go.microsoft.com/fwlink/?LinkID=121721&arch=x64"
         "x86" = "https://go.microsoft.com/fwlink/?LinkID=121721&arch=x86"
