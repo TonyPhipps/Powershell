@@ -487,7 +487,7 @@ if ($DownloadUpdates) {
             Sort-Object -Property LastModified -Descending | 
                 Select-Object -First 1
         foreach ($link in $DefenderPlatformUpdate.Link) {
-            $Update | Save-KbUpdate -Link $link -Path $DefenderUpdates -Verbose
+            Save-KbUpdate -Link $link -Path $DefenderUpdates -Verbose
         }
     }
     Write-Host "Starting Windows KB downloads..." -ForegroundColor Gray
