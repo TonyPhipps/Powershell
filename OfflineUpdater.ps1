@@ -252,6 +252,35 @@ function Get-Wsusscn2 {
         }
 }
 
+function Invoke-UpdateDownload {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)] [string]$Url,
+        [Parameter(Mandatory = $true)] [string]$Destination,
+        [Parameter()] [string]$Label = "File"
+    )
+
+    $FileName = Split-Path $Destination -Leaf
+    Write-Host "Checking $($Label): $FileName... " -NoNewline
+    if (Test-Path $Destination) {
+        $LastUpdate = (Get-Item $Destination).LastWriteTime
+        if ($Url -match "LinkID=121721" -and ((Get-Date) - $LastUpdate).TotalHours -gt 24) { # defender age check
+            Write-Host "OUTDATED (Re-downloading)" -ForegroundColor Yellow
+        } else {
+            Write-Host "EXISTS" -ForegroundColor Yellow
+            return
+        }
+    }
+    try {
+        Write-Host "DOWNLOADING..." -ForegroundColor Cyan
+        Invoke-WebRequest -Uri $Url -OutFile $Destination -UseBasicParsing
+        Write-Host "SUCCESS" -ForegroundColor Green
+    } catch {
+        Write-Host "FAILED" -ForegroundColor Red
+        Write-Warning "Error: $($_.Exception.Message)"
+    }
+}
+
 function Get-RebootStatus {
     [CmdletBinding()]
     param(
@@ -453,27 +482,9 @@ if ($DownloadUpdates) {
     }
     foreach ($Arch in $ArchFolders.Keys) {
         $TargetFolder = Join-Path $DefenderUpdates $Arch
-        if (-not (Test-Path $TargetFolder)) { 
-            New-Item -Path $TargetFolder -ItemType Directory | Out-Null 
-        }
-        $FileName = "mpam-fe.exe"
-        $Destination = Join-Path $TargetFolder $FileName
-        $Url = $ArchFolders[$Arch]
-        if (Test-Path $Destination) {
-            $LastUpdate = (Get-Item $Destination).LastWriteTime
-            $TimeDiff = (Get-Date) - $LastUpdate
-            if ($TimeDiff.TotalHours -lt 24) {
-                Write-Host "SKIPPING: $Arch\$FileName is current (Last updated: $($LastUpdate.ToString('MM/dd HH:mm')))" -ForegroundColor Yellow
-                continue
-            }
-        }
-        try {
-            Write-Host "Downloading $Arch version to $Destination... " -NoNewline
-            Invoke-WebRequest -Uri $Url -OutFile $Destination -UseBasicParsing
-        }
-        catch {
-            Write-Warning "Failed to download $Arch version. Error: $($_.Exception.Message)"
-        }
+        if (-not (Test-Path $TargetFolder)) { New-Item -Path $TargetFolder -ItemType Directory | Out-Null }
+        $Destination = Join-Path $TargetFolder "mpam-fe.exe"
+        Invoke-UpdateDownload -Url $ArchFolders[$Arch] -Destination $Destination -Label "Defender ($Arch)"
     }
     Write-Host "Getting latest Defender Platform Update from https://www.catalog.update.microsoft.com/Search.aspx?q=Update+for+Microsoft+Defender+antivirus+platform" -ForegroundColor Gray
     $CurrentFiles = Get-Item -Path "$DefenderUpdates\updateplatform*.exe" -ErrorAction SilentlyContinue
@@ -506,11 +517,8 @@ if ($DownloadUpdates) {
         Write-Host "Found $($AllLinks.Count) unique files to download based on scan results." -ForegroundColor Gray
         foreach ($Url in $AllLinks) {
             $FileName = Split-Path $Url -Leaf
-            try {
-                Invoke-WebRequest -Uri $Url -OutFile (Join-Path $Repository $FileName) -UseBasicParsing
-            } catch {
-                Write-Warning "Failed to download $FileName. Error: $($_.Exception.Message)"
-            }
+            $Destination = Join-Path $Repository $FileName
+            Invoke-UpdateDownload -Url $Url -Destination $Destination -Label "KB Update"
         }
         Write-Host "Download complete. Total files in repository: $((Get-ChildItem $Repository).Count)" -ForegroundColor Green
     }
