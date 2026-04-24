@@ -153,17 +153,23 @@ param (
 )
 
 if (-not $WorkingFolder) {
-    $DiskD = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID = 'D:' and DriveType = 3"
-
-    if ($DiskD) {
-        $WorkingFolder = "D:\OfflineUpdater"
-    } else {
-        if ($psISE -and (Test-Path -Path $psISE.CurrentFile.FullPath)) {
-            $ScriptRoot = Split-Path -Path $psISE.CurrentFile.FullPath -Parent
-        } else {
-            $ScriptRoot = $PSScriptRoot
+    $CurrentScriptPath = $MyInvocation.MyCommand.Path
+    if (-not $CurrentScriptPath) {
+        $CurrentScriptPath = if ($psISE) { $psISE.CurrentFile.FullPath } else { $PSCommandPath }
+    }
+    $ScriptRoot = Split-Path -Path $CurrentScriptPath -Parent
+    $LocalUpdaterPath = Join-Path -Path $ScriptRoot -ChildPath "OfflineUpdater"
+    if (Test-Path -Path $LocalUpdaterPath) {
+        $WorkingFolder = $LocalUpdaterPath
+    } 
+    else {
+        $DiskD = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID = 'D:' and DriveType = 3"
+        if ($DiskD) {
+            $WorkingFolder = "D:\OfflineUpdater"
+        } 
+        else {
+            $WorkingFolder = "C:\OfflineUpdater"
         }
-        $WorkingFolder = (Join-Path -Path $ScriptRoot -ChildPath "OfflineUpdater")
     }
 }
 if (-not $Modules)    { $Modules = Join-Path -Path $WorkingFolder -ChildPath "modules" }
