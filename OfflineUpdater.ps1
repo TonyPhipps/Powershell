@@ -345,7 +345,6 @@ function Install-DefenderUpdates {
         try {
             $ActiveAV = Get-CimInstance -Namespace root\SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction SilentlyContinue | 
                 Where-Object { $_.productState -in 262144, 266240, 393216, 397312 }
-            
             if ($ActiveAV -and $ActiveAV.displayName -notmatch "Windows Defender") {
                 Write-Host "SKIPPING: $($env:COMPUTERNAME) - Third-party AV ($($ActiveAV.displayName)) active." -ForegroundColor Yellow
                 return
@@ -359,15 +358,21 @@ function Install-DefenderUpdates {
             $ArchKey = if ($OSArch -match "64-bit") { "x64" } elseif ($OSArch -match "arm") { "arm64" } else { "x86" }
             $Match = $RepoManifest[$ArchKey]
             $Status = Get-MpComputerStatus
-            $CurrentProduct = [version]$Status.AMProductVersion
-            if ($Match -and $CurrentProduct -lt $Match.Version) {
-                Write-Host "[>] $($env:COMPUTERNAME): Updating $ArchKey Platform ($CurrentProduct -> $($Match.Version))..." -ForegroundColor Cyan
+            $BeforeProduct = $Status.AMProductVersion
+            $BeforeSignatures = $Status.AntivirusSignatureVersion
+            if ($Match -and [version]$BeforeProduct -lt $Match.Version) {
+                Write-Host "[>] $($env:COMPUTERNAME): Updating $ArchKey Platform ($BeforeProduct -> $($Match.Version))..." -ForegroundColor Cyan
                 $FullInstallerPath = Join-Path $Path $Match.Name
                 Start-Process -FilePath $FullInstallerPath -ArgumentList "/quiet", "/norestart" -Wait -ErrorAction Stop
             }
             Set-MpPreference -SignatureDefinitionUpdateFileSharesSources $Path
             Update-MpSignature -UpdateSource FileShares -ErrorAction Stop
-            Write-Host "[o] $($env:COMPUTERNAME): Defender updated/refreshed successfully." -ForegroundColor Green
+            $NewStatus = Get-MpComputerStatus
+            $AfterProduct = $NewStatus.AMProductVersion
+            $AfterSignatures = $NewStatus.AntivirusSignatureVersion
+            Write-Host "[o] $($env:COMPUTERNAME): Update successful." -ForegroundColor Green
+            Write-Host "    Platform:   $BeforeProduct -> $AfterProduct" -ForegroundColor Gray
+            Write-Host "    Signatures: $BeforeSignatures -> $AfterSignatures" -ForegroundColor Gray
         } catch {
             Write-Host "[!] $($env:COMPUTERNAME): Failed. Detail: $($_.Exception.Message)" -ForegroundColor Red
         }
