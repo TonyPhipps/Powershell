@@ -487,7 +487,7 @@ if ($DownloadUpdates) {
             Sort-Object -Property LastModified -Descending | 
                 Select-Object -First 1
         foreach ($link in $DefenderPlatformUpdate.Link) {
-            Save-KbUpdate -Link $link -Path $DefenderUpdates -Verbose
+            Invoke-WebRequest -Uri $link -OutFile (Join-Path $Repository $FileName) -UseBasicParsing -Verbose
         }
     }
     Write-Host "Starting Windows KB downloads..." -ForegroundColor Gray
@@ -507,7 +507,7 @@ if ($DownloadUpdates) {
         foreach ($Url in $AllLinks) {
             $FileName = Split-Path $Url -Leaf
             try {
-                Save-KbUpdate -Link $Url -Path $Repository -Verbose
+                Invoke-WebRequest -Uri $Url -OutFile (Join-Path $Repository $FileName) -UseBasicParsing
             } catch {
                 Write-Warning "Failed to download $FileName. Error: $($_.Exception.Message)"
             }
