@@ -232,7 +232,7 @@ function Get-TargetComputers {
     )
 
     if ($Computers.Count -eq 1 -and (Test-Path -Path $Computers[0] -PathType Leaf)) {
-        $List = Get-Content -Path $Computers[0]
+        $List = (Import-csv -Path $Computers -Header Host | Select-Object Host -ExpandProperty Host)
     } else {
         $List = $Computers
     }
