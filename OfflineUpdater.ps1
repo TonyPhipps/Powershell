@@ -59,6 +59,9 @@
 .PARAMETER SkipReport
     If set, the script will not automatically open the CSV scan results in Out-GridView.
 
+.PARAMETER DefenderOnly
+    Only deploy defender, skipping all KB deployments. To be used with -DeployUpdates
+
 .EXAMPLE
     .\OfflineUpdater.ps1 -PreparePackage
     Downloads all necessary tools and the ~1GB scan catalog to prepare for an offline site visit.
@@ -630,7 +633,7 @@ if ($DownloadUpdates) {
 }
 
 # --- 5. DEPLOY UPDATES ---
-if ($DeployUpdates -or $DefenderOnly) {
+if ($DeployUpdates -and $DefenderOnly) {
     $DefenderPath = Join-Path $WorkingFolder "DefenderUpdates"
     $TargetEndpoints = Get-TargetComputers -Computers $Computers -SkipAD:$SkipAD
     Install-DefenderUpdates -TargetEndpoints $TargetEndpoints -DefenderUpdatesPath $DefenderPath
