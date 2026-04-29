@@ -348,6 +348,7 @@ function Install-DefenderUpdates {
     }
     $UncPath = "\\$($env:COMPUTERNAME)\$ShareName"
     foreach ($Computer in $TargetEndpoints) {
+        Write-Host "Defender Update Target: $Computer" -ForegroundColor Cyan
         $Session = $null
         try {
             $Session = New-PSSession -ComputerName $Computer -ErrorAction Stop
