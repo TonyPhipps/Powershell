@@ -60,7 +60,8 @@
     If set, the script will not automatically open the CSV scan results in Out-GridView.
 
 .PARAMETER DefenderOnly
-    Only deploy defender, skipping all KB deployments. To be used with -DeployUpdates
+    Only download/deploy Defender signature and engine updates, skipping all KB deployments. 
+    To be used in conjunction with -DownloadUpdates and/or -DeployUpdates.
 
 .EXAMPLE
     .\OfflineUpdater.ps1 -PreparePackage
