@@ -269,7 +269,7 @@ function Invoke-UpdateDownload {
         }
     }
     if (-not $CheckExpiration -and (Test-Path $FullDestination)) {
-        Write-Host "SKIPPING: $FileName (Already exists)" -ForegroundColor Yellow
+        Write-Host "SKIPPING: $FileName (Already exists.)" -ForegroundColor Gray
         return
     }
     $ParentDir = Split-Path $FullDestination -Parent
@@ -301,7 +301,7 @@ function Get-DefenderUpdates {
         $TargetFolder = Join-Path $DefenderUpdatesPath $Arch
         if (-not (Test-Path $TargetFolder)) { New-Item -Path $TargetFolder -ItemType Directory | Out-Null }
         $Destination = Join-Path $TargetFolder "mpam-fe.exe"
-        Invoke-UpdateDownload -Url $ArchFolders[$Arch] -Destination $Destination
+        Invoke-UpdateDownload -Url $ArchFolders[$Arch] -Destination $Destination -CheckExpiration
     }
     Write-Host "Checking for latest Defender Platform Update..." -ForegroundColor Gray
     $CurrentFiles = Get-Item -Path "$DefenderUpdatesPath\updateplatform*" -ErrorAction SilentlyContinue 
@@ -316,7 +316,7 @@ function Get-DefenderUpdates {
     foreach ($link in $PlatformUpdate.Link) {
         $FileName = Split-Path $link -Leaf
         $Destination = Join-Path $DefenderUpdatesPath $FileName
-        Invoke-UpdateDownload -Url $link -Destination $Destination
+        Invoke-UpdateDownload -Url $link -Destination $Destination -CheckExpiration
     }
 }
 
