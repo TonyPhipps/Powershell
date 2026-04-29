@@ -1,9 +1,11 @@
 Monitor Logs
 ```
-Set-NetFirewallProfile -LogAllowed True
-Set-NetFirewallProfile -LogBlocked True
-Set-NetFirewallProfile -LogIgnored True
+Set-NetFirewallProfile -All -LogFileName "C:\Windows\System32\LogFiles\Firewall\pfirewall.log" -LogAllowed True -LogBlocked True
 Get-Content c:\windows\system32\LogFiles\Firewall\pfirewall.log -tail 1 -wait
+```
+When done:
+```
+Set-NetFirewallProfile -All -LogAllowed False -LogBlocked False
 ```
 
 
