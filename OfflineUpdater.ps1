@@ -190,7 +190,6 @@ if ($Computers.Count -eq 1 -and (Test-Path -Path $Computers[0] -PathType Leaf))
 } else { $TargetEndpoints = $Computers }
 
 # --- 0. INTERACTIVE MENU (FOR NON-PS USERS) ---
-# This block triggers only if no main action switches are selected
 $NoActionSelected = -not ($PreparePackage -or $Install -or $Scan -or $DownloadUpdates -or $DeployUpdates -or $DeployUpdatesLocal)
 if ($NoActionSelected) {
     do {
@@ -204,9 +203,10 @@ if ($NoActionSelected) {
         Write-Host " 4) -Download Updates      (Run on INTERNET-CONNECTED computer) "
         Write-Host " 5) -Deploy Updates        (Run on AIR-GAPPED computer)"
         Write-Host " 6) -DeployLocal Updates   (Run on AIR-GAPPED computer)"
+        # TODO: Add 7 for DefenderOnly
         Write-Host " Q) Quit"
         Write-Host "================================================================" -ForegroundColor Cyan
-        $Choice = Read-Host "Select an option [1-5 or Q]"
+        $Choice = Read-Host "Select an option (1-6 or Q)"
         switch ($Choice) {
             "1" { $PreparePackage = $true;       $Continue = $false }
             "2" { $Install = $true;              $Continue = $false }
