@@ -361,16 +361,28 @@ function Install-DefenderUpdates {
                     return @{ Skip = $true; Reason = "Third-party AV ($($ActiveAV.displayName)) active."; ArchKey = $ArchKey }
                 }
                 try {
-                    $Status = Get-MpComputerStatus -ErrorAction SilentlyContinue
+                    $Status = Get-MpComputerStatus -ErrorAction Stop
                     return @{
                         Skip         = $false
                         ServiceReady = $true
                         PlatformVer  = [version]$Status.AMProductVersion
+                        EngineVer    = $Status.AMEngineVersion
                         SignatureVer = $Status.AntivirusSignatureVersion
                         ArchKey      = $ArchKey
                     }
                 } catch {
-                    return @{ Skip = $false; ServiceReady = $false; PlatformVer = [version]"0.0.0.0"; SignatureVer = "None"; ArchKey = $ArchKey }
+                    $RegPath = "HKLM:\SOFTWARE\Microsoft\Windows Defender"
+                    $RegPlat = Get-ItemProperty -Path $RegPath -Name "ProductAppDataPath" -ErrorAction SilentlyContinue
+                    $CurrentPlat = if ($RegPlat.ProductAppDataPath -match 'Platform\\([\d\.]+)') { [version]$Matches[1] } else { [version]"0.0.0.0" }
+                    $SigVer = (Get-ItemProperty -Path "$RegPath\Signature Updates" -Name "ASSignatureVersion" -ErrorAction SilentlyContinue).ASSignatureVersion
+                    return @{ 
+                        Skip         = $false; 
+                        ServiceReady = $false; 
+                        PlatformVer  = $CurrentPlat; 
+                        EngineVer    = "Unknown (Service Stopped)";
+                        SignatureVer = if ($SigVer) { $SigVer } else { "None" }; 
+                        ArchKey      = $ArchKey 
+                    }
                 }
             }
             if ($RemoteStatus.Skip) {
@@ -380,7 +392,7 @@ function Install-DefenderUpdates {
             $Match = $RepoManifest[$RemoteStatus.ArchKey]
             $PlatformWasUpdated = $false
             if ($Match -and ($RemoteStatus.PlatformVer -lt $Match.Version)) {
-                Write-Host "$($Computer): Deploying Platform Update ($($RemoteStatus.PlatformVer) -> $($Match.Version))..." -ForegroundColor Cyan
+                Write-Host "Updating Platform: $($RemoteStatus.PlatformVer) -> $($Match.Version)" -ForegroundColor Cyan
                 $StagingPath = "C:\Windows\Temp\$($Match.FileName)"
                 Copy-Item -Path $Match.LocalPath -Destination $StagingPath -ToSession $Session -Force
                 Invoke-Command -Session $Session -ArgumentList $StagingPath -ScriptBlock {
@@ -389,6 +401,8 @@ function Install-DefenderUpdates {
                     Remove-Item -Path $InstallerPath -Force
                 }
                 $PlatformWasUpdated = $true
+            } else {
+                Write-Host "Platform is current: $($RemoteStatus.PlatformVer)" -ForegroundColor Gray
             }
             $CheckService = Invoke-Command -Session $Session -ScriptBlock { (Get-Service WinDefend -ErrorAction SilentlyContinue).Status }
             if ($CheckService -eq 'Running') {
@@ -397,14 +411,18 @@ function Install-DefenderUpdates {
                     Set-MpPreference -SignatureDefinitionUpdateFileSharesSources $Path
                     Update-MpSignature -UpdateSource FileShares -ErrorAction Stop
                 }
-                $FinalSig = Invoke-Command -Session $Session -ScriptBlock { (Get-MpComputerStatus).AntivirusSignatureVersion }
-                Write-Host "$($Computer): Success. Platform: $($Match.Version) | Sig: $($FinalSig)" -ForegroundColor Green
+                $Final = Invoke-Command -Session $Session -ScriptBlock { Get-MpComputerStatus | Select-Object AMProductVersion, AMEngineVersion, AntivirusSignatureVersion }
+                if ($PlatformWasUpdated -or ($RemoteStatus.SignatureVer -ne $Final.AntivirusSignatureVersion)) {
+                    Write-Host "Update Applied: Engine: $($Final.AMEngineVersion) | Sig: $($Final.AntivirusSignatureVersion)" -ForegroundColor Green
+                } else {
+                    Write-Host "Signatures are current: $($Final.AntivirusSignatureVersion) (Engine: $($Final.AMEngineVersion))" -ForegroundColor Gray
+                }
             } else {
-                $Msg = if ($PlatformWasUpdated) { "Platform staged but REBOOT REQUIRED to start service." } else { "Defender service is stopped/disabled. Cannot apply signatures." }
-                Write-Host "$($Computer): $Msg" -ForegroundColor Yellow
+                $StatusMsg = if ($PlatformWasUpdated) { "Platform staged (Reboot required)." } else { "Service stopped." }
+                Write-Host "$($StatusMsg) Current Sig: $($RemoteStatus.SignatureVer)" -ForegroundColor Yellow
             }
         } catch {
-            Write-Host "[!] $($Computer): Failed. Detail: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "Failed: $($_.Exception.Message)" -ForegroundColor Red
         } finally {
             if ($Session) { Remove-PSSession $Session }
         }
