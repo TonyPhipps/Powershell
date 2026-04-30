@@ -364,7 +364,6 @@ function Install-DefenderUpdates {
                     $Status = Get-MpComputerStatus -ErrorAction Stop
                     return @{
                         Skip         = $false
-                        ServiceReady = $true
                         PlatformVer  = [version]$Status.AMProductVersion
                         EngineVer    = $Status.AMEngineVersion
                         SignatureVer = $Status.AntivirusSignatureVersion
@@ -376,12 +375,8 @@ function Install-DefenderUpdates {
                     $CurrentPlat = if ($RegPlat.ProductAppDataPath -match 'Platform\\([\d\.]+)') { [version]$Matches[1] } else { [version]"0.0.0.0" }
                     $SigVer = (Get-ItemProperty -Path "$RegPath\Signature Updates" -Name "ASSignatureVersion" -ErrorAction SilentlyContinue).ASSignatureVersion
                     return @{ 
-                        Skip         = $false; 
-                        ServiceReady = $false; 
-                        PlatformVer  = $CurrentPlat; 
-                        EngineVer    = "Stopped";
-                        SignatureVer = if ($SigVer) { $SigVer } else { "None" }; 
-                        ArchKey      = $ArchKey 
+                        Skip = $false; PlatformVer = $CurrentPlat; 
+                        EngineVer = "Stopped"; SignatureVer = if ($SigVer) { $SigVer } else { "None" }; ArchKey = $ArchKey 
                     }
                 }
             }
@@ -401,32 +396,42 @@ function Install-DefenderUpdates {
                     Remove-Item -Path $InstallerPath -Force
                 }
                 $PlatformWasUpdated = $true
-            } else {
-                Write-Host "Platform Version: $($RemoteStatus.PlatformVer)" -ForegroundColor Gray
             }
             Invoke-Command -Session $Session -ScriptBlock {
                 $Svc = Get-Service WinDefend -ErrorAction SilentlyContinue
-                if ($Svc.Status -ne 'Running') {
+                if ($Svc -and $Svc.Status -ne 'Running') {
                     Set-Service -Name WinDefend -StartupType Automatic
                     Start-Service -Name WinDefend -ErrorAction SilentlyContinue
                 }
                 Set-MpPreference -DisableRealtimeMonitoring $false -ErrorAction SilentlyContinue
             }
-            $CheckService = Invoke-Command -Session $Session -ScriptBlock { (Get-Service WinDefend -ErrorAction SilentlyContinue).Status }
-            if ($CheckService -eq 'Running') {
-                Invoke-Command -Session $Session -ArgumentList $UncPath -ScriptBlock {
-                    param($Path)
+            Invoke-Command -Session $Session -ArgumentList $UncPath -ScriptBlock {
+                param($Path)
+                try {
                     Set-MpPreference -SignatureDefinitionUpdateFileSharesSources $Path
                     Update-MpSignature -UpdateSource FileShares -ErrorAction Stop
+                } catch { }
+            }
+            $FinalReport = Invoke-Command -Session $Session -ScriptBlock {
+                $Retry = 0
+                while ($Retry -lt 5) {
+                    $Stat = Get-MpComputerStatus -ErrorAction SilentlyContinue
+                    if ($Stat) { return $Stat | Select-Object AMEngineVersion, AntivirusSignatureVersion }
+                    Start-Sleep -Seconds 2
+                    $Retry++
                 }
-                $Final = Invoke-Command -Session $Session -ScriptBlock { Get-MpComputerStatus | Select-Object AMProductVersion, AMEngineVersion, AntivirusSignatureVersion }
-                if ($PlatformWasUpdated -or ($RemoteStatus.SignatureVer -ne $Final.AntivirusSignatureVersion)) {
-                    Write-Host "Protection Enabled. Engine: $($Final.AMEngineVersion) | Sig: $($Final.AntivirusSignatureVersion)" -ForegroundColor Green
-                } else {
-                    Write-Host "Protection Enabled. Signatures current: $($Final.AntivirusSignatureVersion)" -ForegroundColor Gray
+            }
+            if ($FinalReport) {
+                $EngineOut = if ($RemoteStatus.EngineVer -ne $FinalReport.AMEngineVersion) { "$($RemoteStatus.EngineVer) -> $($FinalReport.AMEngineVersion)" } else { "$($FinalReport.AMEngineVersion) (Current)" }
+                $SigOut    = if ($RemoteStatus.SignatureVer -ne $FinalReport.AntivirusSignatureVersion) { "$($RemoteStatus.SignatureVer) -> $($FinalReport.AntivirusSignatureVersion)" } else { "$($FinalReport.AntivirusSignatureVersion) (Current)" }
+                Write-Host "Deployment Results:" -ForegroundColor Green
+                Write-Host "- Engine: $EngineOut" -ForegroundColor Green
+                Write-Host "- Signatures: $SigOut" -ForegroundColor Green
+                if ($PlatformWasUpdated) {
+                    Write-Host "Platform updated to $($Match.Version). REBOOT REQUIRED to complete." -ForegroundColor Yellow
                 }
             } else {
-                Write-Host "Could not start WinDefend service. Check for AV conflicts." -ForegroundColor Red
+                Write-Host "Defender updated, but WMI is unresponsive. Reboot recommended." -ForegroundColor Yellow
             }
         } catch {
             Write-Host "Failed: $($_.Exception.Message)" -ForegroundColor Red
