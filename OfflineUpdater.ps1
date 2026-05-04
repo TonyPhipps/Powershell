@@ -197,23 +197,26 @@ if ($NoActionSelected) {
         Write-Host "================================================================" -ForegroundColor Cyan
         Write-Host "               OFFLINE WINDOWS UPDATER - MAIN MENU              " -ForegroundColor Cyan
         Write-Host "================================================================" -ForegroundColor Cyan
-        Write-Host " 1) -Prepare Package       (Run on INTERNET-CONNECTED computer) "
-        Write-Host " 2) -Install Modules       (Run on AIR-GAPPED computer)"
-        Write-Host " 3) -Scan Endpoints        (Run on AIR-GAPPED computer)"
-        Write-Host " 4) -Download Updates      (Run on INTERNET-CONNECTED computer) "
-        Write-Host " 5) -Deploy Updates        (Run on AIR-GAPPED computer)"
-        Write-Host " 6) -DeployLocal Updates   (Run on AIR-GAPPED computer)"
-        # TODO: Add 7 for DefenderOnly
+        Write-Host " 1) -Prepare Package        (Run on INTERNET-CONNECTED computer)"
+        Write-Host " 2) -Install Modules        (Run on AIR-GAPPED computer)"
+        Write-Host " 3) -Scan Endpoints         (Run on AIR-GAPPED computer)"
+        Write-Host " 4) -Download ALL Updates   (Run on INTERNET-CONNECTED computer)"
+        Write-Host " 5) -Download Defender ONLY (Run on INTERNET-CONNECTED computer)"
+        Write-Host " 6) -Deploy ALL Updates     (Run on AIR-GAPPED computer)"
+        Write-Host " 7) -Deploy Defender ONLY   (Run on AIR-GAPPED computer)"
+        Write-Host " 8) -DeployLocal Updates    (Run on AIR-GAPPED computer)"
         Write-Host " Q) Quit"
         Write-Host "================================================================" -ForegroundColor Cyan
-        $Choice = Read-Host "Select an option (1-6 or Q)"
+        $Choice = Read-Host "Select an option (1-8 or Q)"
         switch ($Choice) {
             "1" { $PreparePackage = $true;       $Continue = $false }
             "2" { $Install = $true;              $Continue = $false }
             "3" { $Scan = $true;                 $Continue = $false }
             "4" { $DownloadUpdates = $true;      $Continue = $false }
-            "5" { $DeployUpdates = $true;        $Continue = $false }
-            "6" { $DeployUpdatesLocal = $true;   $Continue = $false }
+            "5" { $DownloadUpdates = $true;      $DefenderOnly = $true; $Continue = $false }
+            "6" { $DeployUpdates = $true;        $Continue = $false }
+            "7" { $DeployUpdates = $true;        $DefenderOnly = $true; $Continue = $false }
+            "8" { $DeployUpdatesLocal = $true;   $Continue = $false }
             "Q" { exit }
             default { Write-Host "Invalid selection, try again." -ForegroundColor Red; Start-Sleep -Seconds 1; $Continue = $true }
         }
@@ -638,10 +641,8 @@ if ($Scan) {
 
 # --- 4. DOWNLOAD UPDATES ---
 if ($DownloadUpdates) {
-    if ($DownloadUpdates -or $DefenderOnly) {
-        $DefenderPath = Join-Path $WorkingFolder "DefenderUpdates"
-        Get-DefenderUpdates -DefenderUpdatesPath $DefenderPath
-    }
+    $DefenderPath = Join-Path $WorkingFolder "DefenderUpdates"
+    Get-DefenderUpdates -DefenderUpdatesPath $DefenderPath
     if (-not $DefenderOnly){
         Write-Host "--- Checking wsusscn2.cab for age ---" -ForegroundColor Gray
         Invoke-UpdateDownload -Url "https://go.microsoft.com/fwlink/?linkid=74689" -DestinationPath $Catalog -CheckExpiration
@@ -658,7 +659,6 @@ if ($DownloadUpdates) {
             $AllLinks = $NeededUpdates.Link | ForEach-Object { $_ -split " " } | 
                 Where-Object { $_ -like "http*" } | 
                     Select-Object -Unique
-            Write-Host "Found $($AllLinks.Count) unique files to download based on scan results." -ForegroundColor Gray
             foreach ($Url in $AllLinks) {
                 Invoke-UpdateDownload -Url $Url -DestinationPath $Repository
             }
@@ -668,11 +668,11 @@ if ($DownloadUpdates) {
 }
 
 # --- 5. DEPLOY UPDATES ---
-if ($DeployUpdates -and $DefenderOnly) {
+if ($DeployUpdates) {
     $DefenderPath = Join-Path $WorkingFolder "DefenderUpdates"
     $TargetEndpoints = Get-TargetComputers -Computers $Computers -SkipAD:$SkipAD
     Install-DefenderUpdates -TargetEndpoints $TargetEndpoints -DefenderUpdatesPath $DefenderPath
-    if ($DeployUpdates -and (-not $DefenderOnly)) {
+    if (-not $DefenderOnly) {
         Write-Host "Starting Windows KB deployment..." -ForegroundColor Gray
         $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
             Sort-Object LastWriteTime -Descending | 
