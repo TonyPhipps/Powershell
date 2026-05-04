@@ -184,7 +184,7 @@ if (-not $Modules)    { $Modules = Join-Path -Path $WorkingFolder -ChildPath "mo
 if (-not $Repository) { $Repository = Join-Path -Path $WorkingFolder -ChildPath "repository" }
 if (-not $Results)    { $Results = Join-Path -Path $WorkingFolder -ChildPath "ScanResults" }
 if (-not $Catalog)    { $Catalog = Join-Path -Path $WorkingFolder -ChildPath "catalog\wsusscn2.cab" }
-if (-not $Computers -and -not $SkipAD) { $Computers = Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt" }
+if (-not $Computers -and -not $SkipAD) { $Computers = [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt") }
 if ($Computers.Count -eq 1 -and (Test-Path -Path $Computers[0] -PathType Leaf)) 
     { $TargetEndpoints = Get-Content -Path $Computers[0] 
 } else { $TargetEndpoints = $Computers }
@@ -234,26 +234,24 @@ function Get-TargetComputers {
         [switch]$SkipAD
     )
 
-    if ($Computers.Count -eq 1 -and (Test-Path -Path $Computers[0] -PathType Leaf)) {
-        $List = (Import-csv -Path $Computers -Header Host | Select-Object Host -ExpandProperty Host)
-    } else {
-        $List = $Computers
-    }
     if (-not $SkipAD -and ($Computers.Count -eq 1)) {
         $isInstalled = (Get-WindowsFeature -Name RSAT-ADDS-Tools -ErrorAction SilentlyContinue).Installed
         if ($isInstalled) {
             Write-Host "RSAT: Active Directory Users and Computers is installed. Gathering enabled Windows hosts..." -ForegroundColor Gray
             $ADHosts = Get-ADComputer -Filter {Enabled -eq $true -and OperatingSystem -like '*Windows*'} | Select-Object -ExpandProperty Name
             if ($ADHosts) {
-                New-Item -ItemType Directory -Path (Join-Path -Path $WorkingFolder -ChildPath "scan") -Force
+                $ScanPath = Join-Path -Path $WorkingFolder -ChildPath "scan"
+                if (-not (Test-Path $ScanPath)) { New-Item -ItemType Directory -Path $ScanPath -Force | Out-Null }
                 $ADHosts | Out-File -FilePath $Computers[0] -Force
                 return $ADHosts
             }
-        } else {
+        } elseif ($Computers.Count -eq 1 -and (Test-Path -Path $Computers[0] -PathType Leaf)) {
             Write-Warning "RSAT: Active Directory Tools are NOT installed. Falling back to local host list."
+            return Import-Csv -Path $Computers[0] -Header Host | Select-Object -ExpandProperty Host | Where-Object { $_ -match '\S' }
+        } else{
+            return $Computers | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
         }
     }
-    return $List
 }
 
 function Invoke-UpdateDownload {
