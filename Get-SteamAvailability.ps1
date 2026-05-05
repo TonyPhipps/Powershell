@@ -3,7 +3,7 @@ $url = "https://store.steampowered.com/sale/steamcontroller"
 $checkIntervalSeconds = 60 # 1 Minute check interval
 
 Write-Host "Monitoring Steam Controller Launch (May 4, 2026)..." -ForegroundColor Cyan
-Write-Host "Pattern: *_buy_btn | Interval: 5 min | Audio: On Loop`n"
+Write-Host "Pattern: *_buy_btn | Interval: 1 min | Audio: On Loop`n"
 
 function Play-TheFinalCountdown {
     # Notes: B=988, A=880, G=784, F#=740, E=659, D=587, C#=554
