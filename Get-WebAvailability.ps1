@@ -1,5 +1,6 @@
 # Configuration Parameters
 $url = "https://store.steampowered.com/hardware/steamcontroller/?cc=US&l=english"
+$checkIntervalSeconds = 60 # 1 Minute check interval
 
 # PRESENCE (-OR logic): Target condition met if ANY of these strings are found
 $presenceText = @(
@@ -14,8 +15,6 @@ $absenceText = @(
     "Out of Stock",
     "Coming Soon"
 )
-
-$checkIntervalSeconds = 60 # 1 Minute check interval
 
 Write-Host "Monitoring URL: $url" -ForegroundColor Cyan
 Write-Host "Checking for target phrases. Interval: $checkIntervalSeconds sec`n"
