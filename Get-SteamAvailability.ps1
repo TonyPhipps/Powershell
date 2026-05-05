@@ -1,13 +1,27 @@
 # Configuration
 $url = "https://store.steampowered.com/sale/steamcontroller"
-$checkIntervalSeconds = 300
+$checkIntervalSeconds = 300 # 5 Minute check interval
 
 Write-Host "Monitoring Steam Controller Launch (May 4, 2026)..." -ForegroundColor Cyan
-Write-Host "Using generic match pattern: *_buy_btn`n"
+Write-Host "Pattern: *_buy_btn | Interval: 5 min | Audio: On Loop`n"
 
-function Play-AlertSong {
-    $notes = @(987, 1318, 987, 1318, 1567)
-    foreach ($n in $notes) { [console]::Beep($n, 150) }
+function Play-TheFinalCountdown {
+    # Notes: B=988, A=880, G=784, F#=740, E=659, D=587, C#=554
+    # Format: Frequency, Duration (ms)
+    $melody = @(
+        (740, 150), (659, 150), (740, 600), (494, 600), # F# E F# B
+        (0, 150),                                       # Rest
+        (784, 150), (740, 150), (784, 150), (740, 150), (659, 600), # G F# G F# E
+        (0, 150),
+        (784, 150), (740, 150), (659, 600), (440, 600), # G F# E A
+        (0, 150),
+        (659, 150), (587, 150), (659, 150), (587, 150), (554, 600), (659, 600) # E D E D C# E
+    )
+
+    foreach ($note in $melody) {
+        if ($note[0] -eq 0) { Start-Sleep -Milliseconds $note[1] }
+        else { [console]::Beep($note[0], $note[1]) }
+    }
 }
 
 while ($true) {
@@ -17,39 +31,35 @@ while ($true) {
             Uri = $url
             UseBasicParsing = $true
             UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-            TimeoutSec = 10
+            TimeoutSec = 15
         }
         
         $response = Invoke-WebRequest @params
         $html = $response.Content
 
-        # GENERIC SEARCH:
-        # Matches 'dock_buy_btn', 'controller_buy_btn', or any variation ending in _buy_btn
+        # Match logic: Generic buy button suffix or standard cart class
         $buyButtonDetected = $html -match "_buy_btn" -or $html -match "btn_addtocart"
-        
-        # NEGATIVE MATCH: 
-        # Prevents false positives if the text 'Coming Soon' is still on the page
         $isUnavailable = $html -match "Out of Stock" -or $html -match "Coming Soon"
 
-        if ($buyButtonDetected -and -not $isUnavailable) {
-            Write-Host "`n[$timestamp] !!!!!!! STOCK DETECTED !!!!!!!" -ForegroundColor Black -BackgroundColor White
-            Write-Host "PURCHASE LINK: $url" -ForegroundColor Cyan -BackgroundColor Black
+        if ($true -and -not $isUnavailable) {
+            Write-Host "`n[$timestamp] >>> STOCK DETECTED! <<<" -ForegroundColor Black -BackgroundColor Green
+            Write-Host "LINK: $url" -ForegroundColor Cyan
             
-            # Open the browser immediately
+            # Open browser immediately
             Start-Process $url
             
-            # Loop audio until manual stop
+            # Continuous Loop until Ctrl+C is pressed
             while ($true) {
-                Play-AlertSong
-                Start-Sleep -Milliseconds 500
+                Play-TheFinalCountdown
+                Start-Sleep -Seconds 1
             }
         } 
         else {
-            Write-Host "[$timestamp] Checking... Still unavailable." -ForegroundColor Gray
+            Write-Host "[$timestamp] Not available yet. Sleeping 5 minutes..." -ForegroundColor Gray
         }
     }
     catch {
-        Write-Host "[$timestamp] Steam servers are likely under heavy load. Retrying..." -ForegroundColor Yellow
+        Write-Host "[$timestamp] Server error/timeout. Will retry in 5 minutes..." -ForegroundColor Yellow
     }
 
     Start-Sleep -Seconds $checkIntervalSeconds
