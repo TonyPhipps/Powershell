@@ -1,6 +1,6 @@
 # Configuration
 $url = "https://store.steampowered.com/sale/steamcontroller"
-$checkIntervalSeconds = 30
+$checkIntervalSeconds = 300
 
 Write-Host "Monitoring Steam Controller Launch (May 4, 2026)..." -ForegroundColor Cyan
 Write-Host "Using generic match pattern: *_buy_btn`n"
