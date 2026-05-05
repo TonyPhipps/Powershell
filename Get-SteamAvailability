@@ -1,0 +1,56 @@
+# Configuration
+$url = "https://store.steampowered.com/sale/steamcontroller"
+$checkIntervalSeconds = 30
+
+Write-Host "Monitoring Steam Controller Launch (May 4, 2026)..." -ForegroundColor Cyan
+Write-Host "Using generic match pattern: *_buy_btn`n"
+
+function Play-AlertSong {
+    $notes = @(987, 1318, 987, 1318, 1567)
+    foreach ($n in $notes) { [console]::Beep($n, 150) }
+}
+
+while ($true) {
+    try {
+        $timestamp = Get-Date -Format "HH:mm:ss"
+        $params = @{
+            Uri = $url
+            UseBasicParsing = $true
+            UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+            TimeoutSec = 10
+        }
+        
+        $response = Invoke-WebRequest @params
+        $html = $response.Content
+
+        # GENERIC SEARCH:
+        # Matches 'dock_buy_btn', 'controller_buy_btn', or any variation ending in _buy_btn
+        $buyButtonDetected = $html -match "_buy_btn" -or $html -match "btn_addtocart"
+        
+        # NEGATIVE MATCH: 
+        # Prevents false positives if the text 'Coming Soon' is still on the page
+        $isUnavailable = $html -match "Out of Stock" -or $html -match "Coming Soon"
+
+        if ($buyButtonDetected -and -not $isUnavailable) {
+            Write-Host "`n[$timestamp] !!!!!!! STOCK DETECTED !!!!!!!" -ForegroundColor Black -BackgroundColor White
+            Write-Host "PURCHASE LINK: $url" -ForegroundColor Cyan -BackgroundColor Black
+            
+            # Open the browser immediately
+            Start-Process $url
+            
+            # Loop audio until manual stop
+            while ($true) {
+                Play-AlertSong
+                Start-Sleep -Milliseconds 500
+            }
+        } 
+        else {
+            Write-Host "[$timestamp] Checking... Still unavailable." -ForegroundColor Gray
+        }
+    }
+    catch {
+        Write-Host "[$timestamp] Steam servers are likely under heavy load. Retrying..." -ForegroundColor Yellow
+    }
+
+    Start-Sleep -Seconds $checkIntervalSeconds
+}
