@@ -1,11 +1,24 @@
 # Configuration Parameters
 $url = "https://store.steampowered.com/hardware/steamcontroller/?cc=US&l=english"
-$presenceText = "btn_addtocart" # The text/class that must be present (e.g., buy button)
-$absenceText = "Reservation Servers are busy" # The out-of-stock or error text that must be absent
+
+# PRESENCE (-OR logic): Target condition met if ANY of these strings are found
+$presenceText = @(
+    "btn_addtocart",
+    "_buy_btn",
+    "btn_green_white_innerfade"
+)
+
+# ABSENCE (-AND logic): Target condition met only if ALL of these strings are missing
+$absenceText = @(
+    "Reservation Servers are busy",
+    "Out of Stock",
+    "Coming Soon"
+)
+
 $checkIntervalSeconds = 60 # 1 Minute check interval
 
 Write-Host "Monitoring URL: $url" -ForegroundColor Cyan
-Write-Host "Requires: '$presenceText' | Excludes: '$absenceText' | Interval: $checkIntervalSeconds sec`n"
+Write-Host "Checking for target phrases. Interval: $checkIntervalSeconds sec`n"
 
 # Define the music logic as a scriptblock so it can run asynchronously
 $musicBlock = {
@@ -49,11 +62,27 @@ while ($true) {
         $response = Invoke-WebRequest @params
         $html = $response.Content
 
-        # Generalized match logic for any page
-        $hasRequiredText = $html -match $presenceText
-        $hasExcludedText = $html -match $absenceText
+        # 1. Evaluate Presence (-OR Logic: Is at least one present?)
+        $isPresenceMet = $false
+        foreach ($text in $presenceText) {
+            if ($html -match [regex]::Escape($text)) {
+                $isPresenceMet = $true
+                break # Stop checking once we find one
+            }
+        }
 
-        if ($hasRequiredText -and -not $hasExcludedText) {
+        # 2. Evaluate Absence (-AND Logic: Are they ALL absent?)
+        # Note: If any single item in the list is found, the AND condition fails.
+        $isAbsenceMet = $true
+        foreach ($text in $absenceText) {
+            if ($html -match [regex]::Escape($text)) {
+                $isAbsenceMet = $false 
+                break # Stop checking, we found an excluded term
+            }
+        }
+
+        # Determine overall success
+        if ($isPresenceMet -and $isAbsenceMet) {
             Write-Host "`n[$timestamp] >>> TARGET CONDITION MET! <<<" -ForegroundColor Black -BackgroundColor Green
             Write-Host "LINK: $url" -ForegroundColor Cyan
             
@@ -74,7 +103,7 @@ while ($true) {
                 Remove-Job -Job $musicJob
                 $musicJob = $null
             }
-            Write-Host "[$timestamp] Not available yet. Sleeping..." -ForegroundColor Gray
+            Write-Host "[$timestamp] Conditions not met. Sleeping..." -ForegroundColor Gray
         }
     }
     catch {
