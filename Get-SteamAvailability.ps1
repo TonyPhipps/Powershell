@@ -1,6 +1,6 @@
 # Configuration
 $url = "https://store.steampowered.com/sale/steamcontroller"
-$checkIntervalSeconds = 300 # 5 Minute check interval
+$checkIntervalSeconds = 60 # 1 Minute check interval
 
 Write-Host "Monitoring Steam Controller Launch (May 4, 2026)..." -ForegroundColor Cyan
 Write-Host "Pattern: *_buy_btn | Interval: 5 min | Audio: On Loop`n"
@@ -41,7 +41,7 @@ while ($true) {
         $buyButtonDetected = $html -match "_buy_btn" -or $html -match "btn_addtocart"
         $isUnavailable = $html -match "Out of Stock" -or $html -match "Coming Soon"
 
-        if ($true -and -not $isUnavailable) {
+        if ($buyButtonDetected -and -not $isUnavailable) {
             Write-Host "`n[$timestamp] >>> STOCK DETECTED! <<<" -ForegroundColor Black -BackgroundColor Green
             Write-Host "LINK: $url" -ForegroundColor Cyan
             
@@ -55,11 +55,11 @@ while ($true) {
             }
         } 
         else {
-            Write-Host "[$timestamp] Not available yet. Sleeping 5 minutes..." -ForegroundColor Gray
+            Write-Host "[$timestamp] Not available yet. Sleeping..." -ForegroundColor Gray
         }
     }
     catch {
-        Write-Host "[$timestamp] Server error/timeout. Will retry in 5 minutes..." -ForegroundColor Yellow
+        Write-Host "[$timestamp] Server error/timeout. Will retry..." -ForegroundColor Yellow
     }
 
     Start-Sleep -Seconds $checkIntervalSeconds
