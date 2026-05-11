@@ -161,22 +161,25 @@ param (
 )
 
 if (-not $WorkingFolder) {
-    $CurrentScriptPath = $MyInvocation.MyCommand.Path
-    if (-not $CurrentScriptPath) {
-        $CurrentScriptPath = if ($psISE) { $psISE.CurrentFile.FullPath } else { $PSCommandPath }
+    if ($psISE -and (Test-Path -Path $psISE.CurrentFile.FullPath)) {
+        $ScriptRoot = Split-Path -Path $psISE.CurrentFile.FullPath -Parent
+    } else {
+        $ScriptRoot = $PSScriptRoot
     }
-    $ScriptRoot = Split-Path -Path $CurrentScriptPath -Parent
-    $LocalUpdaterPath = Join-Path -Path $ScriptRoot -ChildPath "OfflineUpdater"
-    if (Test-Path -Path $LocalUpdaterPath) {
-        $WorkingFolder = $LocalUpdaterPath
+    $LocalPath = Join-Path -Path $ScriptRoot -ChildPath "OfflineUpdate"
+    $ParentPath = Join-Path -Path (Split-Path -Path $ScriptRoot -Parent) -ChildPath "OfflineUpdate"
+    if (Test-Path -Path $LocalPath) {
+        $WorkingFolder = $LocalPath
     } 
-    else {
+    elseif (Test-Path -Path $ParentPath) {
+        $WorkingFolder = $ParentPath
+    }
+    else { # Fallback to D: Drive or C: root
         $DiskD = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID = 'D:' and DriveType = 3"
         if ($DiskD) {
-            $WorkingFolder = "D:\OfflineUpdater"
-        } 
-        else {
-            $WorkingFolder = "C:\OfflineUpdater"
+            $WorkingFolder = "D:\OfflineUpdate"
+        } else {
+            $WorkingFolder = "C:\OfflineUpdate"
         }
     }
 }
