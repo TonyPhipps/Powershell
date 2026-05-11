@@ -31,6 +31,14 @@ New-Partition -DiskNumber 1 -UseMaximumSize -AssignDriveLetter
 Format-Volume -DriveLetter F -FileSystem NTFS -NewFileSystemLabel "Label"
 ```
 
+Format a USB to FAT32
+```ps
+get-disk
+Clear-Disk -Number 1 -RemoveData -Confirm:$false
+Initialize-Disk -Number 1 -PartitionStyle MBR
+$part = New-Partition -DiskNumber 1 -Size 2GB -AssignDriveLetter
+Format-Volume -DriveLetter $part.DriveLetter -FileSystem FAT32 -NewFileSystemLabel "SYNC"
+```
 
 
 Get BitLocker Keys
