@@ -23,9 +23,9 @@ get-wmiobject -class 'Win32_LogicalDisk' -Filter 'drivetype=4'
 Drives Reference
 ```ps
 Get-Disk
-clear-disk -number 1 -removedata -RemoveOEM
-Initialize-Disk -Number 1 -PartitionStyle GPT
 Get-Partition -DiskNumber 1
+Clear-Disk -Number 1 -RemoveData -RemoveOEM
+Initialize-Disk -Number 1 -PartitionStyle GPT
 Remove-Partition -DiskNumber 1 -PartitionNumber 1
 New-Partition -DiskNumber 1 -UseMaximumSize -AssignDriveLetter
 Format-Volume -DriveLetter F -FileSystem NTFS -NewFileSystemLabel "Label"
