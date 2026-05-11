@@ -614,8 +614,6 @@ if ($Scan) {
     if ($SkipAD -and ($null -eq $Computers -or $Computers -eq "")) {
         $TargetEndpoints = $env:COMPUTERNAME
         Write-Host "SkipAD detected with no target list. Defaulting to local scan: $TargetEndpoints" -ForegroundColor Cyan
-    } else {
-        $TargetEndpoints = Get-TargetComputers -Computers $Computers -SkipAD:$SkipAD
     }
     if (-not $TargetEndpoints) {
         Write-Error "No target computers found to scan."
