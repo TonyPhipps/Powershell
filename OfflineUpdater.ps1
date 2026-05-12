@@ -528,20 +528,23 @@ if (-not $WorkingFolder) {
     } else {
         $ScriptRoot = $PSScriptRoot
     }
-    $LocalPath = Join-Path -Path $ScriptRoot -ChildPath "OfflineUpdater"
-    $ParentPath = Join-Path -Path (Split-Path -Path $ScriptRoot -Parent) -ChildPath "OfflineUpdater"
-    if (Test-Path -Path $LocalPath) {
-        $WorkingFolder = $LocalPath
-    } 
-    elseif (Test-Path -Path $ParentPath) {
-        $WorkingFolder = $ParentPath
+    $SubFolderPath = Join-Path -Path $ScriptRoot -ChildPath "OfflineUpdater"
+    $SiblingPath   = Join-Path -Path (Split-Path -Path $ScriptRoot -Parent) -ChildPath "OfflineUpdater"
+    if (Test-Path -Path (Join-Path $ScriptRoot "modules")) { # Check if we are ALREADY inside the folder (it contains the necessary 'modules' or 'catalog')
+        $WorkingFolder = $ScriptRoot
     }
-    else { # Fallback to D: Drive or C: root
+    elseif (Test-Path -Path $SubFolderPath) { # Check if the folder is a sub-directory
+        $WorkingFolder = $SubFolderPath
+    }
+    elseif (Test-Path -Path $SiblingPath) { # Check if the folder is "next to" us (Sibling)
+        $WorkingFolder = $SiblingPath
+    }
+     else {   # Fallback to D: or C: 
         $DiskD = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID = 'D:' and DriveType = 3"
         if ($DiskD) {
-            $WorkingFolder = "D:\OfflineUpdater"
+            $WorkingFolder = "D:\OfflineUpdate"
         } else {
-            $WorkingFolder = "C:\OfflineUpdater"
+            $WorkingFolder = "C:\OfflineUpdate"
         }
     }
 }
