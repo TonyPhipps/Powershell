@@ -186,7 +186,11 @@ function Get-TargetComputers {
             return $Computers | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
         }
     } else { # NO SKIPAD
-        $isInstalled = (Get-WindowsFeature -Name RSAT-ADDS-Tools -ErrorAction SilentlyContinue).Installed
+        try {
+            $isInstalled = (Get-WindowsFeature -Name RSAT-ADDS-Tools -ErrorAction SilentlyContinue).Installed
+        } catch {
+            $isInstalled = $false
+        }
         if ($isInstalled) {
             Write-Host "RSAT: Active Directory Users and Computers is installed. Gathering enabled Windows hosts..." -ForegroundColor Gray
             $ADHosts = Get-ADComputer -Filter {Enabled -eq $true -and OperatingSystem -like '*Windows*'} | Select-Object -ExpandProperty Name
@@ -196,11 +200,20 @@ function Get-TargetComputers {
                 $ADHosts | Out-File -FilePath $Computers[0] -Force
                 return $ADHosts
             }
-        } elseif (Test-Path -Path $Computers[0] -PathType Leaf) {
-            Write-Warning "RSAT: Active Directory Tools are NOT installed. Falling back to local host list."
-            return Import-Csv -Path $Computers[0] -Header Host | Select-Object -ExpandProperty Host | Where-Object { $_ -match '\S' } 
         } else {
-            return $Computers | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
+            Write-Warning "RSAT: Active Directory Tools are NOT installed. Falling back to local host list file > local host."
+            if ($null -eq $Computers) {
+                $Computers = [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt")
+                if (Test-Path -Path $Computers){
+                    return (Get-Content -Path $Computers[0])
+                } else {
+                    return $env:COMPUTERNAME
+                }
+            } elseif (Test-Path -Path $Computers -PathType Leaf){
+                return (Get-Content -Path $Computers[0])
+            } else {
+                return $Computers | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
+            }
         }
     }
 }
@@ -507,6 +520,7 @@ function Remove-TempFiles {
     }
 }
 
+Clear-Host
 # --- Paramter Checks and Resolution ---
 if (-not $WorkingFolder) {
     if ($psISE -and (Test-Path -Path $psISE.CurrentFile.FullPath)) {
@@ -541,7 +555,6 @@ $TargetEndpoints = Get-TargetComputers -Computers $Computers -SkipAD:$SkipAD
 $NoActionSelected = -not ($PreparePackage -or $Install -or $Scan -or $DownloadUpdates -or $DeployUpdates -or $DeployUpdatesLocal)
 if ($NoActionSelected) {
     do {
-        Clear-Host
         Write-Host "================================================================" -ForegroundColor Cyan
         Write-Host "               OFFLINE WINDOWS UPDATER - MAIN MENU              " -ForegroundColor Cyan
         Write-Host "================================================================" -ForegroundColor Cyan
