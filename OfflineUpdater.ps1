@@ -516,7 +516,55 @@ function Remove-TempFiles {
             }
         }
         catch {
-            Write-Host "$($Computer): Connection Failed." -ForegroundColor Red
+function Get-RootCerts {
+    [CmdletBinding()]
+    param([string]$CertPath)
+    
+    Write-Host "Generating Root Certificates... " -ForegroundColor Gray -NoNewline
+    $CertDir = Split-Path -Path $CertPath -Parent
+    if (-not (Test-Path $CertDir)) { New-Item -ItemType Directory -Path $CertDir -Force | Out-Null }
+    try {
+        certutil.exe -generateSSTFromWU "$CertPath"
+        Write-Host "[Success] (Root certificates saved to $CertPath)" -ForegroundColor Green
+    } catch {
+        Write-Error "[Failure] (Could not generate certificate store: $($_.Exception.Message))"
+    }
+}
+
+function Install-RootCerts {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)] [string[]]$ComputerNames,
+        [Parameter(Mandatory = $true)] [string]$CertPath
+    )
+
+    Write-Host "--- Operation: Deploying Certificates to Endpoints ---" -ForegroundColor Gray
+    $CertBlock = {
+        param($SstContent)
+        try {
+            $TempFile = Join-Path $env:TEMP "roots.sst"
+            [io.file]::WriteAllBytes($TempFile, $SstContent)
+            $sst = Get-ChildItem $TempFile
+            $sst | Import-Certificate -CertStoreLocation Cert:\LocalMachine\Root -ErrorAction Stop
+            Remove-Item $TempFile -Force
+            return "[Success]"
+        } catch {
+            return "[Failure] ($($_.Exception.Message))"
+        }
+    }
+
+    $SstBytes = [System.IO.File]::ReadAllBytes($CertPath)
+    foreach ($Computer in $ComputerNames) {
+        Write-Host "Deploying updated root certificates to $Computer... " -NoNewline -ForegroundColor Cyan
+        try {
+            $Result = Invoke-Command -ComputerName $Computer -ScriptBlock $CertBlock -ArgumentList (,$SstBytes) -ErrorAction Stop
+            if ($Result -eq "[Success]") {
+                Write-Host "[Success]" -ForegroundColor Green
+            } else {
+                Write-Host "$Result" -ForegroundColor Red
+            }
+        } catch {
+            Write-Host "[Failure] (Could not connect)" -ForegroundColor Red
         }
     }
 }
@@ -549,10 +597,7 @@ if (-not $WorkingFolder) {
         }
     }
 }
-if (-not $Modules)    { $Modules = Join-Path -Path $WorkingFolder -ChildPath "modules" }
-if (-not $Repository) { $Repository = Join-Path -Path $WorkingFolder -ChildPath "repository" }
-if (-not $Results)    { $Results = Join-Path -Path $WorkingFolder -ChildPath "ScanResults" }
-if (-not $Catalog)    { $Catalog = Join-Path -Path $WorkingFolder -ChildPath "catalog\wsusscn2.cab" }
+if (-not $Certificates) { $Certificates = Join-Path -Path $WorkingFolder -ChildPath "certs\roots.sst" }
 $TargetEndpoints = Get-TargetComputers -Computers $Computers -SkipAD:$SkipAD
 
 # --- INTERACTIVE MENU ---
@@ -602,6 +647,7 @@ if ($PreparePackage) {
         Save-Module -Name xWindowsUpdate -Path $Modules -ErrorAction Stop -Verbose
         Get-ChildItem -Path $WorkingFolder -Recurse | Unblock-File
         Invoke-UpdateDownload -Url "https://go.microsoft.com/fwlink/?linkid=74689" -DestinationPath $Catalog -CheckExpiration
+        Get-RootCerts -CertPath $Certificates
         Write-Host "Success! Package ready at: $WorkingFolder" -ForegroundColor Green
     }
     catch {
@@ -645,16 +691,17 @@ if ($Scan) {
     if (-not (Test-Path $Results)) {
         New-Item -ItemType Directory -Path $Results -Force | Out-Null
     }
-    if ($SkipAD -and ($null -eq $Computers -or $Computers -eq "")) {
-        $TargetEndpoints = $env:COMPUTERNAME
-        Write-Host "SkipAD detected with no target list. Defaulting to local scan: $TargetEndpoints" -ForegroundColor Cyan
-    }
-    if (-not $TargetEndpoints) {
-        Write-Error "No target computers found to scan."
-        return
-    }
     $ScanResults = foreach ($Endpoint in $TargetEndpoints) {
-        Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force -Verbose
+        try{
+            Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force #-Verbose
+        } catch {
+            if ($_.Exception.Message -match "0x8009200D" -or $_.Exception.Message -match "cryptographic message") {
+                if (Test-Path $Certificates) {
+                    Install-RootCerts -ComputerNames $TargetEndpoints -CertPath $Certificates
+                }                
+            }
+            throw $_ # Re-throw other errors
+        }
     }
     if ($ScanResults) {
         $ReportPath = Join-Path $Results -ChildPath "Full_Compliance_Report_$((Get-Date).ToString('yyyyMMdd_HHmm')).csv"
@@ -676,6 +723,7 @@ if ($Scan) {
 if ($DownloadUpdates) {
     $DefenderPath = Join-Path $WorkingFolder "DefenderUpdates"
     Get-DefenderUpdates -DefenderUpdatesPath $DefenderPath
+    Get-RootCerts -CertPath $Certificates
     if (-not $DefenderOnly){
         Write-Host "--- Checking wsusscn2.cab for age ---" -ForegroundColor Gray
         Invoke-UpdateDownload -Url "https://go.microsoft.com/fwlink/?linkid=74689" -DestinationPath $Catalog -CheckExpiration
