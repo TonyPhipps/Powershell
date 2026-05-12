@@ -202,7 +202,7 @@ function Get-TargetComputers {
                 return $ADHosts
             }
         } else {
-            Write-Warning "RSAT: Active Directory Tools are NOT installed. Falling back to local host list file > local host."
+            Write-Host "RSAT: Active Directory Tools are NOT installed. Falling back to local host list file > local host." -ForegroundColor Red
             if ($null -eq $Computers) {
                 $Computers = [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt")
                 if (Test-Path -Path $Computers){
@@ -236,12 +236,12 @@ function Invoke-UpdateDownload {
     if ($CheckExpiration -and (Test-Path $FullDestination)) {
         $LastModified = (Get-Item $FullDestination).LastWriteTime
         if ($LastModified -ge (Get-Date).AddDays(-1)) {
-            Write-Host "[o] $FileName is current (Updated: $($LastModified.ToString('MM/dd HH:mm')))." -ForegroundColor Gray
+            Write-Host "[Skip] ($FileName is current: $($LastModified.ToString('MM/dd HH:mm')))." -ForegroundColor Gray
             return
         }
     }
     if (-not $CheckExpiration -and (Test-Path $FullDestination)) {
-        Write-Host "SKIPPING: $FileName (Already exists.)" -ForegroundColor Gray
+        Write-Host "[SKIP] ($FileName already exists)" -ForegroundColor Gray
         return
     }
     $ParentDir = Split-Path $FullDestination -Parent
@@ -255,8 +255,7 @@ function Invoke-UpdateDownload {
         Write-Host "[Success]" -ForegroundColor Green
     }
     catch {
-        Write-Host "[FAILED]" -ForegroundColor Red
-        Write-Warning "Error: $($_.Exception.Message)"
+        Write-Host "[Failure] (Error: $($_.Exception.Message))" -ForegroundColor Red
     }
 }
 
@@ -281,7 +280,7 @@ function Get-DefenderUpdates {
     if ($CurrentFiles) {
         $OldestFile = $CurrentFiles | Sort-Object LastWriteTime | Select-Object -First 1
         if ($OldestFile.LastWriteTime -lt (Get-Date).AddDays(-1)) {
-            Write-Host "[!] Platform updates are outdated. Cleaning up old files..." -ForegroundColor Yellow
+            Write-Host "Platform updates are outdated. Cleaning up old files..." -ForegroundColor Cyan
             Remove-Item -Path "$DefenderUpdatesPath\updateplatform*" -Force -ErrorAction SilentlyContinue
         }
     }
@@ -301,7 +300,7 @@ function Install-DefenderUpdates {
         [string]$ShareName = "DefenderUpdates"
     )
 
-    Write-Host "--- Operation: Deploying Defender Platform & Signatures ---" -ForegroundColor Gray
+    Write-Host "--- Deploying Defender Platform & Signatures ---" -ForegroundColor Gray
     $RepoManifest = @{}
     $PlatformFiles = Get-ChildItem -Path $DefenderUpdatesPath -Filter "updateplatform*.exe"
     foreach ($File in $PlatformFiles) {
@@ -317,7 +316,7 @@ function Install-DefenderUpdates {
     }
     $UncPath = "\\$($env:COMPUTERNAME)\$ShareName"
     foreach ($Computer in $TargetEndpoints) {
-        Write-Host "Defender Update Target: $($Computer)" -ForegroundColor Cyan
+        Write-Host "Checking Defender Status for $($Computer)... " -ForegroundColor Gray
         $Session = $null
         try {
             $Session = New-PSSession -ComputerName $Computer -ErrorAction Stop
@@ -350,13 +349,13 @@ function Install-DefenderUpdates {
                 }
             }
             if ($RemoteStatus.Skip) {
-                Write-Host "SKIPPING: $($Computer) - $($RemoteStatus.Reason)" -ForegroundColor Yellow
+                Write-Host "`t[SKIP] ($($RemoteStatus.Reason))" -ForegroundColor Yellow
                 continue
             }
             $Match = $RepoManifest[$RemoteStatus.ArchKey]
             $PlatformWasUpdated = $false
             if ($Match -and ($RemoteStatus.PlatformVer -lt $Match.Version)) {
-                Write-Host "Updating Platform: $($RemoteStatus.PlatformVer) -> $($Match.Version)" -ForegroundColor Cyan
+                Write-Host "`tUpdating Platform: $($RemoteStatus.PlatformVer) -> $($Match.Version)" -ForegroundColor Cyan
                 $StagingPath = "C:\Windows\Temp\$($Match.FileName)"
                 Copy-Item -Path $Match.LocalPath -Destination $StagingPath -ToSession $Session -Force
                 Invoke-Command -Session $Session -ArgumentList $StagingPath -ScriptBlock {
@@ -393,17 +392,15 @@ function Install-DefenderUpdates {
             if ($FinalReport) {
                 $EngineOut = if ($RemoteStatus.EngineVer -ne $FinalReport.AMEngineVersion) { "$($RemoteStatus.EngineVer) -> $($FinalReport.AMEngineVersion)" } else { "$($FinalReport.AMEngineVersion) (Current)" }
                 $SigOut    = if ($RemoteStatus.SignatureVer -ne $FinalReport.AntivirusSignatureVersion) { "$($RemoteStatus.SignatureVer) -> $($FinalReport.AntivirusSignatureVersion)" } else { "$($FinalReport.AntivirusSignatureVersion) (Current)" }
-                Write-Host "Deployment Results:" -ForegroundColor Green
-                Write-Host "- Engine: $EngineOut" -ForegroundColor Green
-                Write-Host "- Signatures: $SigOut" -ForegroundColor Green
+                Write-Host "`t[Report] (Engine: $EngineOut`t`tSignatures: $SigOut)" -ForegroundColor Green
                 if ($PlatformWasUpdated) {
-                    Write-Host "Platform updated to $($Match.Version). REBOOT REQUIRED to complete." -ForegroundColor Yellow
+                    Write-Host "`t[Success] (Platform updated to $($Match.Version). REBOOT REQUIRED to complete.)" -ForegroundColor Yellow
                 }
             } else {
-                Write-Host "Defender updated, but WMI is unresponsive. Reboot recommended." -ForegroundColor Yellow
+                Write-Host "`t[Success] (Defender updated, but WMI is unresponsive. Reboot recommended.)" -ForegroundColor Yellow
             }
         } catch {
-            Write-Host "Failed: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "`t[Failure] ($($_.Exception.Message))" -ForegroundColor Red
         } finally {
             if ($Session) { Remove-PSSession $Session }
         }
@@ -417,6 +414,7 @@ function Get-RebootStatus {
         [string[]]$ComputerNames = $env:COMPUTERNAME
     )
 
+    Write-Host "--- Validating Reboot Status ---" -ForegroundColor Gray
     $RebootCheckBlock = {
         $Status = [PSCustomObject]@{
             ComputerName = $env:COMPUTERNAME
@@ -440,8 +438,8 @@ function Get-RebootStatus {
         }
         return $Status
     }
-    Write-Host "--- Validating Reboot Status ---" -ForegroundColor Gray
     foreach ($Computer in $ComputerNames) {
+        Write-Host "Validating reboot status for $($Computer)... " -ForegroundColor Gray -NoNewline
         try {
             $Result = if ($Computer -eq $env:COMPUTERNAME -or $Computer -eq "localhost") {
                 & $RebootCheckBlock
@@ -450,14 +448,14 @@ function Get-RebootStatus {
                 Invoke-Command -ComputerName $Computer -ScriptBlock $RebootCheckBlock -ErrorAction Stop
             }
             if ($Result.NeedsReboot) {
-                Write-Host "[!] $($Result.ComputerName): REBOOT REQUIRED ($($Result.Trigger))" -ForegroundColor Yellow
+                Write-Host "[Reboot Required] ($($Result.Trigger))" -ForegroundColor Yellow
             }
             else {
-                Write-Host "[o] $($Result.ComputerName): No reboot pending." -ForegroundColor Gray
+                Write-Host "[Success] (No Reboot Needed)" -ForegroundColor Gray
             }
         }
         catch {
-            Write-Host "[X] $($Computer): Connection Failed." -ForegroundColor Red
+            Write-Host "[Failure] (Connection Failed)" -ForegroundColor Red
         }
     }
 }
@@ -472,9 +470,9 @@ function Remove-TempFiles {
         [string]$CustomStagingPath = (Join-Path $Home "Downloads")
     )
 
+    Write-Host "--- Initiating Patch Cleanup ---" -ForegroundColor Cyan
     $CleanupBlock = {
         param($TargetPath)
-        $Results = [System.Collections.Generic.List[string]]::new()
         if (Test-Path $TargetPath) {
             $PatchFiles = Get-ChildItem -Path $TargetPath -Include *.msu, *.cab, *.exe -Recurse -ErrorAction SilentlyContinue | 
                 Where-Object { 
@@ -484,38 +482,34 @@ function Remove-TempFiles {
             foreach ($File in $PatchFiles) {
                 try {
                     Remove-Item -Path $File.FullName -Force -ErrorAction Stop
-                    $Results.Add("Successfully removed: $($File.Name)")
+                    Write-Host "[Success] (Removed $($File.Name))" -ForegroundColor Green
                 } catch {
-                    $Results.Add("FAILED to remove $($File.Name): $($_.Exception.Message)")
+                    Write-Host "[Failure] (Could not remove $($File.Name): $($_.Exception.Message))" -ForegroundColor Red
                 }
             }
         }
-        return [PSCustomObject]@{
-            ComputerName = $env:COMPUTERNAME
-            Logs         = $Results
-            FoundFiles   = ($PatchFiles.Count -gt 0)
-        }
     }
-    Write-Host "--- Initiating Patch Cleanup ---" -ForegroundColor Cyan
     foreach ($Computer in $ComputerNames) {
-        Write-Host "Checking $Computer..." -ForegroundColor Gray
+        Write-Host "Cleaning patch files from $($Computer)... " -ForegroundColor Gray -NoNewline
         try {
-            $Output = if ($Computer -eq $env:COMPUTERNAME -or $Computer -eq "localhost") {
+            if ($Computer -eq $env:COMPUTERNAME -or $Computer -eq "localhost") {
                 & $CleanupBlock -TargetPath $CustomStagingPath
             }
             else {
-                Invoke-Command -ComputerName $Computer -ScriptBlock $CleanupBlock -ArgumentList $CustomStagingPath -ErrorAction Stop
-            }
-            if ($Output.FoundFiles) {
-                foreach ($LogEntry in $Output.Logs) {
-                    $Color = if ($LogEntry -match "FAILED") { "Red" } else { "Gray" }
-                    Write-Host "[!] $LogEntry" -ForegroundColor $Color
+                $Result = Invoke-Command -ComputerName $Computer -ScriptBlock $CleanupBlock -ArgumentList $CustomStagingPath -ErrorAction Stop
+                if ($Result -match "[Success]%") {
+                    Write-Host "$Result" -ForegroundColor Green
+                } else {
+                    Write-Host "$Result" -ForegroundColor Red
                 }
-            } else {
-                Write-Host "No temporary patch files found." -ForegroundColor DarkGray
             }
         }
         catch {
+            Write-Host "[Failure] (Connection failure)" -ForegroundColor Red
+        }
+    }
+}
+
 function Get-RootCerts {
     [CmdletBinding()]
     param([string]$CertPath)
@@ -597,6 +591,10 @@ if (-not $WorkingFolder) {
         }
     }
 }
+if (-not $Modules)      { $Modules = Join-Path -Path $WorkingFolder -ChildPath "modules" }
+if (-not $Repository)   { $Repository = Join-Path -Path $WorkingFolder -ChildPath "repository" }
+if (-not $Results)      { $Results = Join-Path -Path $WorkingFolder -ChildPath "ScanResults" }
+if (-not $Catalog)      { $Catalog = Join-Path -Path $WorkingFolder -ChildPath "catalog\wsusscn2.cab" }
 if (-not $Certificates) { $Certificates = Join-Path -Path $WorkingFolder -ChildPath "certs\roots.sst" }
 $TargetEndpoints = Get-TargetComputers -Computers $Computers -SkipAD:$SkipAD
 
@@ -643,15 +641,15 @@ if ($PreparePackage) {
         $CatalogDir = Split-Path -Path $Catalog -Parent
         if (-not (Test-Path -Path $CatalogDir)) { New-Item -ItemType Directory -Path $CatalogDir -Force | Out-Null }
         Write-Host "Saving module to $Modules..." -ForegroundColor Gray
-        Save-Module -Name kbupdate -Path $Modules -ErrorAction Stop -Verbose
-        Save-Module -Name xWindowsUpdate -Path $Modules -ErrorAction Stop -Verbose
+        Save-Module -Name kbupdate -Path $Modules -ErrorAction Stop #-Verbose
+        Save-Module -Name xWindowsUpdate -Path $Modules -ErrorAction Stop #-Verbose
         Get-ChildItem -Path $WorkingFolder -Recurse | Unblock-File
         Invoke-UpdateDownload -Url "https://go.microsoft.com/fwlink/?linkid=74689" -DestinationPath $Catalog -CheckExpiration
         Get-RootCerts -CertPath $Certificates
         Write-Host "Success! Package ready at: $WorkingFolder" -ForegroundColor Green
     }
     catch {
-        Write-Error "Preparation failed: $($_.Exception.Message)"
+        Write-Error "[Failure] ($($_.Exception.Message))"
     }
 }
 
@@ -775,12 +773,12 @@ if ($DeployUpdates) {
                 if (Test-Path $LocalPath) {
                     $VerifiedUpdates.Add($Update)
                 } else {
-                    Write-Host "SKIPPING: $($Update.KBUpdate) ($FileName) - File not found in Repository." -ForegroundColor Red
+                    Write-Host "[SKIP] $($Update.KBUpdate) ($FileName) - File not found in Repository." -ForegroundColor Red
                 }
             }
             if ($VerifiedUpdates.Count -gt 0) {
                 Write-Host "Starting deployment of $($VerifiedUpdates.Count) verified files..." -ForegroundColor Gray
-                $VerifiedUpdates | Install-KbUpdate -RepositoryPath $Repository -NoMultithreading -Verbose
+                $VerifiedUpdates | Install-KbUpdate -RepositoryPath $Repository -NoMultithreading #-Verbose
                 Write-Host "Deployment tasks completed." -ForegroundColor Green
             } else {
                 Write-Warning "No matching update files found in $Repository. Nothing to deploy."
