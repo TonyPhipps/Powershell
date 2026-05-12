@@ -559,30 +559,30 @@ $TargetEndpoints = Get-TargetComputers -Computers $Computers -SkipAD:$SkipAD
 $NoActionSelected = -not ($PreparePackage -or $Install -or $Scan -or $DownloadUpdates -or $DeployUpdates -or $DeployUpdatesLocal)
 if ($NoActionSelected) {
     do {
-        Write-Host "================================================================" -ForegroundColor Cyan
-        Write-Host "               OFFLINE WINDOWS UPDATER - MAIN MENU              " -ForegroundColor Cyan
-        Write-Host "================================================================" -ForegroundColor Cyan
-        Write-Host " 1) -Prepare Package        (Run on INTERNET-CONNECTED computer)"
-        Write-Host " 2) -Install Modules        (Run on AIR-GAPPED computer)"
-        Write-Host " 3) -Scan Endpoints         (Run on AIR-GAPPED computer)"
-        Write-Host " 4) -Download ALL Updates   (Run on INTERNET-CONNECTED computer)"
-        Write-Host " 5) -Download Defender ONLY (Run on INTERNET-CONNECTED computer)"
-        Write-Host " 6) -Deploy ALL Updates     (Run on AIR-GAPPED computer)"
-        Write-Host " 7) -Deploy Defender ONLY   (Run on AIR-GAPPED computer)"
-        Write-Host " 8) -DeployLocal Updates    (Run on AIR-GAPPED computer)"
+        Write-Host "=================================================================" -ForegroundColor Cyan
+        Write-Host "                OFFLINE WINDOWS UPDATER - MAIN MENU              " -ForegroundColor Cyan
+        Write-Host "=================================================================" -ForegroundColor Cyan
+        Write-Host " 0a)  -Prepare Package       (Run on INTERNET-CONNECTED computer)"
+        Write-Host " 0b)  -Install Modules       (Run on AIR-GAPPED computer)"
+        Write-Host " 1)  -Scan Endpoints         (Run on AIR-GAPPED computer)"
+        Write-Host " 2a) -Download ALL Updates   (Run on INTERNET-CONNECTED computer)"
+        Write-Host " 2b) -Download Defender ONLY (Run on INTERNET-CONNECTED computer)"
+        Write-Host " 3a) -Deploy ALL Updates     (Run on AIR-GAPPED computer)"
+        Write-Host " 3b) -Deploy Defender ONLY   (Run on AIR-GAPPED computer)"
+        Write-Host " 3c) -Deploy Windows Updates Locally"
         Write-Host " Q) Quit"
-        Write-Host "================================================================" -ForegroundColor Cyan
+        Write-Host "=================================================================" -ForegroundColor Cyan
         $Choice = Read-Host "Select an option (1-8 or Q)"
-        switch ($Choice) {
-            "1" { $PreparePackage = $true;       $Continue = $false }
-            "2" { $Install = $true;              $Continue = $false }
-            "3" { $Scan = $true;                 $Continue = $false }
-            "4" { $DownloadUpdates = $true;      $Continue = $false }
-            "5" { $DownloadUpdates = $true;      $DefenderOnly = $true; $Continue = $false }
-            "6" { $DeployUpdates = $true;        $Continue = $false }
-            "7" { $DeployUpdates = $true;        $DefenderOnly = $true; $Continue = $false }
-            "8" { $DeployUpdatesLocal = $true;   $Continue = $false }
-            "Q" { exit }
+        switch ($Choice.ToLower()) {
+            "0a" { $PreparePackage = $true;     $Continue = $false }
+            "0b" { $Install = $true;            $Continue = $false }
+            "1"  { $Scan = $true;               $Continue = $false }
+            "2a" { $DownloadUpdates = $true;    $Continue = $false }
+            "2b" { $DownloadUpdates = $true;    $DefenderOnly = $true; $Continue = $false }
+            "3a" { $DeployUpdates = $true;      $Continue = $false }
+            "3b" { $DeployUpdates = $true;      $DefenderOnly = $true; $Continue = $false }
+            "3c" { $DeployUpdatesLocal = $true; $Continue = $false }
+            "Q"  { exit }
             default { Write-Host "Invalid selection, try again." -ForegroundColor Red; Start-Sleep -Seconds 1; $Continue = $true }
         }
     } while ($Continue)
