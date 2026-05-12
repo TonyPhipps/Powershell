@@ -195,8 +195,9 @@ function Get-TargetComputers {
             Write-Host "RSAT: Active Directory Users and Computers is installed. Gathering enabled Windows hosts..." -ForegroundColor Gray
             $ADHosts = Get-ADComputer -Filter {Enabled -eq $true -and OperatingSystem -like '*Windows*'} | Select-Object -ExpandProperty Name
             if ($ADHosts) {
-                $ScanPath = Join-Path -Path $WorkingFolder -ChildPath "scan"
-                if (-not (Test-Path $ScanPath)) { New-Item -ItemType Directory -Path $ScanPath -Force | Out-Null }
+                if ($null -eq $Computers) {
+                    $Computers = [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt")
+                }
                 $ADHosts | Out-File -FilePath $Computers[0] -Force
                 return $ADHosts
             }
