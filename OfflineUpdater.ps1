@@ -560,7 +560,7 @@ $NoActionSelected = -not ($PreparePackage -or $Install -or $Scan -or $DownloadUp
 if ($NoActionSelected) {
     do {
         Write-Host "=================================================================" -ForegroundColor Cyan
-        Write-Host "                OFFLINE WINDOWS UPDATER - MAIN MENU              " -ForegroundColor Cyan
+        Write-Host "                     OFFLINE WINDOWS UPDATER                    " -ForegroundColor Cyan
         Write-Host "=================================================================" -ForegroundColor Cyan
         Write-Host " 0a) -Prepare Package        (Run on INTERNET-CONNECTED computer)"
         Write-Host " 0b) -Install Modules        (Run on AIR-GAPPED computer)"
@@ -588,7 +588,7 @@ if ($NoActionSelected) {
     } while ($Continue)
 }
 
-# --- PREPARE PACKAGE (OFFLINE ASSETS) ---
+# --- PREPARE PACKAGE ---
 if ($PreparePackage) {
     Write-Host "--- Operation: Prepare Package ---" -ForegroundColor Gray
     try {
