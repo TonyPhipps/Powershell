@@ -562,15 +562,15 @@ if ($NoActionSelected) {
         Write-Host "=================================================================" -ForegroundColor Cyan
         Write-Host "                OFFLINE WINDOWS UPDATER - MAIN MENU              " -ForegroundColor Cyan
         Write-Host "=================================================================" -ForegroundColor Cyan
-        Write-Host " 0a)  -Prepare Package       (Run on INTERNET-CONNECTED computer)"
-        Write-Host " 0b)  -Install Modules       (Run on AIR-GAPPED computer)"
+        Write-Host " 0a) -Prepare Package        (Run on INTERNET-CONNECTED computer)"
+        Write-Host " 0b) -Install Modules        (Run on AIR-GAPPED computer)"
         Write-Host " 1)  -Scan Endpoints         (Run on AIR-GAPPED computer)"
         Write-Host " 2a) -Download ALL Updates   (Run on INTERNET-CONNECTED computer)"
         Write-Host " 2b) -Download Defender ONLY (Run on INTERNET-CONNECTED computer)"
         Write-Host " 3a) -Deploy ALL Updates     (Run on AIR-GAPPED computer)"
         Write-Host " 3b) -Deploy Defender ONLY   (Run on AIR-GAPPED computer)"
         Write-Host " 3c) -Deploy Windows Updates Locally"
-        Write-Host " Q) Quit"
+        Write-Host " Q)  Quit"
         Write-Host "=================================================================" -ForegroundColor Cyan
         $Choice = Read-Host "Select an option (1-8 or Q)"
         switch ($Choice.ToLower()) {
