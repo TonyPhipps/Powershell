@@ -582,7 +582,7 @@ if ($NoActionSelected) {
             "3a" { $DeployUpdates = $true;      $Continue = $false }
             "3b" { $DeployUpdates = $true;      $DefenderOnly = $true; $Continue = $false }
             "3c" { $DeployUpdatesLocal = $true; $Continue = $false }
-            "Q"  { exit }
+            "q"  { exit }
             default { Write-Host "Invalid selection, try again." -ForegroundColor Red; Start-Sleep -Seconds 1; $Continue = $true }
         }
     } while ($Continue)
