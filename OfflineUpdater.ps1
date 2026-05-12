@@ -575,7 +575,7 @@ if ($PreparePackage) {
     }
 }
 
-# --- 1. INSTALL MODULE ---
+# --- INSTALL MODULE ---
 if ($Install) {
     Write-Host "--- Operation: Install ---" -ForegroundColor Gray
     $PowerShellModules = "C:\Program Files\WindowsPowerShell\Modules"
@@ -605,7 +605,7 @@ if ($InstallRequired -contains $true) {
     }
 }
 
-# --- 3. SCAN ENDPOINTS ---
+# --- SCAN ENDPOINTS ---
 if ($Scan) {
     Write-Host "--- Operation: Scan ---" -ForegroundColor Gray
     if (-not (Test-Path $Results)) {
@@ -638,7 +638,7 @@ if ($Scan) {
     }
 }
 
-# --- 4. DOWNLOAD UPDATES ---
+# --- DOWNLOAD UPDATES ---
 if ($DownloadUpdates) {
     $DefenderPath = Join-Path $WorkingFolder "DefenderUpdates"
     Get-DefenderUpdates -DefenderUpdatesPath $DefenderPath
@@ -666,7 +666,7 @@ if ($DownloadUpdates) {
     }
 }
 
-# --- 5. DEPLOY UPDATES ---
+# --- DEPLOY UPDATES ---
 if ($DeployUpdates) {
     $DefenderPath = Join-Path $WorkingFolder "DefenderUpdates"
     $TargetEndpoints = Get-TargetComputers -Computers $Computers -SkipAD:$SkipAD
@@ -710,7 +710,7 @@ if ($DeployUpdates) {
     }
 }
 
-# --- 6. DEPLOY LOCAL ---
+# --- DEPLOY LOCAL ---
 if ($DeployUpdatesLocal) {
     Write-Host "--- Operation: Deploy Updates to Local Host ---" -ForegroundColor Gray
     $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
