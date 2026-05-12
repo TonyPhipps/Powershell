@@ -543,9 +543,9 @@ if (-not $WorkingFolder) {
      else {   # Fallback to D: or C: 
         $DiskD = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID = 'D:' and DriveType = 3"
         if ($DiskD) {
-            $WorkingFolder = "D:\OfflineUpdate"
+            $WorkingFolder = "D:\OfflineUpdater"
         } else {
-            $WorkingFolder = "C:\OfflineUpdate"
+            $WorkingFolder = "C:\OfflineUpdater"
         }
     }
 }
