@@ -160,84 +160,32 @@ param (
     [switch]$SkipAD
 )
 
-if (-not $WorkingFolder) {
-    if ($psISE -and (Test-Path -Path $psISE.CurrentFile.FullPath)) {
-        $ScriptRoot = Split-Path -Path $psISE.CurrentFile.FullPath -Parent
-    } else {
-        $ScriptRoot = $PSScriptRoot
-    }
-    $LocalPath = Join-Path -Path $ScriptRoot -ChildPath "OfflineUpdate"
-    $ParentPath = Join-Path -Path (Split-Path -Path $ScriptRoot -Parent) -ChildPath "OfflineUpdate"
-    if (Test-Path -Path $LocalPath) {
-        $WorkingFolder = $LocalPath
-    } 
-    elseif (Test-Path -Path $ParentPath) {
-        $WorkingFolder = $ParentPath
-    }
-    else { # Fallback to D: Drive or C: root
-        $DiskD = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID = 'D:' and DriveType = 3"
-        if ($DiskD) {
-            $WorkingFolder = "D:\OfflineUpdate"
-        } else {
-            $WorkingFolder = "C:\OfflineUpdate"
-        }
-    }
-}
-if (-not $Modules)    { $Modules = Join-Path -Path $WorkingFolder -ChildPath "modules" }
-if (-not $Repository) { $Repository = Join-Path -Path $WorkingFolder -ChildPath "repository" }
-if (-not $Results)    { $Results = Join-Path -Path $WorkingFolder -ChildPath "ScanResults" }
-if (-not $Catalog)    { $Catalog = Join-Path -Path $WorkingFolder -ChildPath "catalog\wsusscn2.cab" }
-if (-not $Computers -and -not $SkipAD) { $Computers = [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt") }
-if ($Computers.Count -eq 1 -and (Test-Path -Path $Computers[0] -PathType Leaf)) 
-    { $TargetEndpoints = Get-Content -Path $Computers[0] 
-} else { $TargetEndpoints = $Computers }
-
-# --- 0. INTERACTIVE MENU (FOR NON-PS USERS) ---
-$NoActionSelected = -not ($PreparePackage -or $Install -or $Scan -or $DownloadUpdates -or $DeployUpdates -or $DeployUpdatesLocal)
-if ($NoActionSelected) {
-    do {
-        Clear-Host
-        Write-Host "================================================================" -ForegroundColor Cyan
-        Write-Host "               OFFLINE WINDOWS UPDATER - MAIN MENU              " -ForegroundColor Cyan
-        Write-Host "================================================================" -ForegroundColor Cyan
-        Write-Host " 1) -Prepare Package        (Run on INTERNET-CONNECTED computer)"
-        Write-Host " 2) -Install Modules        (Run on AIR-GAPPED computer)"
-        Write-Host " 3) -Scan Endpoints         (Run on AIR-GAPPED computer)"
-        Write-Host " 4) -Download ALL Updates   (Run on INTERNET-CONNECTED computer)"
-        Write-Host " 5) -Download Defender ONLY (Run on INTERNET-CONNECTED computer)"
-        Write-Host " 6) -Deploy ALL Updates     (Run on AIR-GAPPED computer)"
-        Write-Host " 7) -Deploy Defender ONLY   (Run on AIR-GAPPED computer)"
-        Write-Host " 8) -DeployLocal Updates    (Run on AIR-GAPPED computer)"
-        Write-Host " Q) Quit"
-        Write-Host "================================================================" -ForegroundColor Cyan
-        $Choice = Read-Host "Select an option (1-8 or Q)"
-        switch ($Choice) {
-            "1" { $PreparePackage = $true;       $Continue = $false }
-            "2" { $Install = $true;              $Continue = $false }
-            "3" { $Scan = $true;                 $Continue = $false }
-            "4" { $DownloadUpdates = $true;      $Continue = $false }
-            "5" { $DownloadUpdates = $true;      $DefenderOnly = $true; $Continue = $false }
-            "6" { $DeployUpdates = $true;        $Continue = $false }
-            "7" { $DeployUpdates = $true;        $DefenderOnly = $true; $Continue = $false }
-            "8" { $DeployUpdatesLocal = $true;   $Continue = $false }
-            "Q" { exit }
-            default { Write-Host "Invalid selection, try again." -ForegroundColor Red; Start-Sleep -Seconds 1; $Continue = $true }
-        }
-    } while ($Continue)
-}
-
 # --- HELPER FUNCTIONS ---
 function Get-TargetComputers {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
         [string[]]$Computers,
         
         [Parameter(Mandatory = $false)]
         [switch]$SkipAD
     )
-
-    if (-not $SkipAD -and ($Computers.Count -eq 1)) {
+    if (-not $Computers -and -not $SkipAD) {  }
+    
+    if ($SkipAD){
+        if ($null -eq $Computers) {
+            $Computers = [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt")
+            if (Test-Path -Path $Computers){
+                return (Get-Content -Path $Computers[0])
+            } else {
+                return $env:COMPUTERNAME
+            }
+        } elseif (Test-Path -Path $Computers -PathType Leaf){
+            return (Get-Content -Path $Computers[0])
+        } else {
+            return $Computers | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
+        }
+    } else { # NO SKIPAD
         $isInstalled = (Get-WindowsFeature -Name RSAT-ADDS-Tools -ErrorAction SilentlyContinue).Installed
         if ($isInstalled) {
             Write-Host "RSAT: Active Directory Users and Computers is installed. Gathering enabled Windows hosts..." -ForegroundColor Gray
@@ -248,10 +196,10 @@ function Get-TargetComputers {
                 $ADHosts | Out-File -FilePath $Computers[0] -Force
                 return $ADHosts
             }
-        } elseif ($Computers.Count -eq 1 -and (Test-Path -Path $Computers[0] -PathType Leaf)) {
+        } elseif (Test-Path -Path $Computers[0] -PathType Leaf) {
             Write-Warning "RSAT: Active Directory Tools are NOT installed. Falling back to local host list."
-            return Import-Csv -Path $Computers[0] -Header Host | Select-Object -ExpandProperty Host | Where-Object { $_ -match '\S' }
-        } else{
+            return Import-Csv -Path $Computers[0] -Header Host | Select-Object -ExpandProperty Host | Where-Object { $_ -match '\S' } 
+        } else {
             return $Computers | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
         }
     }
@@ -264,6 +212,7 @@ function Invoke-UpdateDownload {
         [Parameter(Mandatory = $true)] [string]$DestinationPath,
         [Parameter(Mandatory = $false)] [switch]$CheckExpiration
     )
+
     $FileName = Split-Path $Url -Leaf
     $FullDestination = if (Test-Path $DestinationPath -PathType Container) { 
         Join-Path $DestinationPath $FileName 
@@ -300,6 +249,7 @@ function Invoke-UpdateDownload {
 function Get-DefenderUpdates {
     [CmdletBinding()]
     param([string]$DefenderUpdatesPath)
+
     Write-Host "--- Operation: Download Defender Definitions ---" -ForegroundColor Gray
     if (-not (Test-Path $DefenderUpdatesPath)) { New-Item -Path $DefenderUpdatesPath -ItemType Directory | Out-Null }
     $ArchFolders = @{ 
@@ -336,6 +286,7 @@ function Install-DefenderUpdates {
         [Parameter(Mandatory = $true)] [string]$DefenderUpdatesPath,
         [string]$ShareName = "DefenderUpdates"
     )
+
     Write-Host "--- Operation: Deploying Defender Platform & Signatures ---" -ForegroundColor Gray
     $RepoManifest = @{}
     $PlatformFiles = Get-ChildItem -Path $DefenderUpdatesPath -Filter "updateplatform*.exe"
@@ -451,6 +402,7 @@ function Get-RebootStatus {
         [Parameter(ValueFromPipeline = $true)]
         [string[]]$ComputerNames = $env:COMPUTERNAME
     )
+
     $RebootCheckBlock = {
         $Status = [PSCustomObject]@{
             ComputerName = $env:COMPUTERNAME
@@ -505,6 +457,7 @@ function Remove-TempFiles {
         [Parameter()]
         [string]$CustomStagingPath = (Join-Path $Home "Downloads")
     )
+
     $CleanupBlock = {
         param($TargetPath)
         $Results = [System.Collections.Generic.List[string]]::new()
@@ -554,7 +507,71 @@ function Remove-TempFiles {
     }
 }
 
-# --- 2. PREPARE PACKAGE (OFFLINE ASSETS) ---
+# --- Paramter Checks and Resolution ---
+if (-not $WorkingFolder) {
+    if ($psISE -and (Test-Path -Path $psISE.CurrentFile.FullPath)) {
+        $ScriptRoot = Split-Path -Path $psISE.CurrentFile.FullPath -Parent
+    } else {
+        $ScriptRoot = $PSScriptRoot
+    }
+    $LocalPath = Join-Path -Path $ScriptRoot -ChildPath "OfflineUpdater"
+    $ParentPath = Join-Path -Path (Split-Path -Path $ScriptRoot -Parent) -ChildPath "OfflineUpdater"
+    if (Test-Path -Path $LocalPath) {
+        $WorkingFolder = $LocalPath
+    } 
+    elseif (Test-Path -Path $ParentPath) {
+        $WorkingFolder = $ParentPath
+    }
+    else { # Fallback to D: Drive or C: root
+        $DiskD = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID = 'D:' and DriveType = 3"
+        if ($DiskD) {
+            $WorkingFolder = "D:\OfflineUpdater"
+        } else {
+            $WorkingFolder = "C:\OfflineUpdater"
+        }
+    }
+}
+if (-not $Modules)    { $Modules = Join-Path -Path $WorkingFolder -ChildPath "modules" }
+if (-not $Repository) { $Repository = Join-Path -Path $WorkingFolder -ChildPath "repository" }
+if (-not $Results)    { $Results = Join-Path -Path $WorkingFolder -ChildPath "ScanResults" }
+if (-not $Catalog)    { $Catalog = Join-Path -Path $WorkingFolder -ChildPath "catalog\wsusscn2.cab" }
+$TargetEndpoints = Get-TargetComputers -Computers $Computers -SkipAD:$SkipAD
+
+# --- INTERACTIVE MENU ---
+$NoActionSelected = -not ($PreparePackage -or $Install -or $Scan -or $DownloadUpdates -or $DeployUpdates -or $DeployUpdatesLocal)
+if ($NoActionSelected) {
+    do {
+        Clear-Host
+        Write-Host "================================================================" -ForegroundColor Cyan
+        Write-Host "               OFFLINE WINDOWS UPDATER - MAIN MENU              " -ForegroundColor Cyan
+        Write-Host "================================================================" -ForegroundColor Cyan
+        Write-Host " 1) -Prepare Package        (Run on INTERNET-CONNECTED computer)"
+        Write-Host " 2) -Install Modules        (Run on AIR-GAPPED computer)"
+        Write-Host " 3) -Scan Endpoints         (Run on AIR-GAPPED computer)"
+        Write-Host " 4) -Download ALL Updates   (Run on INTERNET-CONNECTED computer)"
+        Write-Host " 5) -Download Defender ONLY (Run on INTERNET-CONNECTED computer)"
+        Write-Host " 6) -Deploy ALL Updates     (Run on AIR-GAPPED computer)"
+        Write-Host " 7) -Deploy Defender ONLY   (Run on AIR-GAPPED computer)"
+        Write-Host " 8) -DeployLocal Updates    (Run on AIR-GAPPED computer)"
+        Write-Host " Q) Quit"
+        Write-Host "================================================================" -ForegroundColor Cyan
+        $Choice = Read-Host "Select an option (1-8 or Q)"
+        switch ($Choice) {
+            "1" { $PreparePackage = $true;       $Continue = $false }
+            "2" { $Install = $true;              $Continue = $false }
+            "3" { $Scan = $true;                 $Continue = $false }
+            "4" { $DownloadUpdates = $true;      $Continue = $false }
+            "5" { $DownloadUpdates = $true;      $DefenderOnly = $true; $Continue = $false }
+            "6" { $DeployUpdates = $true;        $Continue = $false }
+            "7" { $DeployUpdates = $true;        $DefenderOnly = $true; $Continue = $false }
+            "8" { $DeployUpdatesLocal = $true;   $Continue = $false }
+            "Q" { exit }
+            default { Write-Host "Invalid selection, try again." -ForegroundColor Red; Start-Sleep -Seconds 1; $Continue = $true }
+        }
+    } while ($Continue)
+}
+
+# --- PREPARE PACKAGE (OFFLINE ASSETS) ---
 if ($PreparePackage) {
     Write-Host "--- Operation: Prepare Package ---" -ForegroundColor Gray
     try {
@@ -669,7 +686,6 @@ if ($DownloadUpdates) {
 # --- DEPLOY UPDATES ---
 if ($DeployUpdates) {
     $DefenderPath = Join-Path $WorkingFolder "DefenderUpdates"
-    $TargetEndpoints = Get-TargetComputers -Computers $Computers -SkipAD:$SkipAD
     Install-DefenderUpdates -TargetEndpoints $TargetEndpoints -DefenderUpdatesPath $DefenderPath
     if (-not $DefenderOnly) {
         Write-Host "Starting Windows KB deployment..." -ForegroundColor Gray
