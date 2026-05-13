@@ -615,7 +615,8 @@ if ($NoActionSelected) {
         Write-Host " 3c) -Deploy Windows Updates Locally"
         Write-Host " Q)  Quit"
         Write-Host "=================================================================" -ForegroundColor Cyan
-        Write-Host ($TargetEndpoints -join "`n")
+        Write-Host ("TargetEndpoints:`n`t$($TargetEndpoints -join "`n`t")")
+        Write-Host ("")
         $Choice = Read-Host "Select an option (1-8 or Q)"
         switch ($Choice.ToLower()) {
             "0a" { $PreparePackage = $true;     $Continue = $false }
