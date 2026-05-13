@@ -615,6 +615,7 @@ if ($NoActionSelected) {
         Write-Host " 3c) -Deploy Windows Updates Locally"
         Write-Host " Q)  Quit"
         Write-Host "=================================================================" -ForegroundColor Cyan
+        Write-Host ($TargetEndpoints -join "`n")
         $Choice = Read-Host "Select an option (1-8 or Q)"
         switch ($Choice.ToLower()) {
             "0a" { $PreparePackage = $true;     $Continue = $false }
@@ -690,11 +691,13 @@ if ($Scan) {
         New-Item -ItemType Directory -Path $Results -Force | Out-Null
     }
     $ScanResults = foreach ($Endpoint in $TargetEndpoints) {
+        Write-Host "Initiating scan on $Endpoint... " -ForegroundColor Gray
         try{
             Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force #-Verbose
         } catch {
             if ($_.Exception.Message -match "0x8009200D" -or $_.Exception.Message -match "cryptographic message") {
                 if (Test-Path $Certificates) {
+                    Write-Host "[Certificate Issue] (Updating Microsoft Root Certificates)" -ForegroundColor Cyan
                     Install-RootCerts -ComputerNames $TargetEndpoints -CertPath $Certificates
                 }                
             }
@@ -707,13 +710,13 @@ if ($Scan) {
         $ScanResults | Export-Csv -Path $ReportPath -NoTypeInformation
         $NewKBs = $ScanResults.KBUpdate | Where-Object { $_ } | Sort-Object -Unique
         $NewKBs | Out-File -FilePath $MissingKBsPath
-        Write-Host "Scan complete. Detailed report saved to $ReportPath" -ForegroundColor Green
+        Write-Host "[Success] (Scan complete. Detailed report saved to $ReportPath)" -ForegroundColor Green
         Write-Host "Copy the ScanResults folder to your online host for downloading." -ForegroundColor Cyan
         if (-not $SkipReport) {
             Import-Csv -Path $ReportPath | Select-Object ComputerName, KBUpdate, Title, Description | Out-GridView
         }
     } else {
-        Write-Host "No missing updates found." -ForegroundColor Gray
+        Write-Host "No missing updates found on target host(s)." -ForegroundColor Gray
     }
 }
 
@@ -803,7 +806,7 @@ if ($DeployUpdatesLocal) {
     $LocalHost = $env:COMPUTERNAME
     $MissingUpdates = Import-Csv -Path $LatestReport.FullName | Where-Object { $_.ComputerName -eq $LocalHost }
     if ($null -eq $MissingUpdates) {
-        Write-Host "No missing updates found for $LocalHost in this report." -ForegroundColor Gray
+        Write-Host "[Skip] No missing updates found for $LocalHost in this report." -ForegroundColor Gray
         return
     }
     foreach ($Update in $MissingUpdates) {
