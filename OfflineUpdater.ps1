@@ -605,8 +605,8 @@ if ($NoActionSelected) {
         Write-Host "=================================================================" -ForegroundColor Cyan
         Write-Host "                     OFFLINE WINDOWS UPDATER                    " -ForegroundColor Cyan
         Write-Host "=================================================================" -ForegroundColor Cyan
-        Write-Host " 0a) -Prepare Package        (Run on INTERNET-CONNECTED computer)"
-        Write-Host " 0b) -Install Modules        (Run on AIR-GAPPED computer)"
+        Write-Host " P)  -Prepare Package        (Run on INTERNET-CONNECTED computer)"
+        Write-Host " I)  -Install Modules        (Run on AIR-GAPPED computer)"
         Write-Host " 1)  -Scan Endpoints         (Run on AIR-GAPPED computer)"
         Write-Host " 2a) -Download ALL Updates   (Run on INTERNET-CONNECTED computer)"
         Write-Host " 2b) -Download Defender ONLY (Run on INTERNET-CONNECTED computer)"
@@ -615,12 +615,12 @@ if ($NoActionSelected) {
         Write-Host " 3c) -Deploy Windows Updates Locally"
         Write-Host " Q)  Quit"
         Write-Host "=================================================================" -ForegroundColor Cyan
-        Write-Host ("TargetEndpoints:`n`t$($TargetEndpoints -join "`n`t")")
+        Write-Host ("Target Hosts:`n`t$((($TargetEndpoints | Sort-Object | Get-Unique) -join ", "))")
         Write-Host ("")
         $Choice = Read-Host "Select an option (1-8 or Q)"
         switch ($Choice.ToLower()) {
-            "0a" { $PreparePackage = $true;     $Continue = $false }
-            "0b" { $Install = $true;            $Continue = $false }
+            "p"  { $PreparePackage = $true;     $Continue = $false }
+            "i"  { $Install = $true;            $Continue = $false }
             "1"  { $Scan = $true;               $Continue = $false }
             "2a" { $DownloadUpdates = $true;    $Continue = $false }
             "2b" { $DownloadUpdates = $true;    $DefenderOnly = $true; $Continue = $false }
