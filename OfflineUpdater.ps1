@@ -180,7 +180,7 @@ function Get-TargetComputers {
             } else {
                 return $env:COMPUTERNAME
             }
-        } elseif (Test-Path -Path $Computers -PathType Leaf){
+        } elseif (($Computers -match "[\\\/]") -and (Test-Path -Path $Computers -PathType Leaf)){
             return (Get-Content -Path $Computers[0])
         } else {
             return $Computers | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
