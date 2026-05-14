@@ -658,7 +658,7 @@ if ($Install) {
     if (-not (Test-Path $PowerShellModules)) {
         New-Item -ItemType Directory -Path $PowerShellModules -Force | Out-Null
     }
-    Write-Host "Installing kbupdate and dependencies to $PowerShellModules..." -ForegroundColor Gray
+    Write-Host "Installing kbupdate and dependencies to $PowerShellModules..." -ForegroundColor Cyan
     $ModuleFolders = Get-ChildItem -Path $Modules -Directory
     foreach ($Folder in $ModuleFolders) {
         $Dest = Join-Path $PowerShellModules $Folder.Name
@@ -814,15 +814,15 @@ if ($DeployUpdatesLocal) {
                 Unblock-File -Path $LocalPath -ErrorAction SilentlyContinue
                 $env:SEE_MASK_NOZONECHECKS = 1
                 if ($FileName -match "\.cab$") {
-                    Write-Host "  -> Installing CAB via DISM..." -ForegroundColor Yellow
+                    Write-Host "  -> Installing CAB via DISM..." -ForegroundColor Cyan
                     dism.exe /Online /Add-Package /PackagePath:"$LocalPath" /NoRestart
                 }
                 elseif ($FileName -match "\.exe$") {
-                    Write-Host "  -> Running MSRT Tool..." -ForegroundColor Yellow
+                    Write-Host "  -> Running MSRT Tool..." -ForegroundColor Cyan
                     Start-Process -FilePath "$LocalPath" -ArgumentList "/quiet /norestart" -Wait
                 }
                 elseif ($FileName -match "\.msu$") {
-                    Write-Host "  -> Installing via WUSA..." -ForegroundColor Yellow
+                    Write-Host "  -> Installing via WUSA..." -ForegroundColor Cyan
                     Start-Process -FilePath "wusa.exe" -ArgumentList "`"$LocalPath`" /quiet /norestart" -Wait
                 }
             }
