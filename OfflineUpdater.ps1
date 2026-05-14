@@ -692,13 +692,10 @@ if ($Scan) {
         try{
             Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force #-Verbose
         } catch {
-            if ($_.Exception.Message -match "0x8009200D" -or $_.Exception.Message -match "cryptographic message") {
-                if (Test-Path $Certificates) {
-                    Write-Host "[Certificate Issue] (Updating Microsoft Root Certificates)" -ForegroundColor Cyan
-                    Install-RootCerts -ComputerNames $TargetEndpoints -CertPath $Certificates
-                }                
-            }
-            throw $_ # Re-throw other errors
+            if (Test-Path $Certificates) {
+                Write-Host "[Certificate Issue] (Updating Microsoft Root Certificates)" -ForegroundColor Cyan
+                Install-RootCerts -ComputerNames $TargetEndpoints -CertPath $Certificates
+            }                
         }
     }
     if ($ScanResults) {
