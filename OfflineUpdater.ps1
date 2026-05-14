@@ -775,7 +775,7 @@ if ($DeployUpdates) {
             }
             if ($VerifiedUpdates.Count -gt 0) {
                 Write-Host "Starting deployment of $($VerifiedUpdates.Count) verified files..." -ForegroundColor Gray
-                $VerifiedUpdates | Install-KbUpdate -RepositoryPath $Repository -NoMultithreading #-Verbose
+                $VerifiedUpdates | Install-KbUpdate -RepositoryPath $Repository -NoMultithreading -Verbose
                 Write-Host "Deployment tasks completed." -ForegroundColor Green
             } else {
                 Write-Warning "No matching update files found in $Repository. Nothing to deploy."
