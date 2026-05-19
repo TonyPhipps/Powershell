@@ -74,9 +74,12 @@
 .EXAMPLE
     To install locally (for hosts that had remote issues), log into that machine interactively, then:
     Create a local copy at c:\offlineupdater.ps1 and the OfflineUpdater\catalog\wsusscn2.cab file, then run
-    C:\OfflineUpdater.ps1 -Install -WorkingFolder \\otherpc\c$\OfflineUpdater
-    C:\OfflineUpdater.ps1 -Scan -SkipAD
-    C:\OfflineUpdater.ps1 -DeployLocal -Repository \\otherpc\c$\OfflineUpdater\repository
+    & '\\otherhost\d$\OfflineUpdater\OfflineUpdater.ps1' -Install -WorkingFolder "\\otherhost\d$\OfflineUpdater"
+    New-Item -ItemType Directory -Path d:\OfflineUpdater -Force
+    Copy-Item -Path "\\otherhost\d$\OfflineUpdater\OfflineUpdater.ps1" -Destination "d:\OfflineUpdater\" -Force
+    Copy-Item -Path "\\otherhost\d$\OfflineUpdater\catalog" -Destination "d:\OfflineUpdater\" -Recurse -Force
+    D:\OfflineUpdater\OfflineUpdater.ps1 -Scan -SkipAD -Host $Env:COMPUTERNAME -WorkingFolder "d:\OfflineUpdater"
+    D:\OfflineUpdater\OfflineUpdater.ps1 -DeployLocal -Repository \\otherpc\d$\OfflineUpdater\repository
 
 .NOTES
     Manual Fallbacks are provided below for when kbupdate fails repeatedly on the last few remaining patches.
