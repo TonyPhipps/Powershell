@@ -63,6 +63,9 @@
     Only download/deploy Defender signature and engine updates, skipping all KB deployments. 
     To be used in conjunction with -DownloadUpdates and/or -DeployUpdates.
 
+.PARAMETER SkipDefender
+    If set, the script will not automatically download or deploy Defender.
+
 .EXAMPLE
     .\OfflineUpdater.ps1 -PreparePackage
     Downloads all necessary tools and the ~1GB scan catalog to prepare for an offline site visit.
@@ -157,6 +160,10 @@ param (
     [Parameter(Mandatory = $false)]
     [alias("NoReport")]
     [switch]$SkipReport,
+
+    [Parameter(Mandatory = $false)]
+    [alias("NoDefender")]
+    [switch]$SkipDefender,
 
     [Parameter(Mandatory = $false)]
     [alias("NoAD")]
@@ -719,8 +726,10 @@ if ($Scan) {
 
 # --- DOWNLOAD UPDATES ---
 if ($DownloadUpdates) {
-    $DefenderPath = Join-Path $WorkingFolder "DefenderUpdates"
-    Get-DefenderUpdates -DefenderUpdatesPath $DefenderPath
+    if (-not $SkipDefender){
+        $DefenderPath = Join-Path $WorkingFolder "DefenderUpdates"
+        Get-DefenderUpdates -DefenderUpdatesPath $DefenderPath
+    }
     Get-RootCerts -CertPath $Certificates
     if (-not $DefenderOnly){
         Write-Host "--- Checking wsusscn2.cab for age ---" -ForegroundColor Gray
@@ -749,7 +758,9 @@ if ($DownloadUpdates) {
 # --- DEPLOY UPDATES ---
 if ($DeployUpdates) {
     $DefenderPath = Join-Path $WorkingFolder "DefenderUpdates"
-    Install-DefenderUpdates -TargetEndpoints $TargetEndpoints -DefenderUpdatesPath $DefenderPath
+    if (-not $SkipDefender){
+        Install-DefenderUpdates -TargetEndpoints $TargetEndpoints -DefenderUpdatesPath $DefenderPath
+    }
     if (-not $DefenderOnly) {
         Write-Host "Starting Windows KB deployment..." -ForegroundColor Gray
         $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
