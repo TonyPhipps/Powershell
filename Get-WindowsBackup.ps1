@@ -1,11 +1,12 @@
 <#
 .SYNOPSIS
-    Automated Disk Cleanup and Native Windows Image Backup Tool.
+    Automated Disk Cleanup and Windows Image Backup Tool.
 .DESCRIPTION
     Runs local and remote disk optimization and invokes wbadmin for secure, 
     block-level hot backups on bare-metal systems. Supports explicit local-only 
     overrides, custom target paths, target drive selections, dynamic timestamped 
-    naming conventions, and multi-target scanning via files or console inputs.
+    naming conventions on backup folders, and multi-target scanning via files or
+    console inputs.
 .PARAMETER LocalOverride
     Switch to force local system execution only, bypassing target prompt routines.
 .PARAMETER BackupDrives
