@@ -16,7 +16,7 @@
     File Name      : Get-WindowsBackup.ps1
     Author         : Tony Phipps
     Prerequisites  : PowerShell 5.1+, Administrator privileges, WinRM enabled for remote targets
-    Version        : 1.9
+    Version        : 2.0
     Date           : May 22, 2026
     Copyright      : (c) 2026 Tony Phipps under the MIT License
 .LINK
@@ -40,6 +40,175 @@ Clear-Host
 [string]$DefaultBackupPath = "D:\backups"
 $Global:TargetBackupDir = ""
 
+function Initialize-BackupParentShare {
+    <#
+    .SYNOPSIS
+        Provisions the central backup repository parent directory and SMB network share.
+    .DESCRIPTION
+        Validates target infrastructure availability, automatically builds baseline storage paths,
+        applies read-only NTFS access limits for domain machine boundaries, and registers the SMB share securely.
+    .PARAMETER ComputerName
+        The target server hostname where the SMB network share instance should be evaluated and built.
+    .PARAMETER ShareName
+        The name of the SMB share container asset to provision.
+    .PARAMETER DomainName
+        The NetBIOS corporate domain identity string.
+    .OUTPUTS
+        [PSCustomObject] Structured provisioning telemetry results.
+    .EXAMPLE
+        Initialize-BackupParentShare -ComputerName "backupserver" -ShareName "backups" -DomainName "CONTOSO"
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ComputerName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ShareName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DomainName
+    )
+    begin {}
+    process {
+        # Execution script block designated for localized single-hop engine calls
+        [scriptblock]$ProvisionBlock = {
+            param([string]$Share, [string]$Domain)
+            Set-StrictMode -Version Latest
+            try {
+                if (-not (Get-SmbShare -Name $Share -ErrorAction SilentlyContinue)) {
+                    Write-Host "Share '$Share' does not exist. Creating storage container directory..." -ForegroundColor Cyan
+                    [string]$LocalPath = if (Test-Path -Path "D:") { "D:\backups" } else { "C:\backups" }
+                    if (-not (Test-Path -Path $LocalPath)) {
+                        [void](New-Item -ItemType Directory -Path $LocalPath -Force -ErrorAction Stop)
+                    }
+
+                    # Enforce core root directory security topologies
+                    $Acl = Get-Acl -Path $LocalPath
+                    $InheritanceFlags = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit"
+                    $PropagationFlags = [System.Security.AccessControl.PropagationFlags]"None"
+                    $AccessType = [System.Security.AccessControl.AccessControlType]"Allow"
+                    $CompReadRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule(
+                        "$Domain\Domain Computers", "ReadAndExecute,Synchronize", $InheritanceFlags, $PropagationFlags, $AccessType
+                    )
+                    $CtrlReadRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule(
+                        "$Domain\Domain Controllers", "ReadAndExecute,Synchronize", $InheritanceFlags, $PropagationFlags, $AccessType
+                    )
+                    $Acl.AddAccessRule($CompReadRule)
+                    $Acl.AddAccessRule($CtrlReadRule)
+                    Set-Acl -Path $LocalPath -AclObject $Acl -ErrorAction Stop
+
+                    # Initialize and deploy the underlying network access mapping matrix
+                    Write-Host "Provisioning Active SMB share architecture..." -ForegroundColor Cyan
+                    [void](New-SmbShare -Name $Share -Path $LocalPath -Description "Centralized Hot-Backup Image Repository" -FullAccess "$Domain\Domain Admins", "Administrators" -ErrorAction Stop)
+                    [void](Grant-SmbShareAccess -Name $Share -AccountName "$Domain\Domain Computers" -AccessRight Change -Force -ErrorAction Stop)
+                    [void](Grant-SmbShareAccess -Name $Share -AccountName "$Domain\Domain Controllers" -AccessRight Change -Force -ErrorAction Stop)
+                    return [PSCustomObject]@{
+                        Success = $true
+                        Message = "Centralized SMB share orchestration complete."
+                    }
+                }
+                return [PSCustomObject]@{
+                    Success = $true
+                    Message = "Share '$Share' already exists. Configuration skipped."
+                }
+            } catch {
+                return [PSCustomObject]@{
+                    Success = $false
+                    Message = "Failed to orchestrate central SMB share parameters: $_"
+                }
+            }
+        }
+        try {
+            [PSCustomObject]$Result = $null
+            if ($ComputerName -eq "localhost" -or $ComputerName -eq $env:COMPUTERNAME -or $ComputerName -eq ".") {
+                $Result = Invoke-Command -ScriptBlock $ProvisionBlock -ArgumentList $ShareName, $DomainName -ErrorAction Stop
+            } else {
+                $Result = Invoke-Command -ComputerName $ComputerName -ScriptBlock $ProvisionBlock -ArgumentList $ShareName, $DomainName -ErrorAction Stop
+            }
+            return $Result
+        } catch {
+            Write-Error -Message "Pipeline bridge connection error during parent share provisioning: $_"
+            return [PSCustomObject]@{ Success = $false; Message = $_.Exception.Message }
+        }
+    }
+    end {}
+}
+
+function Initialize-BackupSubfolder {
+    <#
+    .SYNOPSIS
+        Provisions a zero-trust, access-isolated NTFS file structure silo for specific server nodes.
+    .DESCRIPTION
+        Verifies directory existence, drops broad security inheritable objects from parent trees,
+        and isolates folder modification capabilities solely to the assigned target machine account.
+    .PARAMETER BasePath
+        The central folder repository root path or remote network UNC endpoint.
+    .PARAMETER TargetHost
+        The targeted node hostname designation to structure and assign permissions against.
+    .PARAMETER DomainName
+        The corporate Active Directory environment NetBIOS domain identity.
+    .OUTPUTS
+        [PSCustomObject] Subfolder instantiation results.
+    .EXAMPLE
+        Initialize-BackupSubfolder -BasePath "\\backupserver\backups" -TargetHost "DC-PROD01" -DomainName "CONTOSO"
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$BasePath,
+
+        [Parameter(Mandatory = $true)]
+        [string]$TargetHost,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DomainName
+    )
+    begin {}
+    process {
+        try {
+            [string]$HostFolderUNC = ""
+            if ($BasePath -match '^[A-Za-z]:\\') {
+                $HostFolderUNC = Join-Path -Path $BasePath -ChildPath $TargetHost
+            } else {
+                $HostFolderUNC = "$BasePath\$TargetHost"
+            }
+
+            if (-not (Test-Path -Path $HostFolderUNC)) {
+                Write-Host "Target folder does not exist. Creating isolated subfolder container at '$HostFolderUNC'..." -ForegroundColor Yellow
+                [void](New-Item -ItemType Directory -Path $HostFolderUNC -Force -ErrorAction Stop)
+                [string]$MachineAccount = "$DomainName\$TargetHost$"
+                $Acl = Get-Acl -Path $HostFolderUNC
+                
+                # Protect ACL from root inheritance structures, preserving explicit structural assignments (SYSTEM/Admins)
+                $Acl.SetAccessRuleProtection($true, $true)
+                
+                # Purge generalized domain grouping read assignments inherited down from share root provisions
+                [System.Security.AccessControl.FileSystemAccessRule[]]$TargetRules = $Acl.Access | Where-Object {
+                    $_.IdentityReference.Value -eq "$DomainName\Domain Computers" -or 
+                    $_.IdentityReference.Value -eq "$DomainName\Domain Controllers"
+                }
+                foreach ($Rule in $TargetRules) {
+                    [void]$Acl.RemoveAccessRule($Rule)
+                }
+
+                # Bind target machine token permissions tightly down to the isolated container boundary path
+                $Inheritance = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit"
+                $Propagation = [System.Security.AccessControl.PropagationFlags]"None"
+                $Type = [System.Security.AccessControl.AccessControlType]"Allow"
+                $ModifyRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule($MachineAccount, "Modify,Synchronize", $Inheritance, $Propagation, $Type)
+                $Acl.AddAccessRule($ModifyRule)
+                Set-Acl -Path $HostFolderUNC -AclObject $Acl -ErrorAction Stop
+                return [PSCustomObject]@{ Success = $true; Message = "Successfully built and restricted isolated environment." }
+            }
+            return [PSCustomObject]@{ Success = $true; Message = "Utilizing existing verified environment containers." }
+        } catch {
+            return [PSCustomObject]@{ Success = $false; Message = "Failed inside subfolder security deployment pipeline: $_" }
+        }
+    }
+    end {}
+}
+
 function Set-BackupTarget {
     <#
     .SYNOPSIS
@@ -53,7 +222,6 @@ function Set-BackupTarget {
             try {
                 Write-Host "Enter central backup destination path (Local Path or UNC like '\\backupserver\backups'):" -ForegroundColor Cyan
                 [string]$PathInput = (Read-Host).Trim()
-                
                 if ([string]::IsNullOrWhiteSpace($PathInput)) {
                     $Global:TargetBackupDir = $DefaultBackupPath
                 } else {
@@ -65,55 +233,12 @@ function Set-BackupTarget {
                     [string]$ServerName = $Matches[1]
                     [string]$ShareName = $Matches[2]
                     [string]$DomainName = $env:USERDOMAIN
-
-                    Write-Host "[+] Verifying infrastructure readiness for central SMB share '$ShareName' on server '$ServerName'..." -ForegroundColor Yellow
-
-                    [scriptblock]$ShareProvisionBlock = {
-                        param([string]$Share, [string]$Domain)
-                        Set-StrictMode -Version Latest
-                        try {
-                            if (-not (Get-SmbShare -Name $Share -ErrorAction SilentlyContinue)) {
-                                Write-Host "Share '$Share' does not exist. Creating storage container directory..." -ForegroundColor Cyan
-                                [string]$LocalPath = if (Test-Path -Path "D:") { "D:\backups" } else { "C:\backups" }
-                                if (-not (Test-Path -Path $LocalPath)) {
-                                    New-Item -ItemType Directory -Path $LocalPath -Force -ErrorAction Stop | Out-Null
-                                }
-
-                                # Apply baseline Root folder NTFS ACL rules: Domain Computers and Controllers read access
-                                $Acl = Get-Acl -Path $LocalPath
-                                $InheritanceFlags = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit"
-                                $PropagationFlags = [System.Security.AccessControl.PropagationFlags]"None"
-                                $AccessType = [System.Security.AccessControl.AccessControlType]"Allow"
-                                $CompReadRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule(
-                                    "$Domain\Domain Computers", "ReadAndExecute,Synchronize", $InheritanceFlags, $PropagationFlags, $AccessType
-                                )
-                                $CtrlReadRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule(
-                                    "$Domain\Domain Controllers", "ReadAndExecute,Synchronize", $InheritanceFlags, $PropagationFlags, $AccessType
-                                )
-                                $Acl.AddAccessRule($CompReadRule)
-                                $Acl.AddAccessRule($CtrlReadRule)
-                                Set-Acl -Path $LocalPath -AclObject $Acl -ErrorAction Stop
-
-                                # Initialize SMB Share instance with administrator access controls mapping
-                                Write-Host "Provisioning Active SMB share architecture..." -ForegroundColor Cyan
-                                New-SmbShare -Name $Share -Path $LocalPath -Description "Centralized Hot-Backup Image Repository" -FullAccess "$Domain\Domain Admins", "Administrators" -ErrorAction Stop | Out-Null
-                                
-                                # Grant share permissions to allow Computer Accounts read/write pipeline capabilities
-                                Grant-SmbShareAccess -Name $Share -AccountName "$Domain\Domain Computers" -AccessRight Change -Force -ErrorAction Stop | Out-Null
-                                Grant-SmbShareAccess -Name $Share -AccountName "$Domain\Domain Controllers" -AccessRight Change -Force -ErrorAction Stop | Out-Null
-                                Write-Host "Centralized SMB share orchestration complete." -ForegroundColor Green
-                            }
-                        } catch {
-                            Write-Error -Message "Failed to orchestrate central SMB share parameters: $_" -ErrorAction Stop
-                        }
-                    }
-
-                    # Route share creation configurations based on local or remote operational scope
-                    if ($ServerName -eq "localhost" -or $ServerName -eq $env:COMPUTERNAME -or $ServerName -eq ".") {
-                        Invoke-Command -ScriptBlock $ShareProvisionBlock -ArgumentList $ShareName, $DomainName -ErrorAction Stop
+                    Write-Host "Verifying infrastructure readiness for central SMB share '$ShareName' on server '$ServerName'..." -ForegroundColor Yellow
+                    [PSCustomObject]$ProvisionStatus = Initialize-BackupParentShare -ComputerName $ServerName -ShareName $ShareName -DomainName $DomainName
+                    if ($ProvisionStatus.Success) {
+                        Write-Host "Parent Infrastructure Routing: $($ProvisionStatus.Message)" -ForegroundColor Green
                     } else {
-                        Write-Host "Dispatching remote SMB configuration script block to '$ServerName'..." -ForegroundColor Cyan
-                        Invoke-Command -ComputerName $ServerName -ScriptBlock $ShareProvisionBlock -ArgumentList $ShareName, $DomainName -ErrorAction Stop
+                        Write-Warning -Message "Parent Infrastructure Failure: $($ProvisionStatus.Message)"
                     }
                 }
             } catch {
@@ -257,37 +382,14 @@ function Invoke-SystemBackup {
                 } else {
                     $HostFolderUNC = "$Global:TargetBackupDir\$NormalizedHost"
                 }
-                if (-not (Test-Path -Path $HostFolderUNC)) { # create the container folder and configure NTFS ACLs
-                    Write-Host "[+] Target folder does not exist. Creating isolated subfolder container at '$HostFolderUNC'..." -ForegroundColor Yellow
-                    New-Item -ItemType Directory -Path $HostFolderUNC -Force -ErrorAction Stop | Out-Null 
 
-                    # Secure subfolder container: Block explicit inheritance and enforce zero-trust isolation boundaries
-                    [string]$MachineAccount = "$env:USERDOMAIN\$NormalizedHost$"
-                    $Acl = Get-Acl -Path $HostFolderUNC
-                    
-                    # Protect ACL from root inheritance, copying existing explicit parent rules (Admins/SYSTEM)
-                    $Acl.SetAccessRuleProtection($true, $true)
-                    
-                    # Explicitly scrub generalized Domain Computers/Controllers read identities inherited from root share provisions
-                    [System.Security.AccessControl.FileSystemAccessRule[]]$TargetRules = $Acl.Access | Where-Object {
-                        $_.IdentityReference.Value -eq "$env:USERDOMAIN\Domain Computers" -or 
-                        $_.IdentityReference.Value -eq "$env:USERDOMAIN\Domain Controllers"
-                    }
-                    foreach ($Rule in $TargetRules) {
-                        [void]$Acl.RemoveAccessRule($Rule)
-                    }
-
-                    # Bind the precise target host computer account identity with strict isolated Modify rights
-                    $Inheritance = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit"
-                    $Propagation = [System.Security.AccessControl.PropagationFlags]"None"
-                    $Type = [System.Security.AccessControl.AccessControlType]"Allow"
-                    $ModifyRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule($MachineAccount, "Modify,Synchronize", $Inheritance, $Propagation, $Type)
-                    $Acl.AddAccessRule($ModifyRule)
-                    Set-Acl -Path $HostFolderUNC -AclObject $Acl -ErrorAction Stop
-                } else {
-                    Write-Host "[+] Utilizing existing isolated subfolder container at '$HostFolderUNC' (Permissions Preserved)." -ForegroundColor Gray
+                # Abstracted zero-trust folder separation engine logic routine call
+                [PSCustomObject]$FolderStatus = Initialize-BackupSubfolder -BasePath $Global:TargetBackupDir -TargetHost $NormalizedHost -DomainName $env:USERDOMAIN
+                Write-Host "Subfolder Allocation Mapping: $($FolderStatus.Message)" -ForegroundColor Gray
+                if (-not $FolderStatus.Success) {
+                    Write-Error -Message "Subfolder architecture error. Aborting backup cycle iteration for '$NormalizedHost'."
+                    Continue
                 }
-
                 if ($Computer -eq "localhost" -or $Computer -eq $env:COMPUTERNAME) {
                     [string]$DriveString = ""
                     if ($SelectedDrives.Count -eq 0) {
