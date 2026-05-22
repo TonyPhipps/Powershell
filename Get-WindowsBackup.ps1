@@ -16,7 +16,7 @@
     File Name      : Get-WindowsBackup.ps1
     Author         : Tony Phipps
     Prerequisites  : PowerShell 5.1+, Administrator privileges, WinRM enabled for remote targets
-    Version        : 2.0
+    Version        : 2.1
     Date           : May 22, 2026
     Copyright      : (c) 2026 Tony Phipps under the MIT License
 .LINK
@@ -288,7 +288,8 @@ function Get-TargetHost {
                 $Targets = @("localhost")
             }
         }
-        if ($Targets.Count -eq 0) { $Targets = @("localhost") }
+        # Enforce array sub-expression wrapping to ensure strict compliance with .Count validations
+        if (@($Targets).Count -eq 0) { $Targets = @("localhost") }
         return $Targets
     }
     end {}
@@ -306,7 +307,8 @@ function Invoke-DiskCleanup {
     )
     begin {}
     process {
-        if (-not $PSBoundParameters.ContainsKey('ComputerName') -or $ComputerName.Count -eq 0) {
+        # Secure variable property verification inside strict mode pipelines via array sub-expression execution
+        if (-not $PSBoundParameters.ContainsKey('ComputerName') -or @($ComputerName).Count -eq 0) {
             $ComputerName = Get-TargetHost
         }
         foreach ($Computer in $ComputerName) {
@@ -358,11 +360,13 @@ function Invoke-SystemBackup {
     process {
         Set-BackupTarget
         Write-Host "Centralized storage root initialized: $Global:TargetBackupDir" -ForegroundColor Yellow
-        if (-not $PSBoundParameters.ContainsKey('ComputerName') -or $ComputerName.Count -eq 0) {
+        
+        # Enforce array expression boundaries for safety under Set-StrictMode definitions
+        if (-not $PSBoundParameters.ContainsKey('ComputerName') -or @($ComputerName).Count -eq 0) {
             $ComputerName = Get-TargetHost
         }
         [string[]]$SelectedDrives = @()
-        if (-not $PSBoundParameters.ContainsKey('ExplicitDrives') -or $ExplicitDrives.Count -eq 0) {
+        if (-not $PSBoundParameters.ContainsKey('ExplicitDrives') -or @($ExplicitDrives).Count -eq 0) {
             Write-Host "Enter drive letters to back up (comma-separated, e.g., C,D), or press Enter for ALL fixed drives:" -ForegroundColor Cyan
             [string]$DriveInput = (Read-Host).Trim()
             if (-not [string]::IsNullOrWhiteSpace($DriveInput)) {
@@ -392,7 +396,7 @@ function Invoke-SystemBackup {
                 }
                 if ($Computer -eq "localhost" -or $Computer -eq $env:COMPUTERNAME) {
                     [string]$DriveString = ""
-                    if ($SelectedDrives.Count -eq 0) {
+                    if (@($SelectedDrives).Count -eq 0) {
                         [string[]]$LocalFixedDrives = (Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DriveType=3" -ErrorAction Stop).DeviceID
                         $DriveString = $LocalFixedDrives -join ","
                     } else {
@@ -406,8 +410,10 @@ function Invoke-SystemBackup {
                     Invoke-Command -ComputerName $Computer -ScriptBlock {
                         param([string]$TargetFolder, [string[]]$DrivesToBackup)
                         Set-StrictMode -Version Latest
+                        
+                        # Dynamically resolve potential null or deserialized string arrays inside remote PSSession parameters
                         [string]$RemoteDriveString = ""
-                        if ($DrivesToBackup.Count -eq 0) {
+                        if ($null -eq $DrivesToBackup -or @($DrivesToBackup).Count -eq 0) {
                             [string[]]$RemoteFixedDrives = (Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DriveType=3").DeviceID
                             $RemoteDriveString = $RemoteFixedDrives -join ","
                         } else {
@@ -422,7 +428,6 @@ function Invoke-SystemBackup {
                 Write-Error -Message "Failed to execute centralized backup routine on host '$Computer': $_"
             }
         }
-        Write-Host "Centralized backup routine processing completed." -ForegroundColor Green
     }
     end {}
 }
