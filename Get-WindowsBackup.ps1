@@ -4,13 +4,17 @@
 .DESCRIPTION
     Runs local and remote disk optimization and invokes wbadmin for secure, 
     block-level hot backups on bare-metal systems. Supports explicit local-only 
-    overrides, custom target paths, dynamic timestamped naming conventions, 
-    and multi-target scanning via files or console inputs.
+    overrides, custom target paths, target drive selections, dynamic timestamped 
+    naming conventions, and multi-target scanning via files or console inputs.
+.PARAMETER LocalOverride
+    Switch to force local system execution only, bypassing target prompt routines.
+.PARAMETER BackupDrives
+    Array of drive letters (e.g., C, D) to target for the image backup block.
 .NOTES
     File Name      : Get-WindowsBackup.ps1
     Author         : Tony Phipps
     Prerequisites  : PowerShell 5.1+, Administrator privileges, WinRM enabled for remote targets
-    Version        : 1.3
+    Version        : 1.4
     Date           : May 22, 2026
     Copyright      : (c) 2026 Tony Phipps under the MIT License
 .LINK
@@ -21,7 +25,10 @@
 [CmdletBinding()]
 param (
     [Parameter(Mandatory = $false)]
-    [Switch]$LocalOverride
+    [Switch]$LocalOverride,
+
+    [Parameter(Mandatory = $false)]
+    [string[]]$BackupDrives
 )
 
 # Enforce strict variable execution boundaries
@@ -158,40 +165,71 @@ function Invoke-SystemBackup {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false, ValueFromPipeline = $true)]
-        [string[]]$ComputerName
+        [string[]]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [string[]]$ExplicitDrives
     )
     begin {}
     process {
         Set-BackupTarget
         Write-Host "Target base destination directory initialized: $Global:TargetBackupDir" -ForegroundColor Yellow
+        
         if (-not $PSBoundParameters.ContainsKey('ComputerName') -or $ComputerName.Count -eq 0) {
             $ComputerName = Get-TargetHost
         }
+
+        # Handle fallback selection criteria if drive target parameters were omitted during parameter execution bindings
+        [string[]]$SelectedDrives = @()
+        if (-not $PSBoundParameters.ContainsKey('ExplicitDrives') -or $ExplicitDrives.Count -eq 0) {
+            Write-Host "Enter drive letters to back up (comma-separated, e.g., C,D), or press Enter for ALL fixed drives:" -ForegroundColor Cyan
+            [string]$DriveInput = (Read-Host).Trim()
+            
+            if (-not [string]::IsNullOrWhiteSpace($DriveInput)) {
+                $SelectedDrives = $DriveInput -split "," | ForEach-Object { $_.Trim().ToUpper().Replace(":", "") } | Where-Object { $_ -ne "" }
+            }
+        } else {
+            $SelectedDrives = $ExplicitDrives | ForEach-Object { $_.Trim().ToUpper().Replace(":", "") } | Where-Object { $_ -ne "" }
+        }
+
         foreach ($Computer in $ComputerName) {
             try {
-                # Standardize names for local rendering versus remote addresses
                 [string]$NormalizedHost = if ($Computer -eq "localhost" -or $Computer -eq $env:COMPUTERNAME) { $env:COMPUTERNAME } else { $Computer }
                 [string]$TimeStamp = (Get-Date -Format "yyyy-MM-dd_HH-mm")
-                
-                # Construct custom structurally isolated container destination path
                 [string]$SpecificBackupDir = Join-Path -Path $Global:TargetBackupDir -ChildPath ("{0}_{1}" -f $NormalizedHost, $TimeStamp)
-
                 if ($Computer -eq "localhost" -or $Computer -eq $env:COMPUTERNAME) {
-                    Write-Host "Initiating backup for local machine targeting '$SpecificBackupDir'..." -ForegroundColor Cyan
+                    # Evaluate dynamic drive parameters locally
+                    [string]$DriveString = ""
+                    if ($SelectedDrives.Count -eq 0) {
+                        [string[]]$LocalFixedDrives = (Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DriveType=3" -ErrorAction Stop).DeviceID
+                        $DriveString = $LocalFixedDrives -join ","
+                    } else {
+                        $DriveString = ($SelectedDrives | ForEach-Object { "$($_):" }) -join ","
+                    }
+                    Write-Host "Initiating backup for local machine targeting '$SpecificBackupDir' [Drives: $DriveString]..." -ForegroundColor Cyan
                     if (-not (Test-Path -Path $SpecificBackupDir)) { 
                         New-Item -ItemType Directory -Path $SpecificBackupDir -Force -ErrorAction Stop | Out-Null 
                     }
-                    [string]$BackupCommand = "wbadmin start backup -backupTarget:$SpecificBackupDir -allCritical -vssFull -quiet"
+                    [string]$BackupCommand = "wbadmin start backup -backupTarget:$SpecificBackupDir -include:$DriveString -allCritical -vssFull -quiet"
                     Invoke-Expression -Command $BackupCommand
                 } else {
                     Write-Host "Initiating remote backup of $Computer targeting '$SpecificBackupDir'..." -ForegroundColor Cyan
                     Invoke-Command -ComputerName $Computer -ScriptBlock {
-                        param([string]$TargetDir)
+                        param([string]$TargetDir, [string[]]$DrivesToBackup)
                         if (-not (Test-Path -Path $TargetDir)) { 
                             New-Item -ItemType Directory -Path $TargetDir -Force -ErrorAction Stop | Out-Null 
                         }
-                        wbadmin start backup -backupTarget:$TargetDir -allCritical -vssFull -quiet
-                    } -ArgumentList $SpecificBackupDir -ErrorAction Stop
+
+                        # Dynamic discovery of target drives natively within the remote systems domain scope
+                        [string]$RemoteDriveString = ""
+                        if ($DrivesToBackup.Count -eq 0) {
+                            [string[]]$RemoteFixedDrives = (Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DriveType=3").DeviceID
+                            $RemoteDriveString = $RemoteFixedDrives -join ","
+                        } else {
+                            $RemoteDriveString = ($DrivesToBackup | ForEach-Object { "$($_):" }) -join ","
+                        }
+                        wbadmin start backup -backupTarget:$TargetDir -include:$RemoteDriveString -allCritical -vssFull -quiet
+                    } -ArgumentList $SpecificBackupDir, $SelectedDrives -ErrorAction Stop
                 }
             } catch {
                 Write-Error -Message "Failed to execute backup routine on host '$Computer': $_"
@@ -205,14 +243,13 @@ function Invoke-SystemBackup {
 # MENU INTERFACE
 [string]$Selection = ""
 do {
-    # Reset target context path variables across independent execution iterations
     $Global:TargetBackupDir = ""
     
     Write-Host "===============================================" -ForegroundColor Gray
     Write-Host "     SYSTEM MAINTENANCE & BACKUP MENU          " -ForegroundColor White
     if ($LocalOverride) { Write-Host "          [ LOCAL-ONLY OVERRIDE ACTIVE ]          " -ForegroundColor Magenta }
     Write-Host "===============================================" -ForegroundColor Gray
-    Write-Host "1. Run Disk Cleanup"
+    Write-Host "1. Run Disk Cleanup on Target Systems"
     Write-Host "2. Backup Target Systems"
     Write-Host "3. Run Disk Cleanup, then Backup Target Systems"
     Write-Host "Q. Exit"
@@ -221,12 +258,12 @@ do {
     
     switch ($Selection) {
         "1" { Invoke-DiskCleanup }
-        "2" { Invoke-SystemBackup }
+        "2" { Invoke-SystemBackup -ExplicitDrives $BackupDrives }
         "3" { 
             [string[]]$SharedTargets = Get-TargetHost
             Set-BackupTarget
             Invoke-DiskCleanup -ComputerName $SharedTargets
-            Invoke-SystemBackup -ComputerName $SharedTargets
+            Invoke-SystemBackup -ComputerName $SharedTargets -ExplicitDrives $BackupDrives
         }
         "q" { Write-Host "`nExiting utility..." -ForegroundColor Yellow; Break }
         default { Write-Host "`nInvalid selection. Please choose an option." -ForegroundColor Red }
