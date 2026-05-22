@@ -4,12 +4,13 @@
 .DESCRIPTION
     Runs local and remote disk optimization and invokes wbadmin for secure, 
     block-level hot backups on bare-metal systems. Supports explicit local-only 
-    overrides and multi-target scanning via files or console inputs.
+    overrides, custom target paths, dynamic timestamped naming conventions, 
+    and multi-target scanning via files or console inputs.
 .NOTES
     File Name      : Get-WindowsBackup.ps1
     Author         : Tony Phipps
     Prerequisites  : PowerShell 5.1+, Administrator privileges, WinRM enabled for remote targets
-    Version        : 1.2
+    Version        : 1.3
     Date           : May 22, 2026
     Copyright      : (c) 2026 Tony Phipps under the MIT License
 .LINK
@@ -22,33 +23,42 @@ param (
     [Parameter(Mandatory = $false)]
     [Switch]$LocalOverride
 )
+
+# Enforce strict variable execution boundaries
 Set-StrictMode -Version Latest
+
 Clear-Host
 [string]$DefaultBackupPath = "D:\backups"
-[string]$FallbackBackupPath = "C:\backups"
 $Global:TargetBackupDir = ""
 
 function Set-BackupTarget {
+    <#
+    .SYNOPSIS
+        Prompts for and validates the base backup directory path.
+    #>
     [CmdletBinding()]
     param()
     begin {}
     process {
-        try {
-            if (Test-Path -Path "D:") {
-                $Global:TargetBackupDir = $DefaultBackupPath
-            } else {
-                $Global:TargetBackupDir = $FallbackBackupPath
+        if ([string]::IsNullOrWhiteSpace($Global:TargetBackupDir)) {
+            try {
+                Write-Host "Enter backup destination directory path (or press Enter for default 'D:\backups'):" -ForegroundColor Cyan
+                [string]$PathInput = (Read-Host).Trim()
+                
+                if ([string]::IsNullOrWhiteSpace($PathInput)) {
+                    $Global:TargetBackupDir = $DefaultBackupPath
+                } else {
+                    $Global:TargetBackupDir = $PathInput
+                }
+            } catch {
+                Write-Error -Message "Failed to initialize backup target directory: $_" -ErrorAction Stop
             }
-            if (-not (Test-Path -Path $Global:TargetBackupDir)) {
-                New-Item -ItemType Directory -Path $Global:TargetBackupDir -Force -ErrorAction Stop | Out-Null
-            }
-        } catch {
-            Write-Error -Message "Failed to initialize backup target directory: $_" -ErrorAction Stop
         }
     }
     end {}
 }
 
+# Verify administrative runtime context
 [bool]$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
     Write-Warning -Message "This script requires administrative privileges to run Disk Cleanup and wbadmin."
@@ -57,7 +67,10 @@ if (-not $isAdmin) {
 }
 
 function Get-TargetHost {
-    # Resolves target hosts via manual input or file parsing.
+    <#
+    .SYNOPSIS
+        Resolves target hosts via manual input parsing or text-file discovery.
+    #>
     [CmdletBinding()]
     param()
     begin {}
@@ -81,7 +94,6 @@ function Get-TargetHost {
                 }
             } catch {
                 Write-Warning -Message "Failed to parse target input properly. Falling back to local machine. Details: $_"
-                Pause
                 $Targets = @("localhost")
             }
         }
@@ -92,7 +104,10 @@ function Get-TargetHost {
 }
 
 function Invoke-DiskCleanup {
-    # Executes volume cache management and component store optimization on targets.
+    <#
+    .SYNOPSIS
+        Executes volume cache optimization and component store cleanup routines.
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false, ValueFromPipeline = $true)]
@@ -100,7 +115,6 @@ function Invoke-DiskCleanup {
     )
     begin {}
     process {
-        # Fetch targets dynamically if not explicitly supplied via pipeline or parameter
         if (-not $PSBoundParameters.ContainsKey('ComputerName') -or $ComputerName.Count -eq 0) {
             $ComputerName = Get-TargetHost
         }
@@ -139,7 +153,7 @@ function Invoke-DiskCleanup {
 function Invoke-SystemBackup {
     <#
     .SYNOPSIS
-        Executes block-level Windows Image Backup routines on designated endpoints.
+        Executes block-level Windows Image Backup tasks targeting specific destination structures.
     #>
     [CmdletBinding()]
     param(
@@ -149,25 +163,35 @@ function Invoke-SystemBackup {
     begin {}
     process {
         Set-BackupTarget
-        Write-Host "Target storage destination initialized: $Global:TargetBackupDir" -ForegroundColor Yellow
+        Write-Host "Target base destination directory initialized: $Global:TargetBackupDir" -ForegroundColor Yellow
         if (-not $PSBoundParameters.ContainsKey('ComputerName') -or $ComputerName.Count -eq 0) {
             $ComputerName = Get-TargetHost
         }
         foreach ($Computer in $ComputerName) {
             try {
+                # Standardize names for local rendering versus remote addresses
+                [string]$NormalizedHost = if ($Computer -eq "localhost" -or $Computer -eq $env:COMPUTERNAME) { $env:COMPUTERNAME } else { $Computer }
+                [string]$TimeStamp = (Get-Date -Format "yyyy-MM-dd_HH-mm")
+                
+                # Construct custom structurally isolated container destination path
+                [string]$SpecificBackupDir = Join-Path -Path $Global:TargetBackupDir -ChildPath ("{0}_{1}" -f $NormalizedHost, $TimeStamp)
+
                 if ($Computer -eq "localhost" -or $Computer -eq $env:COMPUTERNAME) {
-                    Write-Host "Initiating backup for local machine..." -ForegroundColor Cyan
-                    [string]$BackupCommand = "wbadmin start backup -backupTarget:$Global:TargetBackupDir -allCritical -vssFull -quiet"
+                    Write-Host "Initiating backup for local machine targeting '$SpecificBackupDir'..." -ForegroundColor Cyan
+                    if (-not (Test-Path -Path $SpecificBackupDir)) { 
+                        New-Item -ItemType Directory -Path $SpecificBackupDir -Force -ErrorAction Stop | Out-Null 
+                    }
+                    [string]$BackupCommand = "wbadmin start backup -backupTarget:$SpecificBackupDir -allCritical -vssFull -quiet"
                     Invoke-Expression -Command $BackupCommand
                 } else {
-                    Write-Host "Initiating remote backup of $Computer..." -ForegroundColor Cyan
+                    Write-Host "Initiating remote backup of $Computer targeting '$SpecificBackupDir'..." -ForegroundColor Cyan
                     Invoke-Command -ComputerName $Computer -ScriptBlock {
                         param([string]$TargetDir)
                         if (-not (Test-Path -Path $TargetDir)) { 
                             New-Item -ItemType Directory -Path $TargetDir -Force -ErrorAction Stop | Out-Null 
                         }
                         wbadmin start backup -backupTarget:$TargetDir -allCritical -vssFull -quiet
-                    } -ArgumentList $Global:TargetBackupDir -ErrorAction Stop
+                    } -ArgumentList $SpecificBackupDir -ErrorAction Stop
                 }
             } catch {
                 Write-Error -Message "Failed to execute backup routine on host '$Computer': $_"
@@ -181,6 +205,9 @@ function Invoke-SystemBackup {
 # MENU INTERFACE
 [string]$Selection = ""
 do {
+    # Reset target context path variables across independent execution iterations
+    $Global:TargetBackupDir = ""
+    
     Write-Host "===============================================" -ForegroundColor Gray
     Write-Host "     SYSTEM MAINTENANCE & BACKUP MENU          " -ForegroundColor White
     if ($LocalOverride) { Write-Host "          [ LOCAL-ONLY OVERRIDE ACTIVE ]          " -ForegroundColor Magenta }
@@ -197,6 +224,7 @@ do {
         "2" { Invoke-SystemBackup }
         "3" { 
             [string[]]$SharedTargets = Get-TargetHost
+            Set-BackupTarget
             Invoke-DiskCleanup -ComputerName $SharedTargets
             Invoke-SystemBackup -ComputerName $SharedTargets
         }
