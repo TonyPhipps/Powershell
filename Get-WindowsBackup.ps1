@@ -5,9 +5,9 @@
     Runs local and remote disk optimization and invokes wbadmin for secure, 
     block-level hot backups on bare-metal systems. Supports explicit local-only 
     overrides, target drive selections, and an automated hybrid centralized 
-    architecture that dynamically spins up SMB shares, configures active 
+    architecture that dynamically spins up SMB shares, configures Active 
     Directory machine account share access permissions, and isolates individual 
-    host backups into secure NTFS-partitioned subfolders.
+    host backups into secure, zero-trust NTFS-partitioned subfolders on creation.
 .PARAMETER LocalOverride
     Switch to force local system execution only, bypassing target prompt routines.
 .PARAMETER BackupDrives
@@ -16,7 +16,7 @@
     File Name      : Get-WindowsBackup.ps1
     Author         : Tony Phipps
     Prerequisites  : PowerShell 5.1+, Administrator privileges, WinRM enabled for remote targets
-    Version        : 1.7
+    Version        : 1.9
     Date           : May 22, 2026
     Copyright      : (c) 2026 Tony Phipps under the MIT License
 .LINK
@@ -257,27 +257,44 @@ function Invoke-SystemBackup {
                 } else {
                     $HostFolderUNC = "$Global:TargetBackupDir\$NormalizedHost"
                 }
-                Write-Host "[+] Configuring isolated subfolder boundaries at '$HostFolderUNC'..." -ForegroundColor Yellow
-                if (-not (Test-Path -Path $HostFolderUNC)) { 
+                if (-not (Test-Path -Path $HostFolderUNC)) { # create the container folder and configure NTFS ACLs
+                    Write-Host "[+] Target folder does not exist. Creating isolated subfolder container at '$HostFolderUNC'..." -ForegroundColor Yellow
                     New-Item -ItemType Directory -Path $HostFolderUNC -Force -ErrorAction Stop | Out-Null 
+
+                    # Secure subfolder container: Block explicit inheritance and enforce zero-trust isolation boundaries
+                    [string]$MachineAccount = "$env:USERDOMAIN\$NormalizedHost$"
+                    $Acl = Get-Acl -Path $HostFolderUNC
+                    
+                    # Protect ACL from root inheritance, copying existing explicit parent rules (Admins/SYSTEM)
+                    $Acl.SetAccessRuleProtection($true, $true)
+                    
+                    # Explicitly scrub generalized Domain Computers/Controllers read identities inherited from root share provisions
+                    [System.Security.AccessControl.FileSystemAccessRule[]]$TargetRules = $Acl.Access | Where-Object {
+                        $_.IdentityReference.Value -eq "$env:USERDOMAIN\Domain Computers" -or 
+                        $_.IdentityReference.Value -eq "$env:USERDOMAIN\Domain Controllers"
+                    }
+                    foreach ($Rule in $TargetRules) {
+                        [void]$Acl.RemoveAccessRule($Rule)
+                    }
+
+                    # Bind the precise target host computer account identity with strict isolated Modify rights
+                    $Inheritance = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit"
+                    $Propagation = [System.Security.AccessControl.PropagationFlags]"None"
+                    $Type = [System.Security.AccessControl.AccessControlType]"Allow"
+                    $ModifyRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule($MachineAccount, "Modify,Synchronize", $Inheritance, $Propagation, $Type)
+                    $Acl.AddAccessRule($ModifyRule)
+                    Set-Acl -Path $HostFolderUNC -AclObject $Acl -ErrorAction Stop
+                } else {
+                    Write-Host "[+] Utilizing existing isolated subfolder container at '$HostFolderUNC' (Permissions Preserved)." -ForegroundColor Gray
                 }
 
-                # Secure subfolder container: Block foreign hosts from executing cross-directory mutations via NTFS ACL bindings
-                [string]$MachineAccount = "$env:USERDOMAIN\$NormalizedHost$"
-                $Acl = Get-Acl -Path $HostFolderUNC
-                $Inheritance = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit"
-                $Propagation = [System.Security.AccessControl.PropagationFlags]"None"
-                $Type = [System.Security.AccessControl.AccessControlType]"Allow"
-                $ModifyRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule($MachineAccount, "Modify,Synchronize", $Inheritance, $Propagation, $Type)
-                $Acl.AddAccessRule($ModifyRule)
-                Set-Acl -Path $HostFolderUNC -AclObject $Acl -ErrorAction Stop
                 if ($Computer -eq "localhost" -or $Computer -eq $env:COMPUTERNAME) {
                     [string]$DriveString = ""
                     if ($SelectedDrives.Count -eq 0) {
                         [string[]]$LocalFixedDrives = (Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DriveType=3" -ErrorAction Stop).DeviceID
                         $DriveString = $LocalFixedDrives -join ","
                     } else {
-                        $DriveString = ($SelectedDrives | ForEach-Object { "#($_):" }) -join ","
+                        $DriveString = ($SelectedDrives | ForEach-Object { "$($_):" }) -join ","
                     }
                     Write-Host "Initiating local backup targeting storage path '$HostFolderUNC' [Drives: $DriveString]..." -ForegroundColor Cyan
                     [string]$BackupCommand = "wbadmin start backup -backupTarget:$HostFolderUNC -include:$DriveString -allCritical -vssFull -quiet"
