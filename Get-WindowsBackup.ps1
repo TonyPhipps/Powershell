@@ -1,12 +1,13 @@
 <#
 .SYNOPSIS
-    Automated Disk Cleanup and Windows Image Backup Tool.
+    Automated Disk Cleanup and Centralized Windows Image Backup Tool.
 .DESCRIPTION
     Runs local and remote disk optimization and invokes wbadmin for secure, 
     block-level hot backups on bare-metal systems. Supports explicit local-only 
-    overrides, custom target paths, target drive selections, dynamic timestamped 
-    naming conventions on backup folders, and multi-target scanning via files or
-    console inputs.
+    overrides, target drive selections, and an automated hybrid centralized 
+    architecture that dynamically spins up SMB shares, configures active 
+    Directory machine account share access permissions, and isolates individual 
+    host backups into secure NTFS-partitioned subfolders.
 .PARAMETER LocalOverride
     Switch to force local system execution only, bypassing target prompt routines.
 .PARAMETER BackupDrives
@@ -15,7 +16,7 @@
     File Name      : Get-WindowsBackup.ps1
     Author         : Tony Phipps
     Prerequisites  : PowerShell 5.1+, Administrator privileges, WinRM enabled for remote targets
-    Version        : 1.4
+    Version        : 1.7
     Date           : May 22, 2026
     Copyright      : (c) 2026 Tony Phipps under the MIT License
 .LINK
@@ -42,7 +43,7 @@ $Global:TargetBackupDir = ""
 function Set-BackupTarget {
     <#
     .SYNOPSIS
-        Prompts for and validates the base backup directory path.
+        Prompts for, validates, and dynamically configures the base backup repository or UNC share target.
     #>
     [CmdletBinding()]
     param()
@@ -50,7 +51,7 @@ function Set-BackupTarget {
     process {
         if ([string]::IsNullOrWhiteSpace($Global:TargetBackupDir)) {
             try {
-                Write-Host "Enter backup destination directory path (or press Enter for default 'D:\backups'):" -ForegroundColor Cyan
+                Write-Host "Enter central backup destination path (Local Path or UNC like '\\backupserver\backups'):" -ForegroundColor Cyan
                 [string]$PathInput = (Read-Host).Trim()
                 
                 if ([string]::IsNullOrWhiteSpace($PathInput)) {
@@ -58,8 +59,65 @@ function Set-BackupTarget {
                 } else {
                     $Global:TargetBackupDir = $PathInput
                 }
+
+                # Dynamically provision and secure the target resource if a UNC share path is specified
+                if ($Global:TargetBackupDir -match '^\\\\([^\\]+)\\([^\\]+)') {
+                    [string]$ServerName = $Matches[1]
+                    [string]$ShareName = $Matches[2]
+                    [string]$DomainName = $env:USERDOMAIN
+
+                    Write-Host "[+] Verifying infrastructure readiness for central SMB share '$ShareName' on server '$ServerName'..." -ForegroundColor Yellow
+
+                    [scriptblock]$ShareProvisionBlock = {
+                        param([string]$Share, [string]$Domain)
+                        Set-StrictMode -Version Latest
+                        try {
+                            if (-not (Get-SmbShare -Name $Share -ErrorAction SilentlyContinue)) {
+                                Write-Host "Share '$Share' does not exist. Creating storage container directory..." -ForegroundColor Cyan
+                                [string]$LocalPath = if (Test-Path -Path "D:") { "D:\backups" } else { "C:\backups" }
+                                if (-not (Test-Path -Path $LocalPath)) {
+                                    New-Item -ItemType Directory -Path $LocalPath -Force -ErrorAction Stop | Out-Null
+                                }
+
+                                # Apply baseline Root folder NTFS ACL rules: Domain Computers and Controllers read access
+                                $Acl = Get-Acl -Path $LocalPath
+                                $InheritanceFlags = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit"
+                                $PropagationFlags = [System.Security.AccessControl.PropagationFlags]"None"
+                                $AccessType = [System.Security.AccessControl.AccessControlType]"Allow"
+                                $CompReadRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule(
+                                    "$Domain\Domain Computers", "ReadAndExecute,Synchronize", $InheritanceFlags, $PropagationFlags, $AccessType
+                                )
+                                $CtrlReadRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule(
+                                    "$Domain\Domain Controllers", "ReadAndExecute,Synchronize", $InheritanceFlags, $PropagationFlags, $AccessType
+                                )
+                                $Acl.AddAccessRule($CompReadRule)
+                                $Acl.AddAccessRule($CtrlReadRule)
+                                Set-Acl -Path $LocalPath -AclObject $Acl -ErrorAction Stop
+
+                                # Initialize SMB Share instance with administrator access controls mapping
+                                Write-Host "Provisioning Active SMB share architecture..." -ForegroundColor Cyan
+                                New-SmbShare -Name $Share -Path $LocalPath -Description "Centralized Hot-Backup Image Repository" -FullAccess "$Domain\Domain Admins", "Administrators" -ErrorAction Stop | Out-Null
+                                
+                                # Grant share permissions to allow Computer Accounts read/write pipeline capabilities
+                                Grant-SmbShareAccess -Name $Share -AccountName "$Domain\Domain Computers" -AccessRight Change -Force -ErrorAction Stop | Out-Null
+                                Grant-SmbShareAccess -Name $Share -AccountName "$Domain\Domain Controllers" -AccessRight Change -Force -ErrorAction Stop | Out-Null
+                                Write-Host "Centralized SMB share orchestration complete." -ForegroundColor Green
+                            }
+                        } catch {
+                            Write-Error -Message "Failed to orchestrate central SMB share parameters: $_" -ErrorAction Stop
+                        }
+                    }
+
+                    # Route share creation configurations based on local or remote operational scope
+                    if ($ServerName -eq "localhost" -or $ServerName -eq $env:COMPUTERNAME -or $ServerName -eq ".") {
+                        Invoke-Command -ScriptBlock $ShareProvisionBlock -ArgumentList $ShareName, $DomainName -ErrorAction Stop
+                    } else {
+                        Write-Host "Dispatching remote SMB configuration script block to '$ServerName'..." -ForegroundColor Cyan
+                        Invoke-Command -ComputerName $ServerName -ScriptBlock $ShareProvisionBlock -ArgumentList $ShareName, $DomainName -ErrorAction Stop
+                    }
+                }
             } catch {
-                Write-Error -Message "Failed to initialize backup target directory: $_" -ErrorAction Stop
+                Write-Error -Message "Failed to initialize backup target directory structure: $_" -ErrorAction Stop
             }
         }
     }
@@ -161,7 +219,7 @@ function Invoke-DiskCleanup {
 function Invoke-SystemBackup {
     <#
     .SYNOPSIS
-        Executes block-level Windows Image Backup tasks targeting specific destination structures.
+        Executes block-level Windows Image Backup tasks targeting partitioned destination directories.
     #>
     [CmdletBinding()]
     param(
@@ -174,54 +232,61 @@ function Invoke-SystemBackup {
     begin {}
     process {
         Set-BackupTarget
-        Write-Host "Target base destination directory initialized: $Global:TargetBackupDir" -ForegroundColor Yellow
-        
+        Write-Host "Centralized storage root initialized: $Global:TargetBackupDir" -ForegroundColor Yellow
         if (-not $PSBoundParameters.ContainsKey('ComputerName') -or $ComputerName.Count -eq 0) {
             $ComputerName = Get-TargetHost
         }
-
-        # Handle fallback selection criteria if drive target parameters were omitted during parameter execution bindings
         [string[]]$SelectedDrives = @()
         if (-not $PSBoundParameters.ContainsKey('ExplicitDrives') -or $ExplicitDrives.Count -eq 0) {
             Write-Host "Enter drive letters to back up (comma-separated, e.g., C,D), or press Enter for ALL fixed drives:" -ForegroundColor Cyan
             [string]$DriveInput = (Read-Host).Trim()
-            
             if (-not [string]::IsNullOrWhiteSpace($DriveInput)) {
                 $SelectedDrives = $DriveInput -split "," | ForEach-Object { $_.Trim().ToUpper().Replace(":", "") } | Where-Object { $_ -ne "" }
             }
         } else {
             $SelectedDrives = $ExplicitDrives | ForEach-Object { $_.Trim().ToUpper().Replace(":", "") } | Where-Object { $_ -ne "" }
         }
-
         foreach ($Computer in $ComputerName) {
             try {
                 [string]$NormalizedHost = if ($Computer -eq "localhost" -or $Computer -eq $env:COMPUTERNAME) { $env:COMPUTERNAME } else { $Computer }
-                [string]$TimeStamp = (Get-Date -Format "yyyy-MM-dd_HH-mm")
-                [string]$SpecificBackupDir = Join-Path -Path $Global:TargetBackupDir -ChildPath ("{0}_{1}" -f $NormalizedHost, $TimeStamp)
+
+                # Enforce host-isolated subfolder naming paths inside the repository
+                [string]$HostFolderUNC = ""
+                if ($Global:TargetBackupDir -match '^[A-Za-z]:\\') {
+                    $HostFolderUNC = Join-Path -Path $Global:TargetBackupDir -ChildPath $NormalizedHost
+                } else {
+                    $HostFolderUNC = "$Global:TargetBackupDir\$NormalizedHost"
+                }
+                Write-Host "[+] Configuring isolated subfolder boundaries at '$HostFolderUNC'..." -ForegroundColor Yellow
+                if (-not (Test-Path -Path $HostFolderUNC)) { 
+                    New-Item -ItemType Directory -Path $HostFolderUNC -Force -ErrorAction Stop | Out-Null 
+                }
+
+                # Secure subfolder container: Block foreign hosts from executing cross-directory mutations via NTFS ACL bindings
+                [string]$MachineAccount = "$env:USERDOMAIN\$NormalizedHost$"
+                $Acl = Get-Acl -Path $HostFolderUNC
+                $Inheritance = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit"
+                $Propagation = [System.Security.AccessControl.PropagationFlags]"None"
+                $Type = [System.Security.AccessControl.AccessControlType]"Allow"
+                $ModifyRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule($MachineAccount, "Modify,Synchronize", $Inheritance, $Propagation, $Type)
+                $Acl.AddAccessRule($ModifyRule)
+                Set-Acl -Path $HostFolderUNC -AclObject $Acl -ErrorAction Stop
                 if ($Computer -eq "localhost" -or $Computer -eq $env:COMPUTERNAME) {
-                    # Evaluate dynamic drive parameters locally
                     [string]$DriveString = ""
                     if ($SelectedDrives.Count -eq 0) {
                         [string[]]$LocalFixedDrives = (Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DriveType=3" -ErrorAction Stop).DeviceID
                         $DriveString = $LocalFixedDrives -join ","
                     } else {
-                        $DriveString = ($SelectedDrives | ForEach-Object { "$($_):" }) -join ","
+                        $DriveString = ($SelectedDrives | ForEach-Object { "#($_):" }) -join ","
                     }
-                    Write-Host "Initiating backup for local machine targeting '$SpecificBackupDir' [Drives: $DriveString]..." -ForegroundColor Cyan
-                    if (-not (Test-Path -Path $SpecificBackupDir)) { 
-                        New-Item -ItemType Directory -Path $SpecificBackupDir -Force -ErrorAction Stop | Out-Null 
-                    }
-                    [string]$BackupCommand = "wbadmin start backup -backupTarget:$SpecificBackupDir -include:$DriveString -allCritical -vssFull -quiet"
+                    Write-Host "Initiating local backup targeting storage path '$HostFolderUNC' [Drives: $DriveString]..." -ForegroundColor Cyan
+                    [string]$BackupCommand = "wbadmin start backup -backupTarget:$HostFolderUNC -include:$DriveString -allCritical -vssFull -quiet"
                     Invoke-Expression -Command $BackupCommand
                 } else {
-                    Write-Host "Initiating remote backup of $Computer targeting '$SpecificBackupDir'..." -ForegroundColor Cyan
+                    Write-Host "Dispatching network hot-backup on $Computer targeting remote repository folder '$HostFolderUNC'..." -ForegroundColor Cyan
                     Invoke-Command -ComputerName $Computer -ScriptBlock {
-                        param([string]$TargetDir, [string[]]$DrivesToBackup)
-                        if (-not (Test-Path -Path $TargetDir)) { 
-                            New-Item -ItemType Directory -Path $TargetDir -Force -ErrorAction Stop | Out-Null 
-                        }
-
-                        # Dynamic discovery of target drives natively within the remote systems domain scope
+                        param([string]$TargetFolder, [string[]]$DrivesToBackup)
+                        Set-StrictMode -Version Latest
                         [string]$RemoteDriveString = ""
                         if ($DrivesToBackup.Count -eq 0) {
                             [string[]]$RemoteFixedDrives = (Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DriveType=3").DeviceID
@@ -229,14 +294,16 @@ function Invoke-SystemBackup {
                         } else {
                             $RemoteDriveString = ($DrivesToBackup | ForEach-Object { "$($_):" }) -join ","
                         }
-                        wbadmin start backup -backupTarget:$TargetDir -include:$RemoteDriveString -allCritical -vssFull -quiet
-                    } -ArgumentList $SpecificBackupDir, $SelectedDrives -ErrorAction Stop
+
+                        # Executes directly across single-hop mapping leveraging the machine account's dedicated token permission
+                        wbadmin start backup -backupTarget:$TargetFolder -include:$RemoteDriveString -allCritical -vssFull -quiet
+                    } -ArgumentList $HostFolderUNC, $SelectedDrives -ErrorAction Stop
                 }
             } catch {
-                Write-Error -Message "Failed to execute backup routine on host '$Computer': $_"
+                Write-Error -Message "Failed to execute centralized backup routine on host '$Computer': $_"
             }
         }
-        Write-Host "Backup routine processing completed." -ForegroundColor Green
+        Write-Host "Centralized backup routine processing completed." -ForegroundColor Green
     }
     end {}
 }
