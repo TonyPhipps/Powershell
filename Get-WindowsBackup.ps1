@@ -16,8 +16,8 @@
     File Name      : Get-WindowsBackup.ps1
     Author         : Tony Phipps
     Prerequisites  : PowerShell 5.1+, Administrator privileges, WinRM enabled for remote targets
-    Version        : 2.2
-    Date           : May 22, 2026
+    Version        : 2.3
+    Date           : May 27, 2026
     Copyright      : (c) 2026 Tony Phipps under the MIT License
 .LINK
     https://github.com/TonyPhipps/Powershell
@@ -45,40 +45,72 @@ Set-StrictMode -Version Latest
 function Test-WindowsBackupInstalled {
     <#
     .SYNOPSIS
-        Checks if the Windows Server Backup feature is installed on the local server.
+        Checks if the Windows Server Backup feature is installed on a specified target host.
+    .PARAMETER ComputerName
+        The hostname or IP address of the target system to check.
     .OUTPUTS
-        [bool] True if installed, False if not.
+        [bool] True if installed or successfully installed, False if missing/canceled.
     #>
     [CmdletBinding()]
-    param()
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ComputerName
+    )
 
-    if (-not (Get-Module -ListAvailable -Name ServerManager)) {
-        Write-Warning "The ServerManager module is not available. Ensure you are running this on Windows Server."
-        return $false
-    }
     try {
-        $feature = Get-WindowsFeature -Name Windows-Server-Backup -ErrorAction Stop
-        if ($feature.Installed) {
-            Write-Host "Windows Server Backup is already installed." -ForegroundColor Green
+        $IsLocal = ($ComputerName -eq "localhost" -or $ComputerName -eq $env:COMPUTERNAME -or $ComputerName -eq ".")
+        
+        # Define isolated block for querying feature status via local or remote serialization boundaries
+        $CheckBlock = {
+            Set-StrictMode -Version Latest
+            if (-not (Get-Module -ListAvailable -Name ServerManager)) {
+                return @{ Installed = $false; ServerManagerAvailable = $false }
+            }
+            $feature = Get-WindowsFeature -Name Windows-Server-Backup -ErrorAction Stop
+            return @{ Installed = $feature.Installed; ServerManagerAvailable = $true }
+        }
+
+        Write-Host "Verifying Windows Server Backup status on '$ComputerName'..." -ForegroundColor Cyan
+        $Result = if ($IsLocal) {
+            Invoke-Command -ScriptBlock $CheckBlock
         } else {
-            Write-Host "Windows Server Backup is NOT installed." -ForegroundColor Yellow
-            $confirmation = Read-Host "Would you like to install Windows Server Backup now? (Y/N)"
+            Invoke-Command -ComputerName $ComputerName -ScriptBlock $CheckBlock -ErrorAction Stop
+        }
+
+        if (-not $Result.ServerManagerAvailable) {
+            Write-Warning "The ServerManager module is not available on '$ComputerName'. Ensure it is running Windows Server."
+            return $false
+        }
+
+        if ($Result.Installed) {
+            Write-Host "Windows Server Backup is already installed on '$ComputerName'." -ForegroundColor Green
+            return $true
+        } else {
+            Write-Host "Windows Server Backup is NOT installed on '$ComputerName'." -ForegroundColor Yellow
+            $confirmation = Read-Host "Would you like to install Windows Server Backup on '$ComputerName' now? (Y/N)"
             if ($confirmation -match '^[Yy](es)?$') {
-                Write-Host "Starting installation..." -ForegroundColor Cyan
-                try {
+                Write-Host "Starting installation on '$ComputerName'..." -ForegroundColor Cyan
+                $InstallBlock = {
+                    Set-StrictMode -Version Latest
                     Install-WindowsFeature -Name Windows-Server-Backup -IncludeManagementTools -ErrorAction Stop
-                    Write-Host "Windows Server Backup has been successfully installed!" -ForegroundColor Green
                 }
-                catch {
-                    Write-Error "Failed to install the feature: $_"
+                
+                if ($IsLocal) {
+                    Invoke-Command -ScriptBlock $InstallBlock -ErrorAction Stop
+                } else {
+                    Invoke-Command -ComputerName $ComputerName -ScriptBlock $InstallBlock -ErrorAction Stop
                 }
+                Write-Host "Windows Server Backup has been successfully installed on '$ComputerName'!" -ForegroundColor Green
+                return $true
             } else {
-                Write-Host "Installation canceled by user." -ForegroundColor Gray
+                Write-Host "Installation canceled by user for '$ComputerName'." -ForegroundColor Gray
+                return $false
             }
         }
     }
     catch {
-        Write-Error "An error occurred while checking the feature status: $_"
+        Write-Error "An error occurred while checking the feature status on '$ComputerName': $_"
+        return $false
     }
 }
 
@@ -87,7 +119,7 @@ function Initialize-HostList {
         [string[]]$TargetHosts
     )
 
-    # 1. If blank, prompt the user using the do-while approach
+    # If blank, prompt the user using the do-while approach
     if (-not $TargetHosts -or $TargetHosts.Count -eq 0 -or [string]::IsNullOrWhiteSpace($TargetHosts[0])) {
         do {
             $userInput = Read-Host "Enter hostname(s), a file path, or 'ad' for Active Directory servers"
@@ -408,6 +440,12 @@ function Invoke-SystemBackup {
             try {
                 [string]$NormalizedHost = if ($Computer -eq "localhost" -or $Computer -eq $env:COMPUTERNAME) { $env:COMPUTERNAME } else { $Computer }
 
+                # Verify Windows Server Backup is installed on the specific target host prior to execution
+                if (-not (Test-WindowsBackupInstalled -ComputerName $NormalizedHost)) {
+                    Write-Error -Message "Windows Server Backup is missing or installation was skipped on '$NormalizedHost'. Skipping backup cycle."
+                    continue
+                }
+
                 # Enforce host-isolated subfolder naming paths inside the repository
                 [string]$HostFolderUNC = ""
                 if ($Global:BackupTarget -match '^[A-Za-z]:\\') {
@@ -468,7 +506,7 @@ if (-not $isAdmin) {
     Write-Warning -Message "Please relaunch PowerShell as an Administrator."
     Exit
 }
-Test-WindowsBackupInstalled
+Test-WindowsBackupInstalled -ComputerName $env:COMPUTERNAME
 
 # Check and set variables
 $Hosts = Initialize-HostList -TargetHosts $Hosts
