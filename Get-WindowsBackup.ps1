@@ -439,7 +439,7 @@ do {
     
     Write-Host "===============================================" -ForegroundColor Gray
     Write-Host "     SYSTEM MAINTENANCE & BACKUP MENU          " -ForegroundColor White
-    if ($LocalOverride) { Write-Host "          [ LOCAL-ONLY OVERRIDE ACTIVE ]          " -ForegroundColor Magenta }
+    if ($LocalOverride) { Write-Host "     [ LOCAL-ONLY OVERRIDE ACTIVE ]          " -ForegroundColor Magenta }
     Write-Host "===============================================" -ForegroundColor Gray
     Write-Host "1. Run Disk Cleanup on Target Systems"
     Write-Host "2. Backup Target Systems"
