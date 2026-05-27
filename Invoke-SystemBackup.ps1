@@ -169,9 +169,9 @@ function Invoke-DiskCleanup {
                     Get-ChildItem -Path $RegPath -ErrorAction Stop | ForEach-Object {
                         New-ItemProperty -Path $_.PsPath -Name "StateFlags0001" -Value 2 -PropertyType DWord -Force -ErrorAction SilentlyContinue | Out-Null
                     }
-                    [System.Diagnostics.Process]$CleanMgr = Start-Process -FilePath "cleanmgr.exe" -ArgumentList "/sagerun:1" -Wait -NoNewWindow -PassThru
+                    $null = Start-Process -FilePath "cleanmgr.exe" -ArgumentList "/sagerun:1" -Wait -NoNewWindow -PassThru
                     Write-Host "Optimizing component store (DISM) locally..." -ForegroundColor Cyan
-                    [System.Diagnostics.Process]$DismMgr = Start-Process -FilePath "dism.exe" -ArgumentList "/online /cleanup-image /startcomponentcleanup /quiet" -Wait -NoNewWindow -PassThru
+                    $null = Start-Process -FilePath "dism.exe" -ArgumentList "/online /cleanup-image /startcomponentcleanup /quiet" -Wait -NoNewWindow -PassThru
                     Write-Host "Local Disk Cleanup and optimization complete." -ForegroundColor Gray
                 } else {
                     Write-Host "Dispatching remote Disk Cleanup to $Computer..." -ForegroundColor Cyan
@@ -180,8 +180,8 @@ function Invoke-DiskCleanup {
                         Get-ChildItem -Path $RemoteRegPath -ErrorAction Stop | ForEach-Object {
                             New-ItemProperty -Path $_.PsPath -Name "StateFlags0001" -Value 2 -PropertyType DWord -Force -ErrorAction SilentlyContinue | Out-Null
                         }
-                        [System.Diagnostics.Process]$CleanMgr = Start-Process -FilePath "cleanmgr.exe" -ArgumentList "/sagerun:1" -Wait -NoNewWindow -PassThru
-                        [System.Diagnostics.Process]$DismMgr = Start-Process -FilePath "dism.exe" -ArgumentList "/online /cleanup-image /startcomponentcleanup /quiet" -Wait -NoNewWindow -PassThru
+                        $null = Start-Process -FilePath "cleanmgr.exe" -ArgumentList "/sagerun:1" -Wait -NoNewWindow -PassThru
+                        $null = Start-Process -FilePath "dism.exe" -ArgumentList "/online /cleanup-image /startcomponentcleanup /quiet" -Wait -NoNewWindow -PassThru
                     } -ErrorAction Stop
                     Write-Host "Remote Disk Cleanup complete on $Computer." -ForegroundColor Gray
                 }
@@ -547,7 +547,6 @@ $Global:BackupTarget = $BackupTarget
 do {
     Write-Host "===============================================" -ForegroundColor Gray
     Write-Host "     SYSTEM MAINTENANCE & BACKUP MENU          " -ForegroundColor White
-    if ($LocalOverride) { Write-Host "      [ LOCAL-ONLY OVERRIDE ACTIVE ]         " -ForegroundColor Magenta }
     Write-Host "===============================================" -ForegroundColor Gray
     Write-Host "1. Run Disk Cleanup on Target Systems"
     Write-Host "2. Backup Target Systems"
