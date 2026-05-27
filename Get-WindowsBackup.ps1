@@ -16,7 +16,7 @@
     File Name      : Get-WindowsBackup.ps1
     Author         : Tony Phipps
     Prerequisites  : PowerShell 5.1+, Administrator privileges, WinRM enabled for remote targets
-    Version        : 2.4.1
+    Version        : 2.4.2
     Date           : May 27, 2026
     Copyright      : (c) 2026 Tony Phipps under the MIT License
 .LINK
@@ -37,7 +37,7 @@ param (
     [string]$IncludeDrives,
 
     [Parameter(Mandatory = $false)]
-    [string[]]$BackupTarget
+    [string]$BackupTarget
 )
 
 Set-StrictMode -Version Latest
