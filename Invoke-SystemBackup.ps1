@@ -3,17 +3,14 @@
     Automated Disk Cleanup and Centralized Windows Image Backup Tool.
 .DESCRIPTION
     Runs local and remote disk optimization and invokes wbadmin for secure, 
-    block-level hot backups on bare-metal systems. Supports explicit local-only 
-    overrides, target drive selections, and an automated hybrid centralized 
+    block-level hot backups on bare-metal systems. Supports a centralized 
     architecture that dynamically spins up SMB shares, configures Active 
     Directory machine account share access permissions, and isolates individual 
-    host backups into secure, zero-trust NTFS-partitioned subfolders on creation.
-.PARAMETER LocalOverride
-    Switch to force local system execution only, bypassing target prompt routines.
+    host backups into secure subfolders on creation.
 .PARAMETER BackupDrives
     Array of drive letters (e.g., C, D) to target for the image backup block.
 .NOTES
-    File Name      : Get-WindowsBackup.ps1
+    File Name      : Invoke-SystemBackup.ps1
     Author         : Tony Phipps
     Prerequisites  : PowerShell 5.1+, Administrator privileges, WinRM enabled for remote targets
     Version        : 2.4.2
@@ -26,9 +23,6 @@
 
 [CmdletBinding()]
 param (
-    [Parameter(Mandatory = $false)]
-    [Switch]$LocalOverride,
-
     [Parameter(Mandatory = $false)]
     [alias("H", "Host", "Computer", "Computers")]
     [string[]]$Hosts,
