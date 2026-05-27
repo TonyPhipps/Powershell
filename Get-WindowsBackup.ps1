@@ -40,15 +40,13 @@ Clear-Host
 [string]$DefaultBackupPath = "D:\backups"
 $Global:TargetBackupDir = ""
 
-function Initialize-BackupParentShare {
+function Initialize-BackupShare {
     <#
     .SYNOPSIS
-        Provisions the central backup repository parent directory and SMB network share.
+        Provisions the central backup repository parent directory and SMB network share on the local system.
     .DESCRIPTION
-        Validates target infrastructure availability, automatically builds baseline storage paths,
+        Validates local storage availability, automatically builds baseline storage paths,
         applies read-only NTFS access limits for domain machine boundaries, and registers the SMB share securely.
-    .PARAMETER ComputerName
-        The target server hostname where the SMB network share instance should be evaluated and built.
     .PARAMETER ShareName
         The name of the SMB share container asset to provision.
     .PARAMETER DomainName
@@ -56,13 +54,10 @@ function Initialize-BackupParentShare {
     .OUTPUTS
         [PSCustomObject] Structured provisioning telemetry results.
     .EXAMPLE
-        Initialize-BackupParentShare -ComputerName "backupserver" -ShareName "backups" -DomainName "CONTOSO"
+        Initialize-BackupShare -ShareName "backups" -DomainName "CONTOSO"
     #>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true)]
-        [string]$ComputerName,
-
         [Parameter(Mandatory = $true)]
         [string]$ShareName,
 
@@ -71,65 +66,53 @@ function Initialize-BackupParentShare {
     )
     begin {}
     process {
-        # Execution script block designated for localized single-hop engine calls
-        [scriptblock]$ProvisionBlock = {
-            param([string]$Share, [string]$Domain)
-            Set-StrictMode -Version Latest
-            try {
-                if (-not (Get-SmbShare -Name $Share -ErrorAction SilentlyContinue)) {
-                    Write-Host "Share '$Share' does not exist. Creating storage container directory..." -ForegroundColor Cyan
-                    [string]$LocalPath = if (Test-Path -Path "D:") { "D:\backups" } else { "C:\backups" }
-                    if (-not (Test-Path -Path $LocalPath)) {
-                        [void](New-Item -ItemType Directory -Path $LocalPath -Force -ErrorAction Stop)
-                    }
-
-                    # Enforce core root directory security topologies
-                    $Acl = Get-Acl -Path $LocalPath
-                    $InheritanceFlags = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit"
-                    $PropagationFlags = [System.Security.AccessControl.PropagationFlags]"None"
-                    $AccessType = [System.Security.AccessControl.AccessControlType]"Allow"
-                    $CompReadRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule(
-                        "$Domain\Domain Computers", "ReadAndExecute,Synchronize", $InheritanceFlags, $PropagationFlags, $AccessType
-                    )
-                    $CtrlReadRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule(
-                        "$Domain\Domain Controllers", "ReadAndExecute,Synchronize", $InheritanceFlags, $PropagationFlags, $AccessType
-                    )
-                    $Acl.AddAccessRule($CompReadRule)
-                    $Acl.AddAccessRule($CtrlReadRule)
-                    Set-Acl -Path $LocalPath -AclObject $Acl -ErrorAction Stop
-
-                    # Initialize and deploy the underlying network access mapping matrix
-                    Write-Host "Provisioning Active SMB share architecture..." -ForegroundColor Cyan
-                    [void](New-SmbShare -Name $Share -Path $LocalPath -Description "Centralized Hot-Backup Image Repository" -FullAccess "$Domain\Domain Admins", "Administrators" -ErrorAction Stop)
-                    [void](Grant-SmbShareAccess -Name $Share -AccountName "$Domain\Domain Computers" -AccessRight Change -Force -ErrorAction Stop)
-                    [void](Grant-SmbShareAccess -Name $Share -AccountName "$Domain\Domain Controllers" -AccessRight Change -Force -ErrorAction Stop)
-                    return [PSCustomObject]@{
-                        Success = $true
-                        Message = "Centralized SMB share orchestration complete."
-                    }
+        Set-StrictMode -Version Latest
+        try {
+            if (-not (Get-SmbShare -Name $ShareName -ErrorAction SilentlyContinue)) {
+                Write-Host "Share '$ShareName' does not exist. Creating storage container directory..." -ForegroundColor Cyan
+                [string]$LocalPath = if (Test-Path -Path "D:") { "D:\" } else { "C:\" }
+                if (-not (Test-Path -Path $LocalPath)) {
+                    [void](New-Item -ItemType Directory -Path $LocalPath -Force -ErrorAction Stop)
                 }
+
+                # Enforce core root directory security topologies
+                $Acl = Get-Acl -Path $LocalPath
+                $InheritanceFlags = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit"
+                $PropagationFlags = [System.Security.AccessControl.PropagationFlags]"None"
+                $AccessType = [System.Security.AccessControl.AccessControlType]"Allow"
+                
+                $CompReadRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule(
+                    "$DomainName\Domain Computers", "ReadAndExecute,Synchronize", $InheritanceFlags, $PropagationFlags, $AccessType
+                )
+                $CtrlReadRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule(
+                    "$DomainName\Domain Controllers", "ReadAndExecute,Synchronize", $InheritanceFlags, $PropagationFlags, $AccessType
+                )
+                
+                $Acl.AddAccessRule($CompReadRule)
+                $Acl.AddAccessRule($CtrlReadRule)
+                Set-Acl -Path $LocalPath -AclObject $Acl -ErrorAction Stop
+
+                # Initialize and deploy the underlying network access mapping matrix
+                Write-Host "Provisioning Active SMB share architecture..." -ForegroundColor Cyan
+                [void](New-SmbShare -Name $ShareName -Path $LocalPath -Description "Centralized Hot-Backup Image Repository" -FullAccess "$DomainName\Domain Admins", "Administrators" -ErrorAction Stop)
+                [void](Grant-SmbShareAccess -Name $ShareName -AccountName "$DomainName\Domain Computers" -AccessRight Change -Force -ErrorAction Stop)
+                [void](Grant-SmbShareAccess -Name $ShareName -AccountName "$DomainName\Domain Controllers" -AccessRight Change -Force -ErrorAction Stop)
+                
                 return [PSCustomObject]@{
                     Success = $true
-                    Message = "Share '$Share' already exists. Configuration skipped."
-                }
-            } catch {
-                return [PSCustomObject]@{
-                    Success = $false
-                    Message = "Failed to orchestrate central SMB share parameters: $_"
+                    Message = "Centralized SMB share orchestration complete."
                 }
             }
-        }
-        try {
-            [PSCustomObject]$Result = $null
-            if ($ComputerName -eq "localhost" -or $ComputerName -eq $env:COMPUTERNAME -or $ComputerName -eq ".") {
-                $Result = Invoke-Command -ScriptBlock $ProvisionBlock -ArgumentList $ShareName, $DomainName -ErrorAction Stop
-            } else {
-                $Result = Invoke-Command -ComputerName $ComputerName -ScriptBlock $ProvisionBlock -ArgumentList $ShareName, $DomainName -ErrorAction Stop
+            
+            return [PSCustomObject]@{
+                Success = $true
+                Message = "Share '$ShareName' already exists. Configuration skipped."
             }
-            return $Result
         } catch {
-            Write-Error -Message "Pipeline bridge connection error during parent share provisioning: $_"
-            return [PSCustomObject]@{ Success = $false; Message = $_.Exception.Message }
+            return [PSCustomObject]@{
+                Success = $false
+                Message = "Failed to orchestrate central SMB share parameters: $_"
+            }
         }
     }
     end {}
