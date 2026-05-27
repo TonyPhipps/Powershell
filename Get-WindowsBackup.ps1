@@ -16,7 +16,7 @@
     File Name      : Get-WindowsBackup.ps1
     Author         : Tony Phipps
     Prerequisites  : PowerShell 5.1+, Administrator privileges, WinRM enabled for remote targets
-    Version        : 2.3
+    Version        : 2.4
     Date           : May 27, 2026
     Copyright      : (c) 2026 Tony Phipps under the MIT License
 .LINK
@@ -474,7 +474,9 @@ function Invoke-SystemBackup {
                     Invoke-Expression -Command $BackupCommand
                 } else {
                     Write-Host "Dispatching network hot-backup on $Computer targeting remote repository folder '$HostFolderUNC'..." -ForegroundColor Cyan
-                    Invoke-Command -ComputerName $Computer -ScriptBlock {
+                    
+                    # Execute script block wrapping wbadmin in an ephemeral scheduled task to bypass Double-Hop WinRM restrictions
+                    $RemoteResult = Invoke-Command -ComputerName $Computer -ScriptBlock {
                         param([string]$TargetFolder, [string[]]$DrivesToBackup)
                         Set-StrictMode -Version Latest
                         
@@ -486,10 +488,44 @@ function Invoke-SystemBackup {
                         } else {
                             $RemoteDriveString = ($DrivesToBackup | ForEach-Object { "$($_):" }) -join ","
                         }
-
-                        # Executes directly across single-hop mapping leveraging the machine account's dedicated token permission
-                        wbadmin start backup -backupTarget:$TargetFolder -include:$RemoteDriveString -allCritical -vssFull -quiet
+                        $Guid = [Guid]::NewGuid().Guid
+                        $TaskName = "TempBackupTask_$Guid"
+                        $LogPath = "C:\Windows\Temp\WindowsImageBackup_$Guid.log"
+                        $WbadminCmd = "wbadmin start backup -backupTarget:`"$TargetFolder`" -include:$RemoteDriveString -allCritical -vssFull -quiet > `"$LogPath`" 2>&1"
+                        
+                        # Provision Scheduled Task as NT AUTHORITY\SYSTEM
+                        $Action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c $WbadminCmd"
+                        $Principal = New-ScheduledTaskPrincipal -UserId "NT AUTHORITY\SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+                        $null = Register-ScheduledTask -TaskName $TaskName -Action $Action -Principal $Principal -ErrorAction Stop
+                        $null = Start-ScheduledTask -TaskName $TaskName -ErrorAction Stop
+                        do {
+                            Start-Sleep -Seconds 5
+                            $CurrentState = Get-ScheduledTask -TaskName $TaskName
+                        } while ($CurrentState.State -eq 'Running' -or $CurrentState.State -eq 'Queued')
+                        
+                        # Cleanup
+                        $null = Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
+                        $BackupSuccess = $false
+                        $LogContent = "Log file execution mapping not generated."
+                        if (Test-Path -Path $LogPath) {
+                            $LogContent = Get-Content -Path $LogPath -Raw
+                            if (Select-String -Path $LogPath -Pattern "The backup operation successfully completed" -Quiet) {
+                                $BackupSuccess = $true
+                            }
+                        }
+                        [PSCustomObject]@{
+                            Success    = $BackupSuccess
+                            LogContent = $LogContent
+                            LogPath    = $LogPath
+                        }
                     } -ArgumentList $HostFolderUNC, $IncludeDrives -ErrorAction Stop
+
+                    # Evaluate structured output metrics dispatched from the remote runtime engine
+                    if ($RemoteResult.Success) {
+                        Write-Host "Remote backup operation completed successfully on $Computer." -ForegroundColor Green
+                    } else {
+                        Write-Error -Message "Backup failed on remote target $Computer. Log details: `n$($RemoteResult.LogContent)"
+                    }
                 }
             } catch {
                 Write-Error -Message "Failed to execute centralized backup routine on host '$Computer': $_"
