@@ -16,7 +16,7 @@
     File Name      : Get-WindowsBackup.ps1
     Author         : Tony Phipps
     Prerequisites  : PowerShell 5.1+, Administrator privileges, WinRM enabled for remote targets
-    Version        : 2.4
+    Version        : 2.4.1
     Date           : May 27, 2026
     Copyright      : (c) 2026 Tony Phipps under the MIT License
 .LINK
@@ -454,8 +454,8 @@ function Invoke-SystemBackup {
                     $HostFolderUNC = "$Global:BackupTarget\$NormalizedHost"
                 }
 
-                # Abstracted zero-trust folder separation engine logic routine call
-                [PSCustomObject]$FolderStatus = Initialize-BackupSubfolder -BasePath $HostFolderUNC -TargetHost $NormalizedHost
+                # Zero-trust folder separation
+                [PSCustomObject]$FolderStatus = Initialize-BackupSubfolder -BasePath $Global:BackupTarget -TargetHost $NormalizedHost
                 Write-Host "Subfolder Allocation Mapping: $($FolderStatus.Message)" -ForegroundColor Gray
                 if (-not $FolderStatus.Success) {
                     Write-Error -Message "Subfolder architecture error. Aborting backup cycle iteration for '$NormalizedHost'."
