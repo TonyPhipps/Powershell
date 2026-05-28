@@ -360,29 +360,23 @@ function Initialize-BackupSubfolder {
         [string]$BasePath,
 
         [Parameter(Mandatory = $true)]
-        [string]$TargetHost,
-
-        [Parameter(Mandatory = $true)]
-        [string]$BackupDate
+        [string]$TargetHost
     )
     begin {
         [string]$DomainName = $env:USERDOMAIN
     }
     process {
         try {
-            [string]$FolderName = "${TargetHost}_${BackupDate}"
             [string]$HostFolderUNC = ""
             if ($BasePath -match '^[A-Za-z]:\\') {
-                $HostFolderUNC = Join-Path -Path $BasePath -ChildPath $FolderName
+                $HostFolderUNC = Join-Path -Path $BasePath -ChildPath $TargetHost
             } else {
-                $HostFolderUNC = "$BasePath\$FolderName"
+                $HostFolderUNC = "$BasePath\$TargetHost"
             }
 
             if (-not (Test-Path -Path $HostFolderUNC)) {
                 Write-Host "Target folder does not exist. Creating isolated subfolder container at '$HostFolderUNC'..." -ForegroundColor Yellow
                 [void](New-Item -ItemType Directory -Path $HostFolderUNC -Force -ErrorAction Stop)
-                
-                # Retain pure machine account binding context regardless of target directory name additions
                 [string]$MachineAccount = "$DomainName\$TargetHost$"
                 $Acl = Get-Acl -Path $HostFolderUNC
                 
@@ -524,19 +518,14 @@ function Invoke-SystemBackup {
                     continue
                 }
 
-                # Dynamically construct unique daily timestamp values to isolate executions cleanly
-                [string]$CurrentTimestamp = (Get-Date -Format "yyyy-MM-dd")
-                [string]$FolderName = "${NormalizedHost}_${CurrentTimestamp}"
-                [string]$HostFolderUNC = ""
-                if ($Global:BackupTarget -match '^[A-Za-z]:\\') {
-                    $HostFolderUNC = Join-Path -Path $Global:BackupTarget -ChildPath $FolderName
-                } else {
-                    $HostFolderUNC = "$Global:BackupTarget\$FolderName"
-                }
-
                 # Zero-trust folder separation
                 [PSCustomObject]$FolderStatus = Initialize-BackupSubfolder -BasePath $Global:BackupTarget -TargetHost $NormalizedHost
-                Write-Host "Subfolder Allocation Mapping: $($FolderStatus.Message)" -ForegroundColor Gray
+                    [string]$CurrentTimestamp = (Get-Date -Format "yyyy-MM-dd")
+                    [string]$HostFolderUNC = ""
+                    $HostFolderUNC = Join-Path -Path $Global:BackupTarget -ChildPath $NormalizedHost
+                    [void](New-Item -ItemType Directory -Path $HostFolderUNC -Force -ErrorAction Stop)
+                    $HostFolderUNC = Join-Path -Path $HostFolderUNC -ChildPath $CurrentTimestamp
+                    [void](New-Item -ItemType Directory -Path $HostFolderUNC -Force -ErrorAction Stop)
                 if (-not $FolderStatus.Success) {
                     Write-Error -Message "Subfolder architecture error. Aborting backup cycle iteration for '$NormalizedHost'."
                     Continue
@@ -644,7 +633,7 @@ do {
     Write-Host "Target Hosts     : $((($Hosts | Sort-Object | Get-Unique) -join ", "))"
     Write-Host "Retention Policy : $RetentionDays Days (Will always protect at least 1 backup)"
     Write-Host ""
-    $Selection = (Read-Host "Select an option [1-4, Q]").ToString().ToLower().Trim()
+    $Selection = (Read-Host "Select an option: ").ToString().ToLower().Trim()
     
     switch ($Selection) {
         "1" { Invoke-DiskCleanup -Hosts $Hosts }
