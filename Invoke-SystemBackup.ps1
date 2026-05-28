@@ -172,7 +172,7 @@ function Invoke-DiskCleanup {
                     Write-Host "Starting Windows Disk Cleanup on local machine..." -ForegroundColor Cyan
                     [string]$RegPath = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches"
                     Get-ChildItem -Path $RegPath -ErrorAction Stop | ForEach-Object {
-                        New-ItemProperty -Path $_.PsPath -Name "StateFlags0001" -Value 2 -PropertyType DWord -Force -ErrorAction SilentlyContinue | Out-Null
+                        $null = New-ItemProperty -Path $_.PsPath -Name "StateFlags0001" -Value 2 -PropertyType DWord -Force -ErrorAction SilentlyContinue
                     }
                     $null = Start-Process -FilePath "cleanmgr.exe" -ArgumentList "/sagerun:1" -Wait -NoNewWindow -PassThru
                     Write-Host "Optimizing component store (DISM) locally..." -ForegroundColor Cyan
@@ -183,7 +183,7 @@ function Invoke-DiskCleanup {
                     Invoke-Command -ComputerName $Computer -ScriptBlock {
                         [string]$RemoteRegPath = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches"
                         Get-ChildItem -Path $RemoteRegPath -ErrorAction Stop | ForEach-Object {
-                            New-ItemProperty -Path $_.PsPath -Name "StateFlags0001" -Value 2 -PropertyType DWord -Force -ErrorAction SilentlyContinue | Out-Null
+                            $null = New-ItemProperty -Path $_.PsPath -Name "StateFlags0001" -Value 2 -PropertyType DWord -Force -ErrorAction SilentlyContinue
                         }
                         $null = Start-Process -FilePath "cleanmgr.exe" -ArgumentList "/sagerun:1" -Wait -NoNewWindow -PassThru
                         $null = Start-Process -FilePath "dism.exe" -ArgumentList "/online /cleanup-image /startcomponentcleanup /quiet" -Wait -NoNewWindow -PassThru
@@ -235,7 +235,7 @@ function Initialize-BackupShare {
                     Write-Host "Share '$Share' does not exist. Creating storage container directory..." -ForegroundColor Cyan
                     [string]$LocalPath = if (Test-Path -Path "D:") { "D:\backups" } else { "C:\backups" }
                     if (-not (Test-Path -Path $LocalPath)) {
-                        [void](New-Item -ItemType Directory -Path $LocalPath -Force -ErrorAction Stop)
+                        $null = New-Item -ItemType Directory -Path $LocalPath -Force -ErrorAction Stop
                     }
 
                     # Enforce core root directory security topologies
@@ -255,9 +255,9 @@ function Initialize-BackupShare {
 
                     # Initialize and deploy the underlying network access mapping matrix
                     Write-Host "Provisioning Active SMB share architecture..." -ForegroundColor Cyan
-                    [void](New-SmbShare -Name $Share -Path $LocalPath -Description "Centralized Hot-Backup Image Repository" -FullAccess "$Domain\Domain Admins", "Administrators" -ErrorAction Stop)
-                    [void](Grant-SmbShareAccess -Name $Share -AccountName "$Domain\Domain Computers" -AccessRight Change -Force -ErrorAction Stop)
-                    [void](Grant-SmbShareAccess -Name $Share -AccountName "$Domain\Domain Controllers" -AccessRight Change -Force -ErrorAction Stop)
+                    $null = New-SmbShare -Name $Share -Path $LocalPath -Description "Centralized Hot-Backup Image Repository" -FullAccess "$Domain\Domain Admins", "Administrators" -ErrorAction Stop
+                    $null = Grant-SmbShareAccess -Name $Share -AccountName "$Domain\Domain Computers" -AccessRight Change -Force -ErrorAction Stop
+                    $null = Grant-SmbShareAccess -Name $Share -AccountName "$Domain\Domain Controllers" -AccessRight Change -Force -ErrorAction Stop
                     return [PSCustomObject]@{
                         Success = $true
                         Message = "Centralized SMB share orchestration complete."
@@ -376,7 +376,7 @@ function Initialize-BackupSubfolder {
 
             if (-not (Test-Path -Path $HostFolderUNC)) {
                 Write-Host "Target folder does not exist. Creating isolated subfolder container at '$HostFolderUNC'..." -ForegroundColor Yellow
-                [void](New-Item -ItemType Directory -Path $HostFolderUNC -Force -ErrorAction Stop)
+                $null = New-Item -ItemType Directory -Path $HostFolderUNC -Force -ErrorAction Stop
                 [string]$MachineAccount = "$DomainName\$TargetHost$"
                 $Acl = Get-Acl -Path $HostFolderUNC
                 
@@ -389,7 +389,7 @@ function Initialize-BackupSubfolder {
                     $_.IdentityReference.Value -eq "$DomainName\Domain Controllers"
                 }
                 foreach ($Rule in $TargetRules) {
-                    [void]$Acl.RemoveAccessRule($Rule)
+                    $null = $Acl.RemoveAccessRule($Rule)
                 }
 
                 # Bind target machine token permissions tightly down to the isolated container boundary path
@@ -523,9 +523,9 @@ function Invoke-SystemBackup {
                     [string]$CurrentTimestamp = (Get-Date -Format "yyyy-MM-dd")
                     [string]$HostFolderUNC = ""
                     $HostFolderUNC = Join-Path -Path $Global:BackupTarget -ChildPath $NormalizedHost
-                    [void](New-Item -ItemType Directory -Path $HostFolderUNC -Force -ErrorAction Stop)
+                    $null = New-Item -ItemType Directory -Path $HostFolderUNC -Force -ErrorAction Stop
                     $HostFolderUNC = Join-Path -Path $HostFolderUNC -ChildPath $CurrentTimestamp
-                    [void](New-Item -ItemType Directory -Path $HostFolderUNC -Force -ErrorAction Stop)
+                    $null = New-Item -ItemType Directory -Path $HostFolderUNC -Force -ErrorAction Stop
                 if (-not $FolderStatus.Success) {
                     Write-Error -Message "Subfolder architecture error. Aborting backup cycle iteration for '$NormalizedHost'."
                     Continue
