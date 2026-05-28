@@ -440,7 +440,7 @@ function Remove-OldBackups {
             
             # Identify all localized storage instances matching system structures
             $HostPath = Join-Path $BasePath -ChildPath $NormalizedHost
-            $BackupFolders = @(Get-ChildItem -Path $HostPath -Directory -Filter * | Sort-Object LastWriteTime -Descending)
+            $BackupFolders = @(Get-ChildItem -Path $HostPath -Directory -Filter * | Sort-Object Name -Descending)
 
             if ($BackupFolders.Count -eq 0) {
                 Write-Host "No active backup volumes discovered for '$NormalizedHost'." -ForegroundColor Gray
@@ -456,7 +456,7 @@ function Remove-OldBackups {
                 [bool]$IsExpired = $false
                 
                 # Attempt string-parsing extraction of the embedded backup timestamp for evaluation accuracy
-                if ($Folder.Name -match '_(\d{4}-\d{2}-\d{2})$') {
+                if ($Folder.Name -match '(\d{4}-\d{2}-\d{2})$') {
                     try {
                         $ParsedDate = [datetime]::ParseExact($Matches[1], 'yyyy-MM-dd', $null)
                         if ($ParsedDate -lt $ExpirationCutoff) { $IsExpired = $true }
