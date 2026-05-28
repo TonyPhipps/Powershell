@@ -633,7 +633,7 @@ do {
     Write-Host "Target Hosts     : $((($Hosts | Sort-Object | Get-Unique) -join ", "))"
     Write-Host "Retention Policy : $RetentionDays Days (Will always protect at least 1 backup)"
     Write-Host ""
-    $Selection = (Read-Host "Select an option: ").ToString().ToLower().Trim()
+    $Selection = (Read-Host "Select an option").ToString().ToLower().Trim()
     
     switch ($Selection) {
         "1" { Invoke-DiskCleanup -Hosts $Hosts }
