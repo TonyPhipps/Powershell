@@ -636,9 +636,15 @@ do {
     $Selection = (Read-Host "Select an option").ToString().ToLower().Trim()
     
     switch ($Selection) {
-        "1" { Invoke-DiskCleanup -Hosts $Hosts }
-        "2" { Invoke-SystemBackup -Hosts $Hosts -IncludeDrives $IncludeDrives }
-        "3" { Remove-OldBackups -Hosts $Hosts -BasePath $Global:BackupTarget -AgeThresholdDays $RetentionDays }
+        "1" { 
+                Invoke-DiskCleanup -Hosts $Hosts 
+            }
+        "2" { 
+                Invoke-SystemBackup -Hosts $Hosts -IncludeDrives $IncludeDrives 
+            }
+        "3" { 
+                Remove-OldBackups -Hosts $Hosts -BasePath $Global:BackupTarget -AgeThresholdDays $RetentionDays 
+            }
         "4" { 
                 Invoke-SystemBackup -Hosts $Hosts -IncludeDrives $IncludeDrives
                 Remove-OldBackups -Hosts $Hosts -BasePath $Global:BackupTarget -AgeThresholdDays $RetentionDays
