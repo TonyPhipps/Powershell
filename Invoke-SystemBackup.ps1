@@ -439,8 +439,8 @@ function Remove-OldBackups {
             Write-Host "Evaluating chronological backup retention for '$NormalizedHost'..." -ForegroundColor Cyan
             
             # Identify all localized storage instances matching system structures
-            $FilterPattern = "${NormalizedHost}_*"
-            $BackupFolders = Get-ChildItem -Path $BasePath -Directory -Filter $FilterPattern | Sort-Object LastWriteTime -Descending
+            $HostPath = Join-Path $BasePath -ChildPath $NormalizedHost
+            $BackupFolders = @(Get-ChildItem -Path $HostPath -Directory -Filter * | Sort-Object LastWriteTime -Descending)
 
             if ($BackupFolders.Count -eq 0) {
                 Write-Host "No active backup volumes discovered for '$NormalizedHost'." -ForegroundColor Gray
