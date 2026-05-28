@@ -1,20 +1,22 @@
 <#
 .SYNOPSIS
-    Automated Disk Cleanup and Centralized Windows Image Backup Tool.
+    Automated Disk Cleanup and Centralized Windows Image Backup Tool with Retention Management.
 .DESCRIPTION
-    Runs local and remote disk optimization and invokes wbadmin for secure, 
-    block-level hot backups on bare-metal systems. Supports a centralized 
-    architecture that dynamically spins up SMB shares, configures Active 
-    Directory machine account share access permissions, and isolates individual 
-    host backups into secure subfolders on creation.
+    Runs local and remote disk optimization, invokes wbadmin for secure, 
+    block-level hot backups on bare-metal systems, and enforces historical retention. 
+    Supports a centralized architecture that dynamically spins up SMB shares, configures 
+    Active Directory machine account share access permissions, isolates individual host 
+    backups into date-stamped secure subfolders, and prunes expired baselines safely.
 .PARAMETER BackupDrives
     Array of drive letters (e.g., C, D) to target for the image backup block.
+.PARAMETER RetentionDays
+    The maximum age in days to retain historical backups before purging. Defaults to 30 days.
 .NOTES
     File Name      : Invoke-SystemBackup.ps1
     Author         : Tony Phipps
     Prerequisites  : PowerShell 5.1+, Administrator privileges, WinRM enabled for remote targets
-    Version        : 2.4.2
-    Date           : May 27, 2026
+    Version        : 2.5.0
+    Date           : May 28, 2026
     Copyright      : (c) 2026 Tony Phipps under the MIT License
 .LINK
     https://github.com/TonyPhipps/Powershell
@@ -31,7 +33,10 @@ param (
     [string]$IncludeDrives,
 
     [Parameter(Mandatory = $false)]
-    [string]$BackupTarget
+    [string]$BackupTarget,
+
+    [Parameter(Mandatory = $false)]
+    [int]$RetentionDays = 30
 )
 
 Set-StrictMode -Version Latest
@@ -355,23 +360,29 @@ function Initialize-BackupSubfolder {
         [string]$BasePath,
 
         [Parameter(Mandatory = $true)]
-        [string]$TargetHost
+        [string]$TargetHost,
+
+        [Parameter(Mandatory = $true)]
+        [string]$BackupDate
     )
     begin {
         [string]$DomainName = $env:USERDOMAIN
     }
     process {
         try {
+            [string]$FolderName = "${TargetHost}_${BackupDate}"
             [string]$HostFolderUNC = ""
             if ($BasePath -match '^[A-Za-z]:\\') {
-                $HostFolderUNC = Join-Path -Path $BasePath -ChildPath $TargetHost
+                $HostFolderUNC = Join-Path -Path $BasePath -ChildPath $FolderName
             } else {
-                $HostFolderUNC = "$BasePath\$TargetHost"
+                $HostFolderUNC = "$BasePath\$FolderName"
             }
 
             if (-not (Test-Path -Path $HostFolderUNC)) {
                 Write-Host "Target folder does not exist. Creating isolated subfolder container at '$HostFolderUNC'..." -ForegroundColor Yellow
                 [void](New-Item -ItemType Directory -Path $HostFolderUNC -Force -ErrorAction Stop)
+                
+                # Retain pure machine account binding context regardless of target directory name additions
                 [string]$MachineAccount = "$DomainName\$TargetHost$"
                 $Acl = Get-Acl -Path $HostFolderUNC
                 
@@ -402,6 +413,79 @@ function Initialize-BackupSubfolder {
         }
     }
     end {}
+}
+
+function Remove-OldBackups {
+    <#
+    .SYNOPSIS
+        Evaluates existing backup targets for target hosts and purges blocks exceeding specified age thresholds.
+    .DESCRIPTION
+        Ensures strict data preservation by utilizing chronologically sorted tracking arrays. 
+        Enforces a safety boundary that always leaves at least one valid operational image on-disk.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Hosts,
+
+        [Parameter(Mandatory = $true)]
+        [string]$BasePath,
+
+        [Parameter(Mandatory = $false)]
+        [int]$AgeThresholdDays = 30
+    )
+    process {
+        if (-not (Test-Path -Path $BasePath)) {
+            Write-Warning "Backup repository path '$BasePath' is inaccessible. Retention cleanup aborted."
+            return
+        }
+
+        foreach ($Computer in $Hosts) {
+            [string]$NormalizedHost = if ($Computer -eq "localhost" -or $Computer -eq $env:COMPUTERNAME) { $env:COMPUTERNAME } else { $Computer }
+            Write-Host "Evaluating chronological backup retention for '$NormalizedHost'..." -ForegroundColor Cyan
+            
+            # Identify all localized storage instances matching system structures
+            $FilterPattern = "${NormalizedHost}_*"
+            $BackupFolders = Get-ChildItem -Path $BasePath -Directory -Filter $FilterPattern | Sort-Object LastWriteTime -Descending
+
+            if ($BackupFolders.Count -eq 0) {
+                Write-Host "No active backup volumes discovered for '$NormalizedHost'." -ForegroundColor Gray
+                continue
+            }
+
+            Write-Host "Discovered $($BackupFolders.Count) historical backup package(s) for '$NormalizedHost'." -ForegroundColor Gray
+            $ExpirationCutoff = (Get-Date).AddDays(-$AgeThresholdDays)
+
+            # Safety Threshold Constraint: Loop starts at Index 1 ($BackupFolders[0] is the absolute newest and always preserved)
+            for ($i = 1; $i -lt $BackupFolders.Count; $i++) {
+                $Folder = $BackupFolders[$i]
+                [bool]$IsExpired = $false
+                
+                # Attempt string-parsing extraction of the embedded backup timestamp for evaluation accuracy
+                if ($Folder.Name -match '_(\d{4}-\d{2}-\d{2})$') {
+                    try {
+                        $ParsedDate = [datetime]::ParseExact($Matches[1], 'yyyy-MM-dd', $null)
+                        if ($ParsedDate -lt $ExpirationCutoff) { $IsExpired = $true }
+                    } catch {
+                        if ($Folder.LastWriteTime -lt $ExpirationCutoff) { $IsExpired = $true }
+                    }
+                } else {
+                    if ($Folder.LastWriteTime -lt $ExpirationCutoff) { $IsExpired = $true }
+                }
+
+                if ($IsExpired) {
+                    Write-Host "Pruning expired system image volume: $($Folder.FullName) [Exceeds $AgeThresholdDays Days]" -ForegroundColor Yellow
+                    try {
+                        Remove-Item -Path $Folder.FullName -Recurse -Force -ErrorAction Stop
+                        Write-Host "Successfully removed expired archive collection '$($Folder.Name)'." -ForegroundColor Green
+                    } catch {
+                        Write-Error "Administrative execution fault while removing expired container $($Folder.FullName): $_"
+                    }
+                }
+            }
+            Write-Host "Retention analysis complete for '$NormalizedHost'. Master recovery point verification preserved: $($BackupFolders[0].Name)" -ForegroundColor Gray
+        }
+    }
 }
 
 function Invoke-SystemBackup {
@@ -440,12 +524,14 @@ function Invoke-SystemBackup {
                     continue
                 }
 
-                # Enforce host-isolated subfolder naming paths inside the repository
+                # Dynamically construct unique daily timestamp values to isolate executions cleanly
+                [string]$CurrentTimestamp = (Get-Date -Format "yyyy-MM-dd")
+                [string]$FolderName = "${NormalizedHost}_${CurrentTimestamp}"
                 [string]$HostFolderUNC = ""
                 if ($Global:BackupTarget -match '^[A-Za-z]:\\') {
-                    $HostFolderUNC = Join-Path -Path $Global:BackupTarget -ChildPath $NormalizedHost
+                    $HostFolderUNC = Join-Path -Path $Global:BackupTarget -ChildPath $FolderName
                 } else {
-                    $HostFolderUNC = "$Global:BackupTarget\$NormalizedHost"
+                    $HostFolderUNC = "$Global:BackupTarget\$FolderName"
                 }
 
                 # Zero-trust folder separation
@@ -545,26 +631,34 @@ $Global:BackupTarget = $BackupTarget
 # MENU INTERFACE
 [string]$Selection = ""
 do {
-    Write-Host "===============================================" -ForegroundColor Gray
-    Write-Host "     SYSTEM MAINTENANCE & BACKUP MENU          " -ForegroundColor White
-    Write-Host "===============================================" -ForegroundColor Gray
-    Write-Host "1. Run Disk Cleanup on Target Systems"
-    Write-Host "2. Backup Target Systems"
-    Write-Host "3. Run Disk Cleanup, then Backup Target Systems"
+    Write-Host "==============================================================" -ForegroundColor Gray
+    Write-Host "                        SYSTEM BACKUP MENU                    " -ForegroundColor White
+    Write-Host "==============================================================" -ForegroundColor Gray
+    Write-Host "1. ONLY Run Disk Cleanup"
+    Write-Host "2. ONLY Backup Systems"
+    Write-Host "3. ONLY Cleanup Old Backups"
+    Write-Host "4. Backup Systems, then Cleanup Old Backups"
+    Write-Host "5. Run Disk Cleanup, Backup Systems, then Cleanup Old Backups"
     Write-Host "Q. Exit"
-    Write-Host "-----------------------------------------------" -ForegroundColor Gray
-    Write-Host ("Target Hosts:`n`t$((($Hosts | Sort-Object | Get-Unique) -join ", "))`n")
-    $Selection = (Read-Host "Select an option [1-3, Q]").ToString().ToLower().Trim()
+    Write-Host "--------------------------------------------------------------" -ForegroundColor Gray
+    Write-Host "Target Hosts     : $((($Hosts | Sort-Object | Get-Unique) -join ", "))"
+    Write-Host "Retention Policy : $RetentionDays Days (Will always protect at least 1 backup)"
+    Write-Host ""
+    $Selection = (Read-Host "Select an option [1-4, Q]").ToString().ToLower().Trim()
     
     switch ($Selection) {
         "1" { Invoke-DiskCleanup -Hosts $Hosts }
-        "2" { 
-            Invoke-SystemBackup -Hosts $Hosts -IncludeDrives $IncludeDrives
-        }
-        "3" { 
-            Invoke-DiskCleanup -Hosts $Hosts
-            Invoke-SystemBackup -Hosts $Hosts -IncludeDrives $IncludeDrives
-        }
+        "2" { Invoke-SystemBackup -Hosts $Hosts -IncludeDrives $IncludeDrives }
+        "3" { Remove-OldBackups -Hosts $Hosts -BasePath $Global:BackupTarget -AgeThresholdDays $RetentionDays }
+        "4" { 
+                Invoke-SystemBackup -Hosts $Hosts -IncludeDrives $IncludeDrives
+                Remove-OldBackups -Hosts $Hosts -BasePath $Global:BackupTarget -AgeThresholdDays $RetentionDays
+            }
+        "5" {
+                Invoke-DiskCleanup -Hosts $Hosts
+                Invoke-SystemBackup -Hosts $Hosts -IncludeDrives $IncludeDrives
+                Remove-OldBackups -Hosts $Hosts -BasePath $Global:BackupTarget -AgeThresholdDays $RetentionDays
+           }
         "q" { Write-Host "`nExiting utility..." -ForegroundColor Yellow; Break }
         default { Write-Host "`nInvalid selection. Please choose an option." -ForegroundColor Red }
     }
