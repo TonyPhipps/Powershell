@@ -10,8 +10,8 @@ mkdir ("{0}" -f $output) -ErrorAction SilentlyContinue
 $downloaded = 0
 
 # For each potential set, iterate and provide progress
-for ($i = -2 ; $i -le 500 ; $i++){
-    $percentage=[math]::Round(($i/500)*100)
+for ($i = -2 ; $i -le 600 ; $i++){
+    $percentage=[math]::Round(($i/600)*100)
     Write-Progress -Activity "Set $i ($setProper), with $downloaded cards downloaded so far." -Status "($percentage % Complete)" -PercentComplete $percentage
     
     # Specify the URL of the web page you want to request
