@@ -11,6 +11,8 @@
     The integer representation of the first set index to parse. Defaults to -2.
 .PARAMETER EndSetId
     The integer representation of the last set index to parse. Defaults to 600.
+.OUTPUTS
+    [PSCustomObject] containing telemetry metadata for each processed card asset.
 .EXAMPLE
     Get-MtgPicsArt -OutputPath "D:\MtgArt" -StartSetId 1 -EndSetId 150
 #>
@@ -49,7 +51,7 @@ process {
     for ([int]$i = $StartSetId; $i -le $EndSetId; $i++) {
         [int]$setIndex = $i - $StartSetId
         [int]$percentage = [math]::Round(($setIndex / $totalSets) * 100)
-        Write-Progress -Activity "Parsing remote MTG Sets" -Status "Set ID $i ($percentage% Complete)" -PercentComplete $percentage
+        Write-Progress -Id 1 -Activity "Parsing remote MTG Sets" -Status "Set ID $i ($percentage% Complete)" -PercentComplete $percentage
         [string]$url = "https://www.mtgpics.com/art?set=$i"
         [string]$html = $null
         try { # Fetch raw set HTML string using terminating error configuration
@@ -109,10 +111,10 @@ process {
                 "apo" { $setProper = "apc" }
                 "ara" { $setProper = "arn" }
                 "tbw" { $setProper = "bro" }
-                "con" { $setProper = "con_" } # Circumvents Windows OS reserved device name constraint
+                "con" { $setProper = "con_" } 
             }
             [int]$cardPercentage = [math]::Round(($cardCount / $regexMatches.Count) * 100)
-            Write-Progress -Activity "Processing Set Art: $setProper" -Status "Card $cardCount of $($regexMatches.Count) ($cardPercentage% Complete)" -PercentComplete $cardPercentage
+            Write-Progress -Id 2 -ParentId 1 -Activity "Processing Set Art: $setProper" -Status "Card $cardCount of $($regexMatches.Count) ($cardPercentage% Complete)" -PercentComplete $cardPercentage
 
             # Construct target filename and download
             $name = $name -replace "&#39;", "'"
@@ -160,9 +162,14 @@ process {
                 Write-Verbose "Skipped $($File.OutputFile) (File Exists)"
             }
         }
+        
+        # Explicitly close out the inner loop progress bar when transitioning between sets
+        Write-Progress -Id 2 -Activity "Processing Set Art" -Completed
     }
 }
 
 end {
+    # Complete and close out the master layout parent progress bar
+    Write-Progress -Id 1 -Activity "Parsing remote MTG Sets" -Completed
     Write-Verbose "Operation finalized. Managed downloads: $downloadedCount items."
 }
