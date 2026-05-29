@@ -1,119 +1,163 @@
-﻿# Specify where to save files
-$output = "F:\GoogleDrive\Tony\Projects\Magic\art"
+﻿<#
+.SYNOPSIS
+    Downloads Magic: The Gathering card art from mtgpics.com with sanitized naming conventions.
+.DESCRIPTION
+    Scrapes mtgpics.com set pages for card artwork, translates unofficial set acronyms,
+    cleanses invalid file system characters, converts spaces to underscores, prepends 
+    the set code to the filename, and writes the structured image files to disk.
+.PARAMETER OutputPath
+    The base directory where downloaded card art folders will be created.
+.PARAMETER StartSetId
+    The integer representation of the first set index to parse. Defaults to -2.
+.PARAMETER EndSetId
+    The integer representation of the last set index to parse. Defaults to 600.
+.EXAMPLE
+    Get-MtgPicsArt -OutputPath "D:\MtgArt" -StartSetId 1 -EndSetId 150
+#>
+function Get-MtgPicsArt {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true, Position = 0)]
+        [ValidateNotNullOrEmpty()]
+        [string]$OutputPath,
 
-# -----------------------------------------------
+        [Parameter(Position = 1)]
+        [int]$StartSetId = -2,
 
-# $VerbosePreference = "Continue"
+        [Parameter(Position = 2)]
+        [int]$EndSetId = 600
+    )
 
-mkdir ("{0}" -f $output) -ErrorAction SilentlyContinue
+    begin {
+        # Catch uninitialized variables and invalid properties early
+        Set-StrictMode -Version Latest
 
-$downloaded = 0
-
-# For each potential set, iterate and provide progress
-for ($i = -2 ; $i -le 600 ; $i++){
-    $percentage=[math]::Round(($i/600)*100)
-    Write-Progress -Activity "Set $i ($setProper), with $downloaded cards downloaded so far." -Status "($percentage % Complete)" -PercentComplete $percentage
-    
-    # Specify the URL of the web page you want to request
-    $url = "https://www.mtgpics.com/art?set=$i"
-
-    # Get set page
-    Write-host ("Getting set page: {0}" -f $url)
-    
-    try {
-        $response = Invoke-WebRequest -Uri $url -ErrorAction SilentlyContinue
-        $html = $response.Content
-    } catch [System.Net.WebException] {
-        Write-host ("`tSet not found: {0}" -f $i) -ForegroundColor Red
-        continue
+        # Verify or safely initialize the root output folder path
+        try {
+            if (-not (Test-Path -Path $OutputPath -PathType Container)) {
+                $null = New-Item -ItemType Directory -Path $OutputPath -Force -ErrorAction Stop
+            }
+        }
+        catch {
+            Write-Error -Message "Initialization failed for path '$OutputPath': $_" -Category InvalidOperation -ErrorAction Stop
+        }
+        [int]$downloadedCount = 0
+        [int]$totalSets = $EndSetId - $StartSetId + 1
     }
 
-    # Pull regex matches of card details and art link
-    $imgRegex = '(?s)url\(pics\/[^\/]+\/(?<set>[^\/]+)\/(?<card>\d+(?<suffix>[a-zA-Z_]*))\.jpg.\*?class=und.\*?\>(?<name>[^\<]+)\<'
-    $regexMatches = ($html | Select-String -Pattern $imgRegex -AllMatches).Matches
-
-    # Iterate through each match and output the 'src' attribute
-    $count = 0
-    foreach ($regexMatch in $regexMatches) {
-        ++$count
-
-        $set = $regexMatch.Groups['set'].Value
-        $card = $regexMatch.Groups['card'].Value
-        $name = $regexMatch.Groups['name'].Value
-
-        # MTGPics.com uses unofficial set names often. Handle that here.
-        switch ($set){
-            "zve" {$setProper = "ddp"}
-            "2pc" {$setProper = "pc2"}
-            "2pd" {$setProper = "pc2"}
-            "5th" {$setProper = "5ed"}
-            "6th" {$setProper = "6ed"}
-            "7th" {$setProper = "7ed"}
-            "8th" {$setProper = "8ed"}
-            "9th" {$setProper = "9ed"}
-            "10m" {$setProper = "m10"}
-            "11m" {$setProper = "m11"}
-            "12m" {$setProper = "m12"}
-            "13m" {$setProper = "m13"}
-            "14m" {$setProper = "m14"}
-            "15m" {$setProper = "m15"}
-            "13c" {$setProper = "c13"}
-            "14c" {$setProper = "c14"}
-            "15c" {$setProper = "c15"}
-            "16c" {$setProper = "c16"}
-            "17c" {$setProper = "c17"}
-            "aki" {$setProper = "akh"}
-            "25m" {$setProper = "a25"}
-            "a22" {$setProper = "ymid"}
-            "alr" {$setProper = "arb"}
-            "alp" {$setProper = "lea"}
-            "ant" {$setProper = "atq"}
-            "apo" {$setProper = "apc"}
-            "ara" {$setProper = "arn"}
-            "tbw" {$setProper = "bro"}
-            "con" {$setProper = "con_"} # can't create a folder named 'con' in Windows
-            Default {$setProper = $set}
-        }
-
-        $percentage=[math]::Round(($count/$regexMatches.Count)*100)
-        Write-Progress -Activity "Checking for Art in Set $i ($setProper)" -Status "($percentage % Complete)" -PercentComplete $percentage
-        
-        # Handle special characters
-        $name = $name -replace "&#39;", "'"
-        $name = $name -replace ":", ""
-        $name = $name -replace "!", ""
-        $name = $name -replace "\?", ""
-        $name = $name -replace '"', ""
-        $name = $name -replace '/', ""
-
-        $url = "https://www.mtgpics.com/pics/art/" + $set + "/" + $card + ".jpg"
-        $filename = "{0}{1} {2}.jpg" -f $card, $regexMatch.Groups['suffix'].Value, $name
-
-        # Output the value of the named group
-        $outFile = ("{0}\{1}\{2}" -f $output, $setProper, $filename)
-
-        # Check if directory exists, then create.
-        $path = "{0}\{1}" -f $output, $setProper
-        If(!(Test-Path -PathType container $path))
-        {
-            Write-Host ("Making dir {0}\{1}" -f $output, $setProper)
-            New-Item -ItemType Directory -Path $path
-        }
-        
-        # Check if file exists, then download.
-        If(!(Test-Path $outfile))
-        {
-            Write-Host ("Downloading: {0} - {1} - {2} `n`t from {3} to {4}" -f $setProper, $card, $name, $url, $outFile)
-            try { 
-                Invoke-WebRequest $url -OutFile $outFile
-                ++$downloaded
+    process {
+        for ([int]$i = $StartSetId; $i -le $EndSetId; $i++) {
+            [int]$setIndex = $i - $StartSetId
+            [int]$percentage = [math]::Round(($setIndex / $totalSets) * 100)
+            Write-Progress -Activity "Parsing remote MTG Sets" -Status "Set ID $i ($percentage% Complete)" -PercentComplete $percentage
+            [string]$url = "https://www.mtgpics.com/art?set=$i"
+            [string]$html = $null
+            try { # Fetch raw set HTML string using terminating error configuration
+                $response = Invoke-WebRequest -Uri $url -TimeoutSec 30 -ErrorAction Stop
+                $html = $response.Content
             }
-            catch { Write-Host ("`tError with: {0} - {1} - {2} `n`t from {3} to {4}" -f $setProper, $card, $name, $url, $outFile) -ForegroundColor Red }
+            catch [System.Net.WebException], [Microsoft.PowerShell.Commands.HttpResponseException] {
+                Write-Verbose "Set ID $i was not found or is currently inaccessible."
+                continue
+            }
+            catch {
+                Write-Warning "Unexpected exception processing set index $($i): $_"
+                continue
+            }
+            # Regular expression to extract target tokens from page data source
+            [string]$imgRegex = '(?s)url\(pics\/[^\/]+\/(?<set>[^\/]+)\/(?<card>\d+).jpg.*?class=und.*?>\s*(?<name>[^\<]+)\s*<'
+            $regexMatches = ($html | Select-String -Pattern $imgRegex -AllMatches).Matches
+            if ($null -eq $regexMatches -or $regexMatches.Count -eq 0) {
+                continue
+            }
+            [int]$cardCount = 0
+            foreach ($regexMatch in $regexMatches) {
+                $cardCount++
+                [string]$set = $regexMatch.Groups['set'].Value
+                [string]$card = $regexMatch.Groups['card'].Value
+                [string]$name = $regexMatch.Groups['name'].Value
+                [string]$setProper = $set
+                switch ($set.ToLowerInvariant()) { # Normalize unofficial acronym mappings used by remote server
+                    "zve" { $setProper = "ddp" }
+                    "2pc" { $setProper = "pc2" }
+                    "2pd" { $setProper = "pc2" }
+                    "5th" { $setProper = "5ed" }
+                    "6th" { $setProper = "6ed" }
+                    "7th" { $setProper = "7ed" }
+                    "8th" { $setProper = "8ed" }
+                    "9th" { $setProper = "9ed" }
+                    "10m" { $setProper = "m10" }
+                    "11m" { $setProper = "m11" }
+                    "12m" { $setProper = "m12" }
+                    "13m" { $setProper = "m13" }
+                    "14m" { $setProper = "m14" }
+                    "15m" { $setProper = "m15" }
+                    "13c" { $setProper = "c13" }
+                    "14c" { $setProper = "c14" }
+                    "15c" { $setProper = "c15" }
+                    "16c" { $setProper = "c16" }
+                    "17c" { $setProper = "c17" }
+                    "aki" { $setProper = "akh" }
+                    "25m" { $setProper = "a25" }
+                    "a22" { $setProper = "ymid" }
+                    "alr" { $setProper = "arb" }
+                    "alp" { $setProper = "lea" }
+                    "ant" { $setProper = "atq" }
+                    "apo" { $setProper = "apc" }
+                    "ara" { $setProper = "arn" }
+                    "tbw" { $setProper = "bro" }
+                    "con" { $setProper = "con_" } # Circumvents Windows OS reserved device name constraint
+                }
+                [int]$cardPercentage = [math]::Round(($cardCount / $regexMatches.Count) * 100)
+                Write-Progress -Activity "Processing Set Art: $setProper" -Status "Card $cardCount of $($regexMatches.Count) ($cardPercentage% Complete)" -PercentComplete $cardPercentage
+
+                # Construct target filename and download
+                $name = $name -replace "&#39;", "'"
+                $name = $name -replace '[:!\?\"/]', ''
+                $name = $name.Trim() -replace '\s+', '_'
+                [string]$filename = "{0}-{1}_{2}.jpg" -f $setProper, $card, $name
+                [string]$targetSubDir = Join-Path -Path $OutputPath -ChildPath $setProper
+                [string]$destinationFile = Join-Path -Path $targetSubDir -ChildPath $filename
+                if (-not (Test-Path -Path $targetSubDir -PathType Container)) {
+                    try {
+                        $null = New-Item -ItemType Directory -Path $targetSubDir -Force -ErrorAction Stop
+                    }
+                    catch {
+                        Write-Error -Message "Unable to generate subdirectory '$targetSubDir': $_" -Category InvalidOperation
+                        continue
+                    }
+                }
+                [string]$downloadUrl = "https://www.mtgpics.com/pics/art/$set/$card.jpg"
+                if (-not (Test-Path -Path $destinationFile)) {
+                    try {
+                        Invoke-WebRequest -Uri $downloadUrl -OutFile $destinationFile -ErrorAction Stop
+                        $downloadedCount++
+                        [PSCustomObject]@{
+                            SetCode    = $cleanSet
+                            CardNumber = $card
+                            CardName   = $name
+                            OutputFile = $filename
+                            Status     = 'Downloaded'
+                        }
+                    }
+                    catch {
+                        Write-Error -Message "Failed downloading asset from $downloadUrl -> $destinationFile : $_" -Category WriteError
+                    }
+                }
+                else { # Avoid duplicated downloads, output structured skip telemetry object
+                    [PSCustomObject]@{
+                        SetCode    = $cleanSet
+                        CardNumber = $card
+                        CardName   = $name
+                        OutputFile = $filename
+                        Status     = 'Skipped (File Exists)'
+                    }
+                }
+            }
         }
-        else{
-            Write-Verbose ("Already downloaded: {0} - {1} - {2}" -f $setProper, $card, $name)
-        }
+    }
+
+    end {
+        Write-Verbose "Operation finalized. Managed downloads: $downloadedCount items."
     }
 }
-
-write-host "Downloaded $downloaded new cards!"
