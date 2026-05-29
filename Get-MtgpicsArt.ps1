@@ -133,26 +133,28 @@ process {
                 try {
                     Invoke-WebRequest -Uri $downloadUrl -OutFile $destinationFile -ErrorAction Stop
                     $downloadedCount++
-                    [PSCustomObject]@{
+                    $ File = [PSCustomObject]@{
                         SetCode    = $cleanSet
                         CardNumber = $card
                         CardName   = $name
                         OutputFile = $filename
                         Status     = 'Downloaded'
                     }
+                    Write-Host "Downloaded $($File.OutputFile)"
                 }
                 catch {
                     Write-Error -Message "Failed downloading asset from $downloadUrl -> $destinationFile : $_" -Category WriteError
                 }
             }
             else { # Avoid duplicated downloads, output structured skip telemetry object
-                [PSCustomObject]@{
+                $File = [PSCustomObject]@{
                     SetCode    = $cleanSet
                     CardNumber = $card
                     CardName   = $name
                     OutputFile = $filename
                     Status     = 'Skipped (File Exists)'
                 }
+                Write-Verbose "Skipped $($File.OutputFile) (File Exists)"
             }
         }
     }
