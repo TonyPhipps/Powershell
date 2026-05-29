@@ -115,7 +115,8 @@ function Get-MtgPicsArt {
                 $name = $name -replace "&#39;", "'"
                 $name = $name -replace '[:!\?\"/]', ''
                 $name = $name.Trim() -replace '\s+', '_'
-                [string]$filename = "{0}-{1}_{2}.jpg" -f $setProper, $card, $name
+                [string]$cleanSet = $setProper.ToUpperInvariant()
+                [string]$filename = "{0}-{1}_{2}.jpg" -f $cleanSet, $card, $name
                 [string]$targetSubDir = Join-Path -Path $OutputPath -ChildPath $setProper
                 [string]$destinationFile = Join-Path -Path $targetSubDir -ChildPath $filename
                 if (-not (Test-Path -Path $targetSubDir -PathType Container)) {
