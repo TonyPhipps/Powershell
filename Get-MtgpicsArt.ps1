@@ -114,7 +114,7 @@ process {
                 "con" { $setProper = "con_" } 
             }
             [int]$cardPercentage = [math]::Round(($cardCount / $regexMatches.Count) * 100)
-            Write-Progress -Id 2 -ParentId 1 -Activity "Processing Set Art: $setProper" -Status "Card $cardCount of $($regexMatches.Count) ($cardPercentage% Complete)" -PercentComplete $cardPercentage
+            Write-Progress -Id 2 -ParentId 1 -Activity "Processing Set Art: $($setProper.ToUpperInvariant())" -Status "Card $cardCount of $($regexMatches.Count) ($cardPercentage% Complete)" -PercentComplete $cardPercentage
 
             # Construct target filename and download
             $name = $name -replace "&#39;", "'"
