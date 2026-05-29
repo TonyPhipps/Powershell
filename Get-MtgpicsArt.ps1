@@ -56,17 +56,20 @@ process {
             $response = Invoke-WebRequest -Uri $url -TimeoutSec 30 -ErrorAction Stop
             $html = $response.Content
         }
-        catch [System.Net.WebException], [Microsoft.PowerShell.Commands.HttpResponseException] {
+        catch [System.Net.WebException] {
             Write-Verbose "Set ID $i was not found or is currently inaccessible."
             continue
         }
         catch {
-            Write-Warning "Unexpected exception processing set index $($i): $_"
+            if ($_.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') {
+                Write-Verbose "Set ID $i was not found or is currently inaccessible."
+            } else {
+                Write-Warning "Unexpected exception processing set index $($i): $_"
+            }
             continue
         }
-        # Regular expression to extract target tokens from page data source
         [string]$imgRegex = '(?s)url\(pics\/[^\/]+\/(?<set>[^\/]+)\/(?<card>\d+).jpg.*?class=und.*?>\s*(?<name>[^\<]+)\s*<'
-        $regexMatches = ($html | Select-String -Pattern $imgRegex -AllMatches).Matches
+        $regexMatches = [regex]::Matches($html, $imgRegex)
         if ($null -eq $regexMatches -or $regexMatches.Count -eq 0) {
             continue
         }
@@ -133,7 +136,7 @@ process {
                 try {
                     Invoke-WebRequest -Uri $downloadUrl -OutFile $destinationFile -ErrorAction Stop
                     $downloadedCount++
-                    $ File = [PSCustomObject]@{
+                    $File = [PSCustomObject]@{
                         SetCode    = $cleanSet
                         CardNumber = $card
                         CardName   = $name
