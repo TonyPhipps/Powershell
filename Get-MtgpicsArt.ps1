@@ -29,7 +29,7 @@ for ($i = -2 ; $i -le 600 ; $i++){
     }
 
     # Pull regex matches of card details and art link
-    $imgRegex = '(?s)url\(pics\/[^\/]+\/(?<set>[^\/]+)\/(?<card>\d+).jpg.*?class=und.*?\>(?<name>[^\<]+)\<'
+    $imgRegex = '(?s)url\(pics\/[^\/]+\/(?<set>[^\/]+)\/(?<card>\d+(?<suffix>[a-zA-Z_]*))\.jpg.\*?class=und.\*?\>(?<name>[^\<]+)\<'
     $regexMatches = ($html | Select-String -Pattern $imgRegex -AllMatches).Matches
 
     # Iterate through each match and output the 'src' attribute
@@ -87,7 +87,7 @@ for ($i = -2 ; $i -le 600 ; $i++){
         $name = $name -replace '/', ""
 
         $url = "https://www.mtgpics.com/pics/art/" + $set + "/" + $card + ".jpg"
-        $filename = "{0} {1}.jpg" -f $card, $name
+        $filename = "{0}{1} {2}.jpg" -f $card, $regexMatch.Groups['suffix'].Value, $name
 
         # Output the value of the named group
         $outFile = ("{0}\{1}\{2}" -f $output, $setProper, $filename)
