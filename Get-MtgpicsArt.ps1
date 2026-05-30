@@ -171,5 +171,5 @@ process {
 end {
     # Complete and close out the master layout parent progress bar
     Write-Progress -Id 1 -Activity "Parsing remote MTG Sets" -Completed
-    Write-Verbose "Operation finalized. Managed downloads: $downloadedCount items."
+    Write-Host "Operation finalized. Managed downloads: $downloadedCount items."
 }
