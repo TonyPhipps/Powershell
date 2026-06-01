@@ -607,7 +607,7 @@ $Certificates = Join-Path -Path $WorkingFolder -ChildPath "certs\roots.sst"
 
 # Target evaluation wraps inside a try/catch block to correctly intercept the local file missing validation error.
 try {
-    $TargetEndpoints = Get-TargetComputers -Computers $Computers -ScanAD:$ScanAD
+    $TargetEndpoints = Get-TargetComputers -Computers $Computers -ScanAD:$ScanAD -WorkingFolder $WorkingFolder
 } catch {
     Write-Error $_.Exception.Message
     Exit
