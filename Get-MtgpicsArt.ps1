@@ -11,6 +11,8 @@
     The integer representation of the first set index to parse. Defaults to -2.
 .PARAMETER EndSetId
     The integer representation of the last set index to parse. Defaults to 600.
+.OUTPUTS
+    [PSCustomObject] containing telemetry metadata for each processed card asset.
 .EXAMPLE
     Get-MtgPicsArt -OutputPath "D:\MtgArt" -StartSetId 1 -EndSetId 150
 #>
@@ -49,24 +51,27 @@ process {
     for ([int]$i = $StartSetId; $i -le $EndSetId; $i++) {
         [int]$setIndex = $i - $StartSetId
         [int]$percentage = [math]::Round(($setIndex / $totalSets) * 100)
-        Write-Progress -Activity "Parsing remote MTG Sets" -Status "Set ID $i ($percentage% Complete)" -PercentComplete $percentage
+        Write-Progress -Id 1 -Activity "Parsing remote MTG Sets" -Status "Set ID $i ($percentage% Complete)" -PercentComplete $percentage
         [string]$url = "https://www.mtgpics.com/art?set=$i"
         [string]$html = $null
         try { # Fetch raw set HTML string using terminating error configuration
             $response = Invoke-WebRequest -Uri $url -TimeoutSec 30 -ErrorAction Stop
             $html = $response.Content
         }
-        catch [System.Net.WebException], [Microsoft.PowerShell.Commands.HttpResponseException] {
+        catch [System.Net.WebException] {
             Write-Verbose "Set ID $i was not found or is currently inaccessible."
             continue
         }
         catch {
-            Write-Warning "Unexpected exception processing set index $($i): $_"
+            if ($_.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') {
+                Write-Verbose "Set ID $i was not found or is currently inaccessible."
+            } else {
+                Write-Warning "Unexpected exception processing set index $($i): $_"
+            }
             continue
         }
-        # Regular expression to extract target tokens from page data source
         [string]$imgRegex = '(?s)url\(pics\/[^\/]+\/(?<set>[^\/]+)\/(?<card>\d+).jpg.*?class=und.*?>\s*(?<name>[^\<]+)\s*<'
-        $regexMatches = ($html | Select-String -Pattern $imgRegex -AllMatches).Matches
+        $regexMatches = [regex]::Matches($html, $imgRegex)
         if ($null -eq $regexMatches -or $regexMatches.Count -eq 0) {
             continue
         }
@@ -106,10 +111,10 @@ process {
                 "apo" { $setProper = "apc" }
                 "ara" { $setProper = "arn" }
                 "tbw" { $setProper = "bro" }
-                "con" { $setProper = "con_" } # Circumvents Windows OS reserved device name constraint
+                "con" { $setProper = "con_" } 
             }
             [int]$cardPercentage = [math]::Round(($cardCount / $regexMatches.Count) * 100)
-            Write-Progress -Activity "Processing Set Art: $setProper" -Status "Card $cardCount of $($regexMatches.Count) ($cardPercentage% Complete)" -PercentComplete $cardPercentage
+            Write-Progress -Id 2 -ParentId 1 -Activity "Processing Set Art: $($setProper.ToUpperInvariant())" -Status "Card $cardCount of $($regexMatches.Count) ($cardPercentage% Complete)" -PercentComplete $cardPercentage
 
             # Construct target filename and download
             $name = $name -replace "&#39;", "'"
@@ -133,31 +138,38 @@ process {
                 try {
                     Invoke-WebRequest -Uri $downloadUrl -OutFile $destinationFile -ErrorAction Stop
                     $downloadedCount++
-                    [PSCustomObject]@{
+                    $File = [PSCustomObject]@{
                         SetCode    = $cleanSet
                         CardNumber = $card
                         CardName   = $name
                         OutputFile = $filename
                         Status     = 'Downloaded'
                     }
+                    Write-Host "Downloaded $($File.OutputFile)"
                 }
                 catch {
                     Write-Error -Message "Failed downloading asset from $downloadUrl -> $destinationFile : $_" -Category WriteError
                 }
             }
             else { # Avoid duplicated downloads, output structured skip telemetry object
-                [PSCustomObject]@{
+                $File = [PSCustomObject]@{
                     SetCode    = $cleanSet
                     CardNumber = $card
                     CardName   = $name
                     OutputFile = $filename
                     Status     = 'Skipped (File Exists)'
                 }
+                Write-Verbose "Skipped $($File.OutputFile) (File Exists)"
             }
         }
+        
+        # Explicitly close out the inner loop progress bar when transitioning between sets
+        Write-Progress -Id 2 -Activity "Processing Set Art" -Completed
     }
 }
 
 end {
-    Write-Verbose "Operation finalized. Managed downloads: $downloadedCount items."
+    # Complete and close out the master layout parent progress bar
+    Write-Progress -Id 1 -Activity "Parsing remote MTG Sets" -Completed
+    Write-Host "Operation finalized. Managed downloads: $downloadedCount items."
 }
