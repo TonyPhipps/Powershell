@@ -14,7 +14,7 @@
     Step 2: Install the modules on the offline network.
         .\OfflineUpdater.ps1 -Install
     Step 3: Scan the Windows hosts on the offline network. Copy the MissingKBs.txt scan results to the online network.
-        .\OfflineUpdater.ps1 -Scan
+        .\OfflineUpdater.ps1 -Scan -ScanAD
     Step 4: Download missing updates on Internet-attached network. Copy the repository folder to the offline network.
         .\OfflineUpdater.ps1 -DownloadUpdates
     Step 5: Deploy the updates on the offline network.
@@ -45,7 +45,7 @@
     Switch to install the kbupdate module from the local WorkingFolder to the system module path.
 
 .PARAMETER Scan
-    Switch to query Active Directory for computers and perform a remote compliance scan.
+    Switch to perform a scan on one or more Windows systems for missing patches.
 
 .PARAMETER DownloadUpdates
     Switch to read the 'MissingKBs.txt' list and download the actual update files from Microsoft.
@@ -54,7 +54,7 @@
     Switch to push and install the downloaded updates from the RepoFolder to the target endpoints.
 
 .PARAMETER DeployUpdatesLocal
-    Switch to push and install the downloaded updates from the RepoFolder to the LOCAL endpoint.
+    Switch to push and install the downloaded updates from the LOCAL endpoint.
 
 .PARAMETER SkipReport
     If set, the script will not automatically open the CSV scan results in Out-GridView.
@@ -66,13 +66,16 @@
 .PARAMETER SkipDefender
     If set, the script will not automatically download or deploy Defender.
 
+.PARAMETER ScanAD
+    Switch to discover target hosts via Active Directory rather than relying on a local hosts.txt file.
+
 .EXAMPLE
     .\OfflineUpdater.ps1 -PreparePackage
     Downloads all necessary tools and the ~1GB scan catalog to prepare for an offline site visit.
 
 .EXAMPLE
     .\OfflineUpdater.ps1 -Scan -WorkingFolder "D:\OfflineUpdater"
-    Scans AD computers and generates a report of what is missing using the specified working directory.
+    Scans local file inventory computers and generates a report of what is missing using the specified working directory.
 
 .EXAMPLE
     To install locally (for hosts that had remote issues), log into that machine interactively, then:
@@ -85,18 +88,17 @@
     D:\OfflineUpdater\OfflineUpdater.ps1 -DeployLocal -Repository \\otherpc\d$\OfflineUpdater\repository
 
 .NOTES
-    Manual Fallbacks are provided below for when kbupdate fails repeatedly on the last few remaining patches.
-        wusa.exe "C:\Path\To\Your\Patch\Windows11.0-KB50XXXXX-x64.msu" /norestart
-        Dism /Online /Add-Package /PackagePath:"C:\Path\To\Your\windows10.0-kb5066139-x64-ndp48...cab"
-
-.NOTES
     File Name      : OfflineUpdater.ps1
-    Author         : Tony Phipps
-    Prerequisites  : PowerShell 5.1+, Administrator privileges, RSAT (for -Scan)
-    Version        : 1.0
-    Date           : April 17, 2026
+    Author         : Tony Phipps (Modified)
+    Prerequisites  : PowerShell 5.1+, Administrator privileges, RSAT (for -ScanAD)
+    Version        : 1.1
+    Date           : June 1, 2026
     Copyright      : (c) 2026 Tony Phipps under the MIT License
 
+    Manual Fallbacks are provided below for when kbupdate fails repeatedly on the last few remaining patches.
+    wusa.exe "C:\Path\To\Your\Patch\Windows11.0-KB50XXXXX-x64.msu" /norestart
+    Dism /Online /Add-Package /PackagePath:"C:\Path\To\Your\windows10.0-kb5066139-x64-ndp48...cab"
+    
 .LINK
     https://github.com/potatoqualitee/kbupdate
     https://github.com/TonyPhipps/Powershell
@@ -166,8 +168,8 @@ param (
     [switch]$SkipDefender,
 
     [Parameter(Mandatory = $false)]
-    [alias("NoAD")]
-    [switch]$SkipAD
+    [alias("ScanAD")]
+    [switch]$ScanAD
 )
 
 # --- HELPER FUNCTIONS ---
@@ -178,24 +180,16 @@ function Get-TargetComputers {
         [string[]]$Computers,
         
         [Parameter(Mandatory = $false)]
-        [switch]$SkipAD
+        [switch]$ScanAD
     )
-    if (-not $Computers -and -not $SkipAD) {  }
+
+    # If explicit hosts were provided directly as an array of strings (not a path) and it's not a file path
+    if ($null -ne $Computers -and (-not (($Computers -match "[\\\/]") -and (Test-Path -Path $Computers -PathType Leaf)))) {
+        return $Computers | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
+    }
     
-    if ($SkipAD){
-        if ($null -eq $Computers) {
-            $Computers = [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt")
-            if (Test-Path -Path $Computers){
-                return (Get-Content -Path $Computers[0])
-            } else {
-                return $env:COMPUTERNAME
-            }
-        } elseif (($Computers -match "[\\\/]") -and (Test-Path -Path $Computers -PathType Leaf)){
-            return (Get-Content -Path $Computers[0])
-        } else {
-            return $Computers | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
-        }
-    } else { # NO SKIPAD
+    # Active Directory Scan Workflow
+    if ($ScanAD) {
         try {
             $isInstalled = (Get-WindowsFeature -Name RSAT-ADDS-Tools -ErrorAction SilentlyContinue).Installed
         } catch {
@@ -208,23 +202,28 @@ function Get-TargetComputers {
                 if ($null -eq $Computers) {
                     $Computers = [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt")
                 }
+                $TargetDir = Split-Path -Path $Computers[0] -Parent
+                if (-not (Test-Path -Path $TargetDir)) { New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null }
                 $ADHosts | Out-File -FilePath $Computers[0] -Force
                 return $ADHosts
             }
         } else {
-            Write-Host "RSAT: Active Directory Tools are NOT installed. Falling back to local host list file > local host." -ForegroundColor Red
-            if ($null -eq $Computers) {
-                $Computers = [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt")
-                if (Test-Path -Path $Computers){
-                    return (Get-Content -Path $Computers[0])
-                } else {
-                    return $env:COMPUTERNAME
-                }
-            } elseif (Test-Path -Path $Computers -PathType Leaf){
-                return (Get-Content -Path $Computers[0])
-            } else {
-                return $Computers | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
-            }
+            Throw "RSAT: Active Directory Tools are NOT installed. Cannot perform -ScanAD."
+        }
+    } 
+    # Default Workflow: Look for local hosts file or explicit path input
+    else {
+        $HostFilePath = if ($null -eq $Computers) {
+            [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt")
+        } else {
+            $Computers[0]
+        }
+
+        if (Test-Path -Path $HostFilePath -PathType Leaf) {
+            return (Get-Content -Path $HostFilePath)
+        } else {
+            # Throw required error suggesting -ScanAD or providing a valid enter-delimited file
+            Throw "Target hosts file not found at '$HostFilePath'. Please create an enter-delimited hosts file at this location, pass a file path to -Computers, or use the -ScanAD switch to dynamically query Active Directory."
         }
     }
 }
@@ -574,7 +573,7 @@ function Install-RootCerts {
 }
 
 Clear-Host
-# --- Paramter Checks and Resolution ---
+# --- Parameter Checks and Resolution ---
 if (-not $WorkingFolder) {
     if ($psISE -and (Test-Path -Path $psISE.CurrentFile.FullPath)) {
         $ScriptRoot = Split-Path -Path $psISE.CurrentFile.FullPath -Parent
@@ -606,7 +605,14 @@ if (-not $Repository)   { $Repository = Join-Path -Path $WorkingFolder -ChildPat
 if (-not $Results)      { $Results = Join-Path -Path $WorkingFolder -ChildPath "ScanResults" }
 if (-not $Catalog)      { $Catalog = Join-Path -Path $WorkingFolder -ChildPath "catalog\wsusscn2.cab" }
 if (-not $Certificates) { $Certificates = Join-Path -Path $WorkingFolder -ChildPath "certs\roots.sst" }
-$TargetEndpoints = Get-TargetComputers -Computers $Computers -SkipAD:$SkipAD
+
+# Target evaluation wraps inside a try/catch block to correctly intercept the local file missing validation error.
+try {
+    $TargetEndpoints = Get-TargetComputers -Computers $Computers -ScanAD:$ScanAD
+} catch {
+    Write-Error $_.Exception.Message
+    Exit
+}
 
 # --- INTERACTIVE MENU ---
 $NoActionSelected = -not ($PreparePackage -or $Install -or $Scan -or $DownloadUpdates -or $DeployUpdates -or $DeployUpdatesLocal)
@@ -621,6 +627,7 @@ if ($NoActionSelected) {
         Write-Host "  2) -Download Updates  (Run on INTERNET-CONNECTED computer)"
         Write-Host "  3) -Deploy Updates    (Run on AIR-GAPPED computer)"
         Write-Host "  q)  Quit"
+        Write-Host "  (to target Active Directory discovery, rerun with -ScanAD)"     -ForegroundColor Gray
         Write-Host "  (to target Defender updates only, rerun with -DefenderOnly)"    -ForegroundColor Gray
         Write-Host "  (to deploy updates locally, rerun with -DeployUpdatesLocal)"    -ForegroundColor Gray
         Write-Host "================================================================" -ForegroundColor Cyan
@@ -852,4 +859,3 @@ if ($DeployUpdatesLocal) {
     Get-RebootStatus
     Remove-TempFiles
 }
-
