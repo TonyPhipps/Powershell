@@ -30,7 +30,8 @@
     Path where the wsusscn2.cab (Offline Scan File) is stored or will be downloaded. Defaults to \catalog\ of WorkingFolder.
 
 .PARAMETER Computers
-    Path to file used to store list of hosts to scan. Defaults to \scan\hosts.txt within WorkingFolder. A list is also accepted directly.
+    An explicit array of computer names, or a path to a file used to store list of hosts to scan. 
+    Defaults to checking \scan\hosts.txt within WorkingFolder if not provided.
 
 .PARAMETER Repository
     The local repository where .msu/.cab update files are downloaded and stored. Defaults to \repository\ subirectory of WorkingFolder.
@@ -74,7 +75,7 @@
     Downloads all necessary tools and the ~1GB scan catalog to prepare for an offline site visit.
 
 .EXAMPLE
-    .\OfflineUpdater.ps1 -Scan -WorkingFolder "D:\OfflineUpdater"
+    .\OfflineUpdater.ps1 -Scan -ScanAD -WorkingFolder "D:\OfflineUpdater"
     Scans local file inventory computers and generates a report of what is missing using the specified working directory.
 
 .EXAMPLE
@@ -84,14 +85,14 @@
     New-Item -ItemType Directory -Path d:\OfflineUpdater -Force
     Copy-Item -Path "\\otherhost\d$\OfflineUpdater\OfflineUpdater.ps1" -Destination "d:\OfflineUpdater\" -Force
     Copy-Item -Path "\\otherhost\d$\OfflineUpdater\catalog" -Destination "d:\OfflineUpdater\" -Recurse -Force
-    D:\OfflineUpdater\OfflineUpdater.ps1 -Scan -SkipAD -Host $Env:COMPUTERNAME -WorkingFolder "d:\OfflineUpdater"
+    D:\OfflineUpdater\OfflineUpdater.ps1 -Scan -Host $Env:COMPUTERNAME -WorkingFolder "d:\OfflineUpdater"
     D:\OfflineUpdater\OfflineUpdater.ps1 -DeployLocal -Repository \\otherpc\d$\OfflineUpdater\repository
 
 .NOTES
     File Name      : OfflineUpdater.ps1
-    Author         : Tony Phipps (Modified)
+    Author         : Tony Phipps
     Prerequisites  : PowerShell 5.1+, Administrator privileges, RSAT (for -ScanAD)
-    Version        : 1.1
+    Version        : 1.2
     Date           : June 1, 2026
     Copyright      : (c) 2026 Tony Phipps under the MIT License
 
@@ -172,6 +173,8 @@ param (
     [switch]$ScanAD
 )
 
+Set-StrictMode -Version Latest
+
 # --- HELPER FUNCTIONS ---
 function Get-TargetComputers {
     [CmdletBinding()]
@@ -180,15 +183,20 @@ function Get-TargetComputers {
         [string[]]$Computers,
         
         [Parameter(Mandatory = $false)]
-        [switch]$ScanAD
-    )
+        [switch]$ScanAD,
 
-    # If explicit hosts were provided directly as an array of strings (not a path) and it's not a file path
-    if ($null -ne $Computers -and (-not (($Computers -match "[\\\/]") -and (Test-Path -Path $Computers -PathType Leaf)))) {
+        [Parameter(Mandatory = $true)]
+        [string]$WorkingFolder
+    )
+    if ($null -ne $Computers -and $Computers.Count -gt 0) { # if an array of host names or an explicit valid file path is provided via $Computers
+        if ($Computers.Count -eq 1 -and (Test-Path -Path $Computers[0] -PathType Leaf -ErrorAction SilentlyContinue)) { # If a filepath is provided
+            Write-Verbose "Loading endpoints from explicit file path: $($Computers[0])"
+            return (Get-Content -Path $Computers[0]) | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
+        }
+        # Otherwise, parse string array inputs directly as computer items
+        Write-Verbose "Using explicit inline computer names passed from command line."
         return $Computers | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
     }
-    
-    # Active Directory Scan Workflow
     if ($ScanAD) {
         try {
             $isInstalled = (Get-WindowsFeature -Name RSAT-ADDS-Tools -ErrorAction SilentlyContinue).Installed
@@ -199,32 +207,24 @@ function Get-TargetComputers {
             Write-Host "RSAT: Active Directory Users and Computers is installed. Gathering enabled Windows hosts..." -ForegroundColor Gray
             $ADHosts = Get-ADComputer -Filter {Enabled -eq $true -and OperatingSystem -like '*Windows*'} | Select-Object -ExpandProperty Name
             if ($ADHosts) {
-                if ($null -eq $Computers) {
-                    $Computers = [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt")
-                }
-                $TargetDir = Split-Path -Path $Computers[0] -Parent
+                $DefaultHostsPath = [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt")
+                $TargetDir = Split-Path -Path $DefaultHostsPath -Parent
                 if (-not (Test-Path -Path $TargetDir)) { New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null }
-                $ADHosts | Out-File -FilePath $Computers[0] -Force
+                $ADHosts | Out-File -FilePath $DefaultHostsPath -Force
                 return $ADHosts
             }
         } else {
-            Throw "RSAT: Active Directory Tools are NOT installed. Cannot perform -ScanAD."
+            throw [System.Management.Automation.CmdletInvocationException]::new("RSAT: Active Directory Tools are NOT installed. Cannot perform -ScanAD.")
         }
     } 
-    # Default Workflow: Look for local hosts file or explicit path input
-    else {
-        $HostFilePath = if ($null -eq $Computers) {
-            [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt")
-        } else {
-            $Computers[0]
-        }
 
-        if (Test-Path -Path $HostFilePath -PathType Leaf) {
-            return (Get-Content -Path $HostFilePath)
-        } else {
-            Throw "Target hosts file not found at '$HostFilePath'. Please create an enter-delimited hosts file at this location, pass a file path to -Computers, or use the -ScanAD switch to dynamically query Active Directory."
-        }
+    # Fall back to checking the default host inventory file layout
+    $DefaultHostFilePath = [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt")
+    if (Test-Path -Path $DefaultHostFilePath -PathType Leaf) {
+        Write-Verbose "Using default file path host layout target asset context list: $DefaultHostFilePath"
+        return (Get-Content -Path $DefaultHostFilePath) | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
     }
+    throw [System.IO.FileNotFoundException]::new("Target hosts location configuration missing. Please explicitly provide target machine endpoints to -Computers, provide an enter-delimited path to a target text file, rerun the script utilizing the -ScanAD switch to dynamically scan Active Directory domain architectures, or create an enter-delimited host configuration text file locally at: '$DefaultHostFilePath'")
 }
 
 function Invoke-UpdateDownload {
