@@ -168,7 +168,7 @@ param (
     [switch]$SkipDefender,
 
     [Parameter(Mandatory = $false)]
-    [alias("ScanAD")]
+    [alias("AD")]
     [switch]$ScanAD
 )
 
@@ -222,7 +222,6 @@ function Get-TargetComputers {
         if (Test-Path -Path $HostFilePath -PathType Leaf) {
             return (Get-Content -Path $HostFilePath)
         } else {
-            # Throw required error suggesting -ScanAD or providing a valid enter-delimited file
             Throw "Target hosts file not found at '$HostFilePath'. Please create an enter-delimited hosts file at this location, pass a file path to -Computers, or use the -ScanAD switch to dynamically query Active Directory."
         }
     }
@@ -604,7 +603,7 @@ if (-not $Modules)      { $Modules = Join-Path -Path $WorkingFolder -ChildPath "
 if (-not $Repository)   { $Repository = Join-Path -Path $WorkingFolder -ChildPath "repository" }
 if (-not $Results)      { $Results = Join-Path -Path $WorkingFolder -ChildPath "ScanResults" }
 if (-not $Catalog)      { $Catalog = Join-Path -Path $WorkingFolder -ChildPath "catalog\wsusscn2.cab" }
-if (-not $Certificates) { $Certificates = Join-Path -Path $WorkingFolder -ChildPath "certs\roots.sst" }
+$Certificates = Join-Path -Path $WorkingFolder -ChildPath "certs\roots.sst"
 
 # Target evaluation wraps inside a try/catch block to correctly intercept the local file missing validation error.
 try {
