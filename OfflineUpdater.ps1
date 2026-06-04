@@ -157,7 +157,7 @@ param (
     [switch]$DeployUpdates,
 
     [Parameter(Mandatory = $false)]
-    [alias("DeployLocal", "DeployUpdateLocal", "UpdateLocal")]
+    [alias("DeployLocal", "DeployUpdateLocal", "UpdateLocal", "Local", "LocalBypass", "Bypass")]
     [switch]$DeployUpdatesLocal,
 
     [Parameter(Mandatory = $false)]
