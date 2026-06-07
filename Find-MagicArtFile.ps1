@@ -1,4 +1,5 @@
 $filter = "CardName"
+$filter = $filter.Trim() -replace '\s+', '_'
 $path = "F:\GoogleDrive\Tony\Projects\Magic\art"
 
 $shell = New-Object -ComObject Shell.Application
