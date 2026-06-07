@@ -14,7 +14,7 @@
     Step 2: Install the modules on the offline network.
         .\OfflineUpdater.ps1 -Install
     Step 3: Scan the Windows hosts on the offline network. Copy the MissingKBs.txt scan results to the online network.
-        .\OfflineUpdater.ps1 -Scan
+        .\OfflineUpdater.ps1 -Scan -ScanAD
     Step 4: Download missing updates on Internet-attached network. Copy the repository folder to the offline network.
         .\OfflineUpdater.ps1 -DownloadUpdates
     Step 5: Deploy the updates on the offline network.
@@ -30,7 +30,8 @@
     Path where the wsusscn2.cab (Offline Scan File) is stored or will be downloaded. Defaults to \catalog\ of WorkingFolder.
 
 .PARAMETER Computers
-    Path to file used to store list of hosts to scan. Defaults to \scan\hosts.txt within WorkingFolder. A list is also accepted directly.
+    An explicit array of computer names, or a path to a file used to store list of hosts to scan. 
+    Defaults to checking \scan\hosts.txt within WorkingFolder if not provided.
 
 .PARAMETER Repository
     The local repository where .msu/.cab update files are downloaded and stored. Defaults to \repository\ subirectory of WorkingFolder.
@@ -45,7 +46,7 @@
     Switch to install the kbupdate module from the local WorkingFolder to the system module path.
 
 .PARAMETER Scan
-    Switch to query Active Directory for computers and perform a remote compliance scan.
+    Switch to perform a scan on one or more Windows systems for missing patches.
 
 .PARAMETER DownloadUpdates
     Switch to read the 'MissingKBs.txt' list and download the actual update files from Microsoft.
@@ -54,7 +55,7 @@
     Switch to push and install the downloaded updates from the RepoFolder to the target endpoints.
 
 .PARAMETER DeployUpdatesLocal
-    Switch to push and install the downloaded updates from the RepoFolder to the LOCAL endpoint.
+    Switch to push and install the downloaded updates from the LOCAL endpoint.
 
 .PARAMETER SkipReport
     If set, the script will not automatically open the CSV scan results in Out-GridView.
@@ -66,13 +67,16 @@
 .PARAMETER SkipDefender
     If set, the script will not automatically download or deploy Defender.
 
+.PARAMETER ScanAD
+    Switch to discover target hosts via Active Directory rather than relying on a local hosts.txt file.
+
 .EXAMPLE
     .\OfflineUpdater.ps1 -PreparePackage
     Downloads all necessary tools and the ~1GB scan catalog to prepare for an offline site visit.
 
 .EXAMPLE
-    .\OfflineUpdater.ps1 -Scan -WorkingFolder "D:\OfflineUpdater"
-    Scans AD computers and generates a report of what is missing using the specified working directory.
+    .\OfflineUpdater.ps1 -Scan -ScanAD -WorkingFolder "D:\OfflineUpdater"
+    Scans local file inventory computers and generates a report of what is missing using the specified working directory.
 
 .EXAMPLE
     To install locally (for hosts that had remote issues), log into that machine interactively, then:
@@ -81,22 +85,21 @@
     New-Item -ItemType Directory -Path d:\OfflineUpdater -Force
     Copy-Item -Path "\\otherhost\d$\OfflineUpdater\OfflineUpdater.ps1" -Destination "d:\OfflineUpdater\" -Force
     Copy-Item -Path "\\otherhost\d$\OfflineUpdater\catalog" -Destination "d:\OfflineUpdater\" -Recurse -Force
-    D:\OfflineUpdater\OfflineUpdater.ps1 -Scan -SkipAD -Host $Env:COMPUTERNAME -WorkingFolder "d:\OfflineUpdater"
+    D:\OfflineUpdater\OfflineUpdater.ps1 -Scan -Host $Env:COMPUTERNAME -WorkingFolder "d:\OfflineUpdater"
     D:\OfflineUpdater\OfflineUpdater.ps1 -DeployLocal -Repository \\otherpc\d$\OfflineUpdater\repository
-
-.NOTES
-    Manual Fallbacks are provided below for when kbupdate fails repeatedly on the last few remaining patches.
-        wusa.exe "C:\Path\To\Your\Patch\Windows11.0-KB50XXXXX-x64.msu" /norestart
-        Dism /Online /Add-Package /PackagePath:"C:\Path\To\Your\windows10.0-kb5066139-x64-ndp48...cab"
 
 .NOTES
     File Name      : OfflineUpdater.ps1
     Author         : Tony Phipps
-    Prerequisites  : PowerShell 5.1+, Administrator privileges, RSAT (for -Scan)
-    Version        : 1.0
-    Date           : April 17, 2026
+    Prerequisites  : PowerShell 5.1+, Administrator privileges, RSAT (for -ScanAD)
+    Version        : 1.2
+    Date           : June 1, 2026
     Copyright      : (c) 2026 Tony Phipps under the MIT License
 
+    Manual Fallbacks are provided below for when kbupdate fails repeatedly on the last few remaining patches.
+    wusa.exe "C:\Path\To\Your\Patch\Windows11.0-KB50XXXXX-x64.msu" /norestart
+    Dism /Online /Add-Package /PackagePath:"C:\Path\To\Your\windows10.0-kb5066139-x64-ndp48...cab"
+    
 .LINK
     https://github.com/potatoqualitee/kbupdate
     https://github.com/TonyPhipps/Powershell
@@ -154,7 +157,7 @@ param (
     [switch]$DeployUpdates,
 
     [Parameter(Mandatory = $false)]
-    [alias("DeployLocal", "DeployUpdateLocal", "UpdateLocal")]
+    [alias("DeployLocal", "DeployUpdateLocal", "UpdateLocal", "Local", "LocalBypass", "Bypass")]
     [switch]$DeployUpdatesLocal,
 
     [Parameter(Mandatory = $false)]
@@ -166,9 +169,11 @@ param (
     [switch]$SkipDefender,
 
     [Parameter(Mandatory = $false)]
-    [alias("NoAD")]
-    [switch]$SkipAD
+    [alias("AD")]
+    [switch]$ScanAD
 )
+
+Set-StrictMode -Version Latest
 
 # --- HELPER FUNCTIONS ---
 function Get-TargetComputers {
@@ -178,24 +183,21 @@ function Get-TargetComputers {
         [string[]]$Computers,
         
         [Parameter(Mandatory = $false)]
-        [switch]$SkipAD
+        [switch]$ScanAD,
+
+        [Parameter(Mandatory = $true)]
+        [string]$WorkingFolder
     )
-    if (-not $Computers -and -not $SkipAD) {  }
-    
-    if ($SkipAD){
-        if ($null -eq $Computers) {
-            $Computers = [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt")
-            if (Test-Path -Path $Computers){
-                return (Get-Content -Path $Computers[0])
-            } else {
-                return $env:COMPUTERNAME
-            }
-        } elseif (($Computers -match "[\\\/]") -and (Test-Path -Path $Computers -PathType Leaf)){
-            return (Get-Content -Path $Computers[0])
-        } else {
-            return $Computers | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
+    if ($null -ne $Computers -and $Computers.Count -gt 0) { # if an array of host names or an explicit valid file path is provided via $Computers
+        if ($Computers.Count -eq 1 -and (Test-Path -Path $Computers[0] -PathType Leaf -ErrorAction SilentlyContinue)) { # If a filepath is provided
+            Write-Verbose "Loading endpoints from explicit file path: $($Computers[0])"
+            return (Get-Content -Path $Computers[0]) | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
         }
-    } else { # NO SKIPAD
+        # Otherwise, parse string array inputs directly as computer items
+        Write-Verbose "Using explicit inline computer names passed from command line."
+        return $Computers | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
+    }
+    if ($ScanAD) {
         try {
             $isInstalled = (Get-WindowsFeature -Name RSAT-ADDS-Tools -ErrorAction SilentlyContinue).Installed
         } catch {
@@ -205,28 +207,24 @@ function Get-TargetComputers {
             Write-Host "RSAT: Active Directory Users and Computers is installed. Gathering enabled Windows hosts..." -ForegroundColor Gray
             $ADHosts = Get-ADComputer -Filter {Enabled -eq $true -and OperatingSystem -like '*Windows*'} | Select-Object -ExpandProperty Name
             if ($ADHosts) {
-                if ($null -eq $Computers) {
-                    $Computers = [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt")
-                }
-                $ADHosts | Out-File -FilePath $Computers[0] -Force
+                $DefaultHostsPath = [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt")
+                $TargetDir = Split-Path -Path $DefaultHostsPath -Parent
+                if (-not (Test-Path -Path $TargetDir)) { New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null }
+                $ADHosts | Out-File -FilePath $DefaultHostsPath -Force
                 return $ADHosts
             }
         } else {
-            Write-Host "RSAT: Active Directory Tools are NOT installed. Falling back to local host list file > local host." -ForegroundColor Red
-            if ($null -eq $Computers) {
-                $Computers = [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt")
-                if (Test-Path -Path $Computers){
-                    return (Get-Content -Path $Computers[0])
-                } else {
-                    return $env:COMPUTERNAME
-                }
-            } elseif (Test-Path -Path $Computers -PathType Leaf){
-                return (Get-Content -Path $Computers[0])
-            } else {
-                return $Computers | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
-            }
+            throw [System.Management.Automation.CmdletInvocationException]::new("RSAT: Active Directory Tools are NOT installed. Cannot perform -ScanAD.")
         }
+    } 
+
+    # Fall back to checking the default host inventory file layout
+    $DefaultHostFilePath = [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt")
+    if (Test-Path -Path $DefaultHostFilePath -PathType Leaf) {
+        Write-Verbose "Using default file path host layout target asset context list: $DefaultHostFilePath"
+        return (Get-Content -Path $DefaultHostFilePath) | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
     }
+    throw [System.IO.FileNotFoundException]::new("Target hosts location configuration missing. Please explicitly provide target machine endpoints to -Computers, provide an enter-delimited path to a target text file, rerun the script utilizing the -ScanAD switch to dynamically scan Active Directory domain architectures, or create an enter-delimited host configuration text file locally at: '$DefaultHostFilePath'")
 }
 
 function Invoke-UpdateDownload {
@@ -574,7 +572,7 @@ function Install-RootCerts {
 }
 
 Clear-Host
-# --- Paramter Checks and Resolution ---
+# --- Parameter Checks and Resolution ---
 if (-not $WorkingFolder) {
     if ($psISE -and (Test-Path -Path $psISE.CurrentFile.FullPath)) {
         $ScriptRoot = Split-Path -Path $psISE.CurrentFile.FullPath -Parent
@@ -605,8 +603,15 @@ if (-not $Modules)      { $Modules = Join-Path -Path $WorkingFolder -ChildPath "
 if (-not $Repository)   { $Repository = Join-Path -Path $WorkingFolder -ChildPath "repository" }
 if (-not $Results)      { $Results = Join-Path -Path $WorkingFolder -ChildPath "ScanResults" }
 if (-not $Catalog)      { $Catalog = Join-Path -Path $WorkingFolder -ChildPath "catalog\wsusscn2.cab" }
-if (-not $Certificates) { $Certificates = Join-Path -Path $WorkingFolder -ChildPath "certs\roots.sst" }
-$TargetEndpoints = Get-TargetComputers -Computers $Computers -SkipAD:$SkipAD
+$Certificates = Join-Path -Path $WorkingFolder -ChildPath "certs\roots.sst"
+
+# Target evaluation wraps inside a try/catch block to correctly intercept the local file missing validation error.
+try {
+    $TargetEndpoints = Get-TargetComputers -Computers $Computers -ScanAD:$ScanAD -WorkingFolder $WorkingFolder
+} catch {
+    Write-Error $_.Exception.Message
+    Exit
+}
 
 # --- INTERACTIVE MENU ---
 $NoActionSelected = -not ($PreparePackage -or $Install -or $Scan -or $DownloadUpdates -or $DeployUpdates -or $DeployUpdatesLocal)
@@ -621,6 +626,7 @@ if ($NoActionSelected) {
         Write-Host "  2) -Download Updates  (Run on INTERNET-CONNECTED computer)"
         Write-Host "  3) -Deploy Updates    (Run on AIR-GAPPED computer)"
         Write-Host "  q)  Quit"
+        Write-Host "  (to target Active Directory discovery, rerun with -ScanAD)"     -ForegroundColor Gray
         Write-Host "  (to target Defender updates only, rerun with -DefenderOnly)"    -ForegroundColor Gray
         Write-Host "  (to deploy updates locally, rerun with -DeployUpdatesLocal)"    -ForegroundColor Gray
         Write-Host "================================================================" -ForegroundColor Cyan
@@ -852,4 +858,3 @@ if ($DeployUpdatesLocal) {
     Get-RebootStatus
     Remove-TempFiles
 }
-
