@@ -53,3 +53,26 @@ powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMAX 100 # Set
 powercfg /setactive SCHEME_CURRENT # Apply the changes
 powercfg /list # Show plans
 powercfg /query SCHEME_CURRENT # Show settings
+
+# Left-align the Taskbar (0 = Left, 1 = Center)
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAl" -Value 0
+
+# 2. Never combine taskbar icons (0 = Always, 1 = When taskbar is full, 2 = Never)
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarGl" -Value 0
+
+# Set Search Bar to "Hidden" (Value = 0)
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "SearchboxTaskbarMode" -Value 0
+
+# Set taskbar icon size to Small (0 = Small, 1 = Medium/Default, 2 = Large)
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarSi" -Value 0
+
+# Show all Taskbar Icons
+Get-ChildItem -Path 'HKCU:\Control Panel\NotifyIconSettings' | ForEach-Object { 
+    Set-ItemProperty -Path ($_.PSPath) -Name 'IsPromoted' -Value 1 -ErrorAction SilentlyContinue
+}
+
+# Set Taskbar Widgets to "Hidden" (Value = 0)
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarDa" -Value 0
+
+# Restart Windows Explorer to apply changes
+Stop-Process -Name explorer -Force
