@@ -574,7 +574,7 @@ function Install-RootCerts {
 Clear-Host
 # --- Parameter Checks and Resolution ---
 if (-not $WorkingFolder) {
-    if ($psISE -and (Test-Path -Path $psISE.CurrentFile.FullPath)) {
+    if ((Test-Path -Path "Variable:psISE") -and (Test-Path -Path $psISE.CurrentFile.FullPath)) {
         $ScriptRoot = Split-Path -Path $psISE.CurrentFile.FullPath -Parent
     } else {
         $ScriptRoot = $PSScriptRoot
