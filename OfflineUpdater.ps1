@@ -130,7 +130,7 @@ param (
 
     [Parameter(Mandatory = $false)]
     [alias("H", "Hosts", "Host", "Computer")]
-    [string[]]$Computers,
+    [string[]]$Computers = ($Env:COMPUTERNAME),
 
     [Parameter(Mandatory = $false)]
     [alias("P", "Prepare", "Package", "Update", "UpdatePackage")]
