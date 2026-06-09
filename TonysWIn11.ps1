@@ -6,9 +6,7 @@
     - https://www.elevenforum.com/t/disable-show-more-options-context-menu-in-windows-11.1589/
 #>
 
-
-# --- SETUP ---
-
+# --- HELPER FUNCTIONS ---
 function Set-RegProperty($FullPath, $PropertyType, $Value){
     $Path = Split-Path -Path $FullPath
     $Name = Split-Path -Path $FullPath -Leaf
@@ -22,6 +20,7 @@ function Set-RegProperty($FullPath, $PropertyType, $Value){
     
 }
 
+# --- MAIN ---
 # Disable "Show more options" context menu in Windows 11
 Set-RegProperty "HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32" "DWORD" 1
 reg add "HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32" /f /ve​
