@@ -87,5 +87,8 @@ $UpdateUI = Add-Type -MemberDefinition $Signature -Name "Win32Update" -Namespace
 $Result = [IntPtr]::Zero
 $UpdateUI::SendMessageTimeout([IntPtr]0xffff, 0x001a, [IntPtr]::Zero, [IntPtr]::Zero, 2, 5000, [ref]$Result)
 
+# Set desktop icon view to Small (0x22 = Small, 0x15 = Medium, 0x1c = Large)
+Set-ItemProperty -Path "Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\Shell\Bags\1\Desktop" -Name "IconSize" -Value 34 -Type DWord
+
 # Restart Windows Explorer to apply changes
 Stop-Process -Name explorer -Force
