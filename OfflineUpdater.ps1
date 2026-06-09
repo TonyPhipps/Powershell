@@ -521,13 +521,31 @@ function Remove-TempFiles {
 function Get-RootCerts {
     [CmdletBinding()]
     param([string]$CertPath)
-    
-    Write-Host "Generating Root Certificates... " -ForegroundColor Gray -NoNewline
+    Write-Host "Checking for new Root Certificates... " -ForegroundColor Gray -NoNewline
     $CertDir = Split-Path -Path $CertPath -Parent
     if (-not (Test-Path $CertDir)) { New-Item -ItemType Directory -Path $CertDir -Force | Out-Null }
     try {
-        certutil.exe -generateSSTFromWU "$CertPath"
-        Write-Host "[Success] (Root certificates saved to $CertPath)" -ForegroundColor Green
+        $OldHash = $null
+        $HashPath = "$CertPath.hash"
+        if (Test-Path $CertPath) {
+            if (Test-Path $HashPath) {
+                $OldHash = Get-Content -Path $HashPath -Raw
+            } else {
+                $OldHash = (Get-FileHash -Path $CertPath -Algorithm SHA256).Hash
+            }
+        }
+        certutil.exe -generateSSTFromWU "$CertPath" *>$null
+        if (Test-Path $CertPath) {
+            $NewHash = (Get-FileHash -Path $CertPath -Algorithm SHA256).Hash
+            Set-Content -Path $HashPath -Value $NewHash -Force
+            if ($null -ne $OldHash -and $OldHash -ne $NewHash) {
+                Write-Host "[Success] new certs were updated" -ForegroundColor Green
+            } else {
+                Write-Host "[Success] no cert changes." -ForegroundColor Gray
+            }
+        } else {
+            Write-Error "[Failure] (SST file was not created)"
+        }
     } catch {
         Write-Error "[Failure] (Could not generate certificate store: $($_.Exception.Message))"
     }
