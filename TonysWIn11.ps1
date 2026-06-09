@@ -64,15 +64,28 @@ Get-ChildItem -Path 'HKCU:\Control Panel\NotifyIconSettings' | ForEach-Object {
 }
 
 # Set Taskbar Widgets to "Hidden" (Value = 0)
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarDa" -Value 0
-
-$RegistryPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarDa" -Value 
 
 # Force the layout to "More Pins" (0 = Default, 1 = More Pins, 2 = More Recommendations)
-Set-ItemProperty -Path $RegistryPath -Name "Start_Layout" -Value 1
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Start_Layout" -Value 1
 
 # Turn off the document history trackers that bloat the bottom half of the menu
-Set-ItemProperty -Path $RegistryPath -Name "Start_TrackDocs" -Value 0
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Start_TrackDocs" -Value 0
+
+# Enable custom DPI scaling overrides
+Set-ItemProperty -Path "Registry::HKEY_CURRENT_USER\Control Panel\Desktop" -Name "Win8DpiScaling" -Value 1 -Type DWord
+
+# Set pixel density to a compact scale (86 = ~90% scale, down from the default 96)
+Set-ItemProperty -Path "Registry::HKEY_CURRENT_USER\Control Panel\Desktop" -Name "LogPixels" -Value 86 -Type DWord
+
+# Force Windows to broadcast the settings change to all active windows
+$Signature = @'
+[DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam, uint fuFlags, uint uTimeout, out IntPtr lpDWResult);
+'@
+$UpdateUI = Add-Type -MemberDefinition $Signature -Name "Win32Update" -Namespace "Win32" -PassThru
+$Result = [IntPtr]::Zero
+$UpdateUI::SendMessageTimeout([IntPtr]0xffff, 0x001a, [IntPtr]::Zero, [IntPtr]::Zero, 2, 5000, [ref]$Result)
 
 # Restart Windows Explorer to apply changes
 Stop-Process -Name explorer -Force
