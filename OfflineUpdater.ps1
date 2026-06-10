@@ -176,13 +176,11 @@ param (
     [switch]$ScanAD,
 
     [Parameter(Mandatory = $false)]
-    [alias("Delta")]
+    [alias("Delta","Report")]
     [switch]$DeltaReport
 )
 
-Set-StrictMode -Version Latest
-
-# --- HELPER FUNCTIONS ---
+#region: Functions
 function Get-TargetComputers {
     [CmdletBinding()]
     param(
@@ -596,8 +594,11 @@ function Install-RootCerts {
     }
 }
 
+
+#region: Main
+Set-StrictMode -Version Latest
 Clear-Host
-# --- Parameter Checks and Resolution ---
+#region: Params
 if (-not $WorkingFolder) {
     if ((Test-Path -Path "Variable:psISE") -and (Test-Path -Path $psISE.CurrentFile.FullPath)) {
         $ScriptRoot = Split-Path -Path $psISE.CurrentFile.FullPath -Parent
@@ -638,7 +639,7 @@ try {
     Exit
 }
 
-# --- INTERACTIVE MENU ---
+#region: Menu
 $NoActionSelected = -not ($PreparePackage -or $Install -or $Scan -or $DownloadUpdates -or $DeployUpdates -or $DeployUpdatesLocal -or $DeltaReport)
 if ($NoActionSelected) {
     do {
@@ -650,7 +651,7 @@ if ($NoActionSelected) {
         Write-Host "  1) -Scan Endpoints    (Run on AIR-GAPPED computer)"
         Write-Host "  2) -Download Updates  (Run on INTERNET-CONNECTED computer)"
         Write-Host "  3) -Deploy Updates    (Run on AIR-GAPPED computer)"
-        Write-Host "  4) -Delta Report      (Run on AIR-GAPPED computer to find missing files)"
+        Write-Host "  d) -Delta Report      (Run with after scan to limit downloads)"
         Write-Host "  q)  Quit"
         Write-Host "  (to target Active Directory discovery, rerun with -ScanAD)"     -ForegroundColor Gray
         Write-Host "  (to target Defender updates only, rerun with -DefenderOnly)"    -ForegroundColor Gray
@@ -665,14 +666,14 @@ if ($NoActionSelected) {
             "1" { $Scan = $true;            $Continue = $false }
             "2" { $DownloadUpdates = $true; $Continue = $false }
             "3" { $DeployUpdates = $true;   $Continue = $false }
-            "4" { $DeltaReport = $true;     $Continue = $false }
+            "d" { $DeltaReport = $true;     $Continue = $false }
             "q" { exit }
             default { Write-Host "Invalid selection, try again." -ForegroundColor Red; Start-Sleep -Seconds 1; $Continue = $true }
         }
     } while ($Continue)
 }
 
-# --- PREPARE PACKAGE ---
+#region: -Prepare
 if ($PreparePackage) {
     Write-Host "--- Operation: Prepare Package ---" -ForegroundColor Gray
     try {
@@ -694,7 +695,7 @@ if ($PreparePackage) {
     }
 }
 
-# --- INSTALL MODULE ---
+#region: -Install
 if ($Install) {
     Write-Host "--- Operation: Install ---" -ForegroundColor Gray
     $PowerShellModules = "C:\Program Files\WindowsPowerShell\Modules"
@@ -715,7 +716,7 @@ if ($Install) {
     }
 }
 
-# --- Module Validation Check ---
+#region: Requirements
 $InstallRequired = $Scan, $DownloadUpdates, $DeployUpdates
 if ($InstallRequired -contains $true) {
     if (-not (Get-Module -ListAvailable -Name kbupdate)) {
@@ -724,7 +725,7 @@ if ($InstallRequired -contains $true) {
     }
 }
 
-# --- SCAN ENDPOINTS ---
+#region: -Scan
 if ($Scan) {
     Write-Host "--- Operation: Scan ---" -ForegroundColor Gray
     if (-not (Test-Path $Results)) {
@@ -757,7 +758,7 @@ if ($Scan) {
     }
 }
 
-# --- DOWNLOAD UPDATES ---
+#region: -Download
 if ($DownloadUpdates) {
     if (-not $SkipDefender){
         $DefenderPath = Join-Path $WorkingFolder "DefenderUpdates"
@@ -765,7 +766,7 @@ if ($DownloadUpdates) {
     }
     Get-RootCerts -CertPath $Certificates
     if (-not $DefenderOnly){
-        Write-Host "--- Checking wsusscn2.cab for age ---" -ForegroundColor Gray
+        Write-Host "Checking for wsusscn2.cab updates..." -ForegroundColor Gray -NoNewline
         Invoke-UpdateDownload -Url "https://go.microsoft.com/fwlink/?linkid=74689" -DestinationPath $Catalog -CheckExpiration
         Write-Host "Starting Windows KB downloads..." -ForegroundColor Gray
         # Supports processing both delta compliance reports and full compliance reports
@@ -789,7 +790,7 @@ if ($DownloadUpdates) {
     }
 }
 
-# --- DEPLOY UPDATES ---
+#region: -Deploy
 if ($DeployUpdates) {
     $DefenderPath = Join-Path $WorkingFolder "DefenderUpdates"
     if (-not $SkipDefender){
@@ -834,7 +835,7 @@ if ($DeployUpdates) {
     }
 }
 
-# --- DEPLOY LOCAL ---
+#region: -DeployLocal
 if ($DeployUpdatesLocal) {
     Write-Host "--- Operation: Deploy Updates to Local Host ---" -ForegroundColor Gray
     $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
@@ -887,7 +888,7 @@ if ($DeployUpdatesLocal) {
     Remove-TempFiles
 }
 
-# --- DELTA REPORT ---
+#region: -Delta
 if ($DeltaReport) {
     Write-Host "--- Operation: Generate Delta Report ---" -ForegroundColor Gray
     $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
