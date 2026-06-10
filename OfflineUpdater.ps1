@@ -534,7 +534,7 @@ function Get-RootCerts {
                 $OldHash = (Get-FileHash -Path $CertPath -Algorithm SHA256).Hash
             }
         }
-        certutil.exe -generateSSTFromWU "$CertPath" *>$null
+        $certs = certutil.exe -generateSSTFromWU "$CertPath" *>$null
         if (Test-Path $CertPath) {
             $NewHash = (Get-FileHash -Path $CertPath -Algorithm SHA256).Hash
             Set-Content -Path $HashPath -Value $NewHash -Force
