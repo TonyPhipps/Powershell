@@ -70,6 +70,9 @@
 .PARAMETER ScanAD
     Switch to discover target hosts via Active Directory rather than relying on a local hosts.txt file.
 
+.PARAMETER DeltaReport
+    Switch to compare files inside the repository with the latest compliance report, generating a truncated report of missing files.
+
 .EXAMPLE
     .\OfflineUpdater.ps1 -PreparePackage
     Downloads all necessary tools and the ~1GB scan catalog to prepare for an offline site visit.
@@ -92,8 +95,8 @@
     File Name      : OfflineUpdater.ps1
     Author         : Tony Phipps
     Prerequisites  : PowerShell 5.1+, Administrator privileges, RSAT (for -ScanAD)
-    Version        : 1.2
-    Date           : June 1, 2026
+    Version        : 1.3
+    Date           : June 10, 2026
     Copyright      : (c) 2026 Tony Phipps under the MIT License
 
     Manual Fallbacks are provided below for when kbupdate fails repeatedly on the last few remaining patches.
@@ -170,7 +173,11 @@ param (
 
     [Parameter(Mandatory = $false)]
     [alias("AD")]
-    [switch]$ScanAD
+    [switch]$ScanAD,
+
+    [Parameter(Mandatory = $false)]
+    [alias("Delta")]
+    [switch]$DeltaReport
 )
 
 Set-StrictMode -Version Latest
@@ -632,7 +639,7 @@ try {
 }
 
 # --- INTERACTIVE MENU ---
-$NoActionSelected = -not ($PreparePackage -or $Install -or $Scan -or $DownloadUpdates -or $DeployUpdates -or $DeployUpdatesLocal)
+$NoActionSelected = -not ($PreparePackage -or $Install -or $Scan -or $DownloadUpdates -or $DeployUpdates -or $DeployUpdatesLocal -or $DeltaReport)
 if ($NoActionSelected) {
     do {
         Write-Host "================================================================" -ForegroundColor Cyan
@@ -643,6 +650,7 @@ if ($NoActionSelected) {
         Write-Host "  1) -Scan Endpoints    (Run on AIR-GAPPED computer)"
         Write-Host "  2) -Download Updates  (Run on INTERNET-CONNECTED computer)"
         Write-Host "  3) -Deploy Updates    (Run on AIR-GAPPED computer)"
+        Write-Host "  4) -Delta Report      (Run on AIR-GAPPED computer to find missing files)"
         Write-Host "  q)  Quit"
         Write-Host "  (to target Active Directory discovery, rerun with -ScanAD)"     -ForegroundColor Gray
         Write-Host "  (to target Defender updates only, rerun with -DefenderOnly)"    -ForegroundColor Gray
@@ -657,6 +665,7 @@ if ($NoActionSelected) {
             "1" { $Scan = $true;            $Continue = $false }
             "2" { $DownloadUpdates = $true; $Continue = $false }
             "3" { $DeployUpdates = $true;   $Continue = $false }
+            "4" { $DeltaReport = $true;     $Continue = $false }
             "q" { exit }
             default { Write-Host "Invalid selection, try again." -ForegroundColor Red; Start-Sleep -Seconds 1; $Continue = $true }
         }
@@ -759,7 +768,8 @@ if ($DownloadUpdates) {
         Write-Host "--- Checking wsusscn2.cab for age ---" -ForegroundColor Gray
         Invoke-UpdateDownload -Url "https://go.microsoft.com/fwlink/?linkid=74689" -DestinationPath $Catalog -CheckExpiration
         Write-Host "Starting Windows KB downloads..." -ForegroundColor Gray
-        $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
+        # Supports processing both delta compliance reports and full compliance reports
+        $LatestReport = Get-ChildItem -Path $Results -Filter "*Compliance_Report_*.csv" | 
             Sort-Object LastWriteTime -Descending | 
                 Select-Object -First 1
         if (-not $LatestReport) {
@@ -875,4 +885,58 @@ if ($DeployUpdatesLocal) {
     Write-Host "--- Local Deployment Cycle Finished ---" -ForegroundColor Green
     Get-RebootStatus
     Remove-TempFiles
+}
+
+# --- DELTA REPORT ---
+if ($DeltaReport) {
+    Write-Host "--- Operation: Generate Delta Report ---" -ForegroundColor Gray
+    $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
+        Sort-Object LastWriteTime -Descending | 
+            Select-Object -First 1
+    if (-not $LatestReport) {
+        Write-Error "No Full Compliance Report found in $Results. Please execute a compliance scan first."
+    } else {
+        Write-Host "Parsing full compliance baseline report: $($LatestReport.FullName)" -ForegroundColor Gray
+        $FullUpdates = Import-Csv -Path $LatestReport.FullName
+        $DeltaUpdates = [System.Collections.Generic.List[PSCustomObject]]::new()
+        $MissingFilesList = [System.Collections.Generic.List[string]]::new()
+        foreach ($Row in $FullUpdates) {
+            
+            # Parse multiple HTTP URLs that may be listed within the single column
+            $Links = $Row.Link -split " " | Where-Object { $_ -like "http*" }
+            $RowNeedsDownload = $false
+            foreach ($Link in $Links) {
+                $FileName = Split-Path $Link -Leaf
+                $LocalPath = Join-Path $Repository $FileName
+                if (-not (Test-Path $LocalPath)) { # patch file is missing from the local Repository
+                    $RowNeedsDownload = $true
+                    if ($FileName -notin $MissingFilesList) {
+                        $MissingFilesList.Add($FileName)
+                    }
+                }
+            }
+            if ($RowNeedsDownload) { # Keep row for the delta compliance manifest
+                $DeltaUpdates.Add($Row)
+            }
+        }
+        if ($DeltaUpdates.Count -gt 0) {
+            $Timestamp = (Get-Date).ToString('yyyyMMdd_HHmm')
+            $DeltaReportPath = Join-Path $Results -ChildPath "Delta_Compliance_Report_$Timestamp.csv"
+            $DeltaKBsPath = Join-Path $Results -ChildPath "DeltaMissingKBs_$Timestamp.txt"
+            $DeltaUpdates | Export-Csv -Path $DeltaReportPath -NoTypeInformation
+            $DeltaKBs = $DeltaUpdates.KBUpdate | Where-Object { $_ } | Sort-Object -Unique
+            $DeltaKBs | Out-File -FilePath $DeltaKBsPath
+            Write-Host "[Success] Delta analysis evaluation completed." -ForegroundColor Green
+            Write-Host "Compliance records matching missing downloads: $($DeltaUpdates.Count) entries." -ForegroundColor Gray
+            Write-Host "Unique files needing network transfer: $($MissingFilesList.Count)" -ForegroundColor Gray
+            Write-Host "Truncated delta compliance CSV saved to: $DeltaReportPath" -ForegroundColor Cyan
+            Write-Host "Delta missing KBs list text file saved to: $DeltaKBsPath" -ForegroundColor Cyan
+            Write-Host "Export only these delta files to your internet host to finish the updates." -ForegroundColor Cyan
+            if (-not $SkipReport) {
+                $DeltaUpdates | Select-Object ComputerName, KBUpdate, Title, Description | Out-GridView -Title "Delta Missing Updates"
+            }
+        } else {
+            Write-Host "All needed security updates identified in the compliance report are already cached inside the repository directory." -ForegroundColor Green
+        }
+    }
 }
