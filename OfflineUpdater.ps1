@@ -95,7 +95,7 @@
     File Name      : OfflineUpdater.ps1
     Author         : Tony Phipps
     Prerequisites  : PowerShell 5.1+, Administrator privileges, RSAT (for -ScanAD)
-    Version        : 1.3
+    Version        : 1.4
     Date           : June 10, 2026
     Copyright      : (c) 2026 Tony Phipps under the MIT License
 
@@ -324,16 +324,23 @@ function Install-DefenderUpdates {
             Version   = [version]$File.VersionInfo.FileVersion
         }
     }
-    if (-not (Get-SmbShare -Name $ShareName -ErrorAction SilentlyContinue)) {
+
+    # Only provision SMB share architecture if non-local network routes exist in targets
+    $HasRemoteTargets = $TargetEndpoints | Where-Object { $_ -ne $env:COMPUTERNAME -and $_ -ne "localhost" -and $_ -ne "127.0.0.1" }
+    if ($HasRemoteTargets -and -not (Get-SmbShare -Name $ShareName -ErrorAction SilentlyContinue)) {
         New-SmbShare -Name $ShareName -Path $DefenderUpdatesPath -ReadAccess "Domain Computers", "Authenticated Users" -FullAccess "Administrators" | Out-Null
     }
     $UncPath = "\\$($env:COMPUTERNAME)\$ShareName"
     foreach ($Computer in $TargetEndpoints) {
         Write-Host "Checking Defender Status for $($Computer)... " -ForegroundColor Gray
         $Session = $null
+        $IsLocal = ($Computer -eq $env:COMPUTERNAME -or $Computer -eq "localhost" -or $Computer -eq "127.0.0.1")
         try {
-            $Session = New-PSSession -ComputerName $Computer -ErrorAction Stop
-            $RemoteStatus = Invoke-Command -Session $Session -ScriptBlock {
+            if (-not $IsLocal) {
+                $Session = New-PSSession -ComputerName $Computer -ErrorAction Stop
+            }
+            
+            $StatusBlock = {
                 $OSArch = (Get-CimInstance Win32_OperatingSystem).OSArchitecture
                 $ArchKey = if ($OSArch -match "64-bit") { "x64" } elseif ($OSArch -match "arm") { "arm64" } else { "x86" }
                 $ActiveAV = Get-CimInstance -Namespace root\SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction SilentlyContinue | 
@@ -361,6 +368,9 @@ function Install-DefenderUpdates {
                     }
                 }
             }
+
+            $RemoteStatus = if ($IsLocal) { & $StatusBlock } else { Invoke-Command -Session $Session -ScriptBlock $StatusBlock }
+
             if ($RemoteStatus.Skip) {
                 Write-Host "`t[SKIP] ($($RemoteStatus.Reason))" -ForegroundColor Yellow
                 continue
@@ -370,15 +380,24 @@ function Install-DefenderUpdates {
             if ($Match -and ($RemoteStatus.PlatformVer -lt $Match.Version)) {
                 Write-Host "`tUpdating Platform: $($RemoteStatus.PlatformVer) -> $($Match.Version)" -ForegroundColor Cyan
                 $StagingPath = "C:\Windows\Temp\$($Match.FileName)"
-                Copy-Item -Path $Match.LocalPath -Destination $StagingPath -ToSession $Session -Force
-                Invoke-Command -Session $Session -ArgumentList $StagingPath -ScriptBlock {
+                
+                $PlatformBlock = {
                     param($InstallerPath)
                     Start-Process -FilePath $InstallerPath -ArgumentList "/quiet", "/norestart" -Wait
                     Remove-Item -Path $InstallerPath -Force
                 }
+
+                if ($IsLocal) {
+                    Copy-Item -Path $Match.LocalPath -Destination $StagingPath -Force
+                    & $PlatformBlock -InstallerPath $StagingPath
+                } else {
+                    Copy-Item -Path $Match.LocalPath -Destination $StagingPath -ToSession $Session -Force
+                    Invoke-Command -Session $Session -ArgumentList $StagingPath -ScriptBlock $PlatformBlock
+                }
                 $PlatformWasUpdated = $true
             }
-            Invoke-Command -Session $Session -ScriptBlock {
+
+            $ServiceBlock = {
                 $Svc = Get-Service WinDefend -ErrorAction SilentlyContinue
                 if ($Svc -and $Svc.Status -ne 'Running') {
                     Set-Service -Name WinDefend -StartupType Automatic
@@ -386,14 +405,29 @@ function Install-DefenderUpdates {
                 }
                 Set-MpPreference -DisableRealtimeMonitoring $false -ErrorAction SilentlyContinue
             }
-            Invoke-Command -Session $Session -ArgumentList $UncPath -ScriptBlock {
+
+            if ($IsLocal) {
+                & $ServiceBlock
+            } else {
+                Invoke-Command -Session $Session -ScriptBlock $ServiceBlock
+            }
+
+            $SignatureBlock = {
                 param($Path)
                 try {
                     Set-MpPreference -SignatureDefinitionUpdateFileSharesSources $Path
                     Update-MpSignature -UpdateSource FileShares -ErrorAction Stop
                 } catch { }
             }
-            $FinalReport = Invoke-Command -Session $Session -ScriptBlock {
+
+            $UpdatePath = if ($IsLocal) { $DefenderUpdatesPath } else { $UncPath }
+            if ($IsLocal) {
+                & $SignatureBlock -Path $UpdatePath
+            } else {
+                Invoke-Command -Session $Session -ArgumentList $UpdatePath -ScriptBlock $SignatureBlock
+            }
+
+            $ReportBlock = {
                 $Retry = 0
                 while ($Retry -lt 5) {
                     $Stat = Get-MpComputerStatus -ErrorAction SilentlyContinue
@@ -402,6 +436,9 @@ function Install-DefenderUpdates {
                     $Retry++
                 }
             }
+
+            $FinalReport = if ($IsLocal) { & $ReportBlock } else { Invoke-Command -Session $Session -ScriptBlock $ReportBlock }
+
             if ($FinalReport) {
                 $EngineOut = if ($RemoteStatus.EngineVer -ne $FinalReport.AMEngineVersion) { "$($RemoteStatus.EngineVer) -> $($FinalReport.AMEngineVersion)" } else { "$($FinalReport.AMEngineVersion) (Current)" }
                 $SigOut    = if ($RemoteStatus.SignatureVer -ne $FinalReport.AntivirusSignatureVersion) { "$($RemoteStatus.SignatureVer) -> $($FinalReport.AntivirusSignatureVersion)" } else { "$($FinalReport.AntivirusSignatureVersion) (Current)" }
@@ -838,6 +875,13 @@ if ($DeployUpdates) {
 #region: -DeployLocal
 if ($DeployUpdatesLocal) {
     Write-Host "--- Operation: Deploy Updates to Local Host ---" -ForegroundColor Gray
+    
+    # Process Defender definition updates locally if switch parameter permits
+    if (-not $SkipDefender) {
+        $DefenderPath = Join-Path $WorkingFolder "DefenderUpdates"
+        Install-DefenderUpdates -TargetEndpoints @($env:COMPUTERNAME) -DefenderUpdatesPath $DefenderPath
+    }
+
     $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
                     Sort-Object Name -Descending | 
                     Select-Object -First 1
