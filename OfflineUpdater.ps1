@@ -773,14 +773,15 @@ if ($Scan) {
         New-Item -ItemType Directory -Path $Results -Force | Out-Null
     }
     $ScanResults = foreach ($Endpoint in $TargetEndpoints) {
-        Write-Host "Initiating scan on $Endpoint... " -ForegroundColor Gray
+        Write-Host "Initiating scan on $Endpoint... " -ForegroundColor Gray -NoNewline
         try{
             Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force #-Verbose
+            Write-Host "[Success]" -ForegroundColor Green
         } catch {
             if (Test-Path $Certificates) {
                 Write-Host "[Certificate Issue] (Updating Microsoft Root Certificates)" -ForegroundColor Cyan
                 Install-RootCerts -ComputerNames $TargetEndpoints -CertPath $Certificates
-            }                
+            }
         }
     }
     if ($ScanResults) {
