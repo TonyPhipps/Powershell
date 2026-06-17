@@ -186,22 +186,14 @@ function Get-TargetComputers {
     param(
         [Parameter(Mandatory = $false)]
         [string[]]$Computers,
-        
+
         [Parameter(Mandatory = $false)]
         [switch]$ScanAD,
 
         [Parameter(Mandatory = $true)]
         [string]$WorkingFolder
     )
-    if ($null -ne $Computers -and $Computers.Count -gt 0) { # if an array of host names or an explicit valid file path is provided via $Computers
-        if ($Computers.Count -eq 1 -and (Test-Path -Path $Computers[0] -PathType Leaf -ErrorAction SilentlyContinue)) { # If a filepath is provided
-            Write-Verbose "Loading endpoints from explicit file path: $($Computers[0])"
-            return (Get-Content -Path $Computers[0]) | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
-        }
-        # Otherwise, parse string array inputs directly as computer items
-        Write-Verbose "Using explicit inline computer names passed from command line."
-        return $Computers | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
-    }
+
     if ($ScanAD) {
         try {
             $isInstalled = (Get-WindowsFeature -Name RSAT-ADDS-Tools -ErrorAction SilentlyContinue).Installed
@@ -218,10 +210,22 @@ function Get-TargetComputers {
                 $ADHosts | Out-File -FilePath $DefaultHostsPath -Force
                 return $ADHosts
             }
+            throw [System.Management.Automation.CmdletInvocationException]::new("RSAT: Active Directory query returned no enabled Windows hosts.")
         } else {
             throw [System.Management.Automation.CmdletInvocationException]::new("RSAT: Active Directory Tools are NOT installed. Cannot perform -ScanAD.")
         }
-    } 
+    }
+
+    # Explicit array of host names, or an explicit valid file path provided via $Computers
+    if ($null -ne $Computers -and $Computers.Count -gt 0) {
+        if ($Computers.Count -eq 1 -and (Test-Path -Path $Computers[0] -PathType Leaf -ErrorAction SilentlyContinue)) { # If a filepath is provided
+            Write-Verbose "Loading endpoints from explicit file path: $($Computers[0])"
+            return (Get-Content -Path $Computers[0]) | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
+        }
+        # Otherwise, parse string array inputs directly as computer items
+        Write-Verbose "Using explicit inline computer names passed from command line."
+        return $Computers | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
+    }
 
     # Fall back to checking the default host inventory file layout
     $DefaultHostFilePath = [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt")
