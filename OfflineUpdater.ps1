@@ -625,7 +625,7 @@ function Install-RootCerts {
         try {
             $Result = Invoke-Command -ComputerName $Computer -ScriptBlock $CertBlock -ArgumentList (,$SstBytes) -ErrorAction Stop
             if ($Result -eq "[Success]") {
-                Write-Host "[Success]" -ForegroundColor Green
+                Write-Host "[Success] Host will need to be re-scanned." -ForegroundColor Yellow
             } else {
                 Write-Host "$Result" -ForegroundColor Red
             }
