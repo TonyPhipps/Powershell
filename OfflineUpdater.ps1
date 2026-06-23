@@ -782,7 +782,7 @@ if ($Scan) {
         } catch {
             if (Test-Path $Certificates) {
                 Write-Host "[Certificate Issue] (Updating Microsoft Root Certificates)" -ForegroundColor Cyan
-                Install-RootCerts -ComputerNames $TargetEndpoints -CertPath $Certificates
+                Install-RootCerts -ComputerNames $Endpoint -CertPath $Certificates
             }
         }
     }
