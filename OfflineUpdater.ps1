@@ -775,8 +775,10 @@ if ($Scan) {
     $ScanResults = foreach ($Endpoint in $TargetEndpoints) {
         Write-Host "Initiating scan on $Endpoint... " -ForegroundColor Gray -NoNewline
         try{
-            Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force #-Verbose
-            Write-Host "[Success]" -ForegroundColor Green
+            $HostResult = Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force #-Verbose
+            $MissingCount = ($HostResult.KBUpdate | Where-Object { $_ } | Sort-Object -Unique).Count
+            Write-Host "[Success] ($MissingCount missing)" -ForegroundColor Green
+            $HostResult # emit to $ScanResults
         } catch {
             if (Test-Path $Certificates) {
                 Write-Host "[Certificate Issue] (Updating Microsoft Root Certificates)" -ForegroundColor Cyan
