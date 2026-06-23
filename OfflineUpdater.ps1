@@ -777,9 +777,13 @@ if ($Scan) {
             Write-Host "[Success] ($MissingCount missing)" -ForegroundColor Green
             $HostResult # emit to $ScanResults
         } catch {
-            if (Test-Path $Certificates) {
+            $msg = $_.Exception.Message
+            if ((Test-Path $Certificates) -and
+                ($msg -match 'certificat|SSL|trust|0x800B|WinRM|connect|RPC')) {
                 Write-Host "[Possible Certificate Issue] (Updating Microsoft Root Certificates)" -ForegroundColor Cyan
                 Install-RootCerts -ComputerNames $Endpoint -CertPath $Certificates
+            } else {
+                Write-Host "[Failure] ($msg)" -ForegroundColor Red
             }
         }
     }
