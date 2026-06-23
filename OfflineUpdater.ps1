@@ -216,21 +216,20 @@ function Get-TargetComputers {
         }
     }
 
-    # Explicit array of host names, or an explicit valid file path provided via $Computers
     if ($null -ne $Computers -and $Computers.Count -gt 0) {
-        if ($Computers.Count -eq 1 -and (Test-Path -Path $Computers[0] -PathType Leaf -ErrorAction SilentlyContinue)) { # If a filepath is provided
-            Write-Verbose "Loading endpoints from explicit file path: $($Computers[0])"
+        $LooksLikeFile = $Computers.Count -eq 1 -and 
+                         ($Computers[0] -match '[\\/]' -or $Computers[0] -match '\.(txt|csv|lst)$')
+        if ($LooksLikeFile -and (Test-Path -Path $Computers[0] -PathType Leaf -ErrorAction SilentlyContinue)) {
+            Write-Host "Loading endpoints from explicit file path: $($Computers[0])"
             return (Get-Content -Path $Computers[0]) | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
         }
-        # Otherwise, parse string array inputs directly as computer items
-        Write-Verbose "Using explicit inline computer names passed from command line."
         return $Computers | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
     }
 
     # Fall back to checking the default host inventory file layout
     $DefaultHostFilePath = [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt")
     if (Test-Path -Path $DefaultHostFilePath -PathType Leaf) {
-        Write-Verbose "Using default file path host layout target asset context list: $DefaultHostFilePath"
+        Write-Host "Using default path to hosts.txt as target list: $DefaultHostFilePath"
         return (Get-Content -Path $DefaultHostFilePath) | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
     }
     throw [System.IO.FileNotFoundException]::new("Target hosts location configuration missing. Please explicitly provide target machine endpoints to -Computers, provide an enter-delimited path to a target text file, rerun the script utilizing the -ScanAD switch to dynamically scan Active Directory domain architectures, or create an enter-delimited host configuration text file locally at: '$DefaultHostFilePath'")
