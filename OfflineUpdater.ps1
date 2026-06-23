@@ -603,8 +603,6 @@ function Install-RootCerts {
         [Parameter(Mandatory = $true)] [string[]]$ComputerNames,
         [Parameter(Mandatory = $true)] [string]$CertPath
     )
-
-    Write-Host "--- Operation: Deploying Certificates to Endpoints ---" -ForegroundColor Gray
     $CertBlock = {
         param($SstContent)
         try {
@@ -781,7 +779,7 @@ if ($Scan) {
             $HostResult # emit to $ScanResults
         } catch {
             if (Test-Path $Certificates) {
-                Write-Host "[Certificate Issue] (Updating Microsoft Root Certificates)" -ForegroundColor Cyan
+                Write-Host "[Possible Certificate Issue] (Updating Microsoft Root Certificates)" -ForegroundColor Cyan
                 Install-RootCerts -ComputerNames $Endpoint -CertPath $Certificates
             }
         }
