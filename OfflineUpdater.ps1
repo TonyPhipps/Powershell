@@ -772,7 +772,16 @@ if ($Scan) {
     $ScanResults = foreach ($Endpoint in $TargetEndpoints) {
         Write-Host "Initiating scan on $Endpoint... " -ForegroundColor Gray -NoNewline
          try{
-            $HostResult = Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force -WarningAction Stop #-Verbose
+            $WarnText = $null
+            $HostResult = Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force -WarningVariable WarnText 3>$null #-Verbose
+            $connFail = $WarnText | Where-Object {
+                $_ -match 'Start-JobProcess' -or $_ -match 'WSMan' -or
+                $_ -match 'Connecting to remote server' -or $_ -match 'failed with the following error'
+            }
+            if ($connFail) {
+                throw [System.Management.Automation.RuntimeException]::new("Unreachable via WSMan: $($connFail -join ' | ')")
+            }
+
             $MissingCount = ($HostResult.KBUpdate | Where-Object { $_ } | Sort-Object -Unique).Count
             Write-Host "[Success] ($MissingCount missing)" -ForegroundColor Green
             $HostResult # emit to $ScanResults
@@ -780,14 +789,17 @@ if ($Scan) {
             $msg = $_.Exception.Message
             if ($msg -match "The property 'KBUpdate' cannot be found on this object") {
                 Write-Host "[Success] (0 missing)" -ForegroundColor Green
-                $HostResult # emit to $ScanResults
+                $HostResult
             }
             elseif ($msg -match "The property 'Count' cannot be found on this object") {
                 Write-Host "[Success] (1 missing)" -ForegroundColor Green
-                $HostResult # emit to $ScanResults
+                $HostResult
+            }
+            elseif ($msg -match 'WSMan|Start-JobProcess|could not launch a host process|Connecting to remote server') {
+                Write-Host "[Failure] (Remoting/WinRM unhealthy on $Endpoint - host skipped. Check WinRM service.)" -ForegroundColor Red
             }
             elseif ((Test-Path $Certificates) -and
-                ($msg -match 'certificate|SSL|trust|0x800B|WinRM|connect|RPC|WSMan|Start-JobProcess|cannot be reached')) {
+                ($msg -match 'certificat|SSL|trust|0x800B')) {
                 Write-Host "[Possible Certificate Issue] (Updating Microsoft Root Certificates)" -ForegroundColor Cyan
                 Install-RootCerts -ComputerNames $Endpoint -CertPath $Certificates
             } else {
