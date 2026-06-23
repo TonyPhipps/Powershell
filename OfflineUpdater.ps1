@@ -778,7 +778,15 @@ if ($Scan) {
             $HostResult # emit to $ScanResults
         } catch {
             $msg = $_.Exception.Message
-            if ((Test-Path $Certificates) -and
+            if ($msg -match "The property 'KBUpdate' cannot be found on this object") {
+                Write-Host "[Success] (0 missing)" -ForegroundColor Green
+                $HostResult # emit to $ScanResults
+            }
+            elseif ($msg -match "The property 'Count' cannot be found on this object") {
+                Write-Host "[Success] (1 missing)" -ForegroundColor Green
+                $HostResult # emit to $ScanResults
+            }
+            elseif ((Test-Path $Certificates) -and
                 ($msg -match 'certificat|SSL|trust|0x800B|WinRM|connect|RPC')) {
                 Write-Host "[Possible Certificate Issue] (Updating Microsoft Root Certificates)" -ForegroundColor Cyan
                 Install-RootCerts -ComputerNames $Endpoint -CertPath $Certificates
