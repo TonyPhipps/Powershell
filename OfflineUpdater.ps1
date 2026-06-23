@@ -848,9 +848,10 @@ if ($DeployUpdates) {
             Write-Error "Repository folder not found at $Repository."
         } else {
             Write-Host "Loading deployment manifest: $($LatestReport.Name)" -ForegroundColor Gray
-            $NeededUpdates = Import-Csv -Path $LatestReport.FullName
-            if ($NeededUpdates.Count -eq 0) {
-                Write-Host "Manifest is empty. No updates to deploy." -ForegroundColor Red
+            $NeededUpdates = Import-Csv -Path $LatestReport.FullName |
+                Where-Object { $_.ComputerName -in $TargetEndpoints }
+            if ($null -eq $NeededUpdates -or @($NeededUpdates).Count -eq 0) {
+                Write-Host "Manifest contains no updates for the current target host(s). Nothing to deploy." -ForegroundColor Red
                 return
             }
             $VerifiedUpdates = [System.Collections.Generic.List[PSCustomObject]]::new()
