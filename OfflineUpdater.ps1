@@ -771,8 +771,8 @@ if ($Scan) {
     }
     $ScanResults = foreach ($Endpoint in $TargetEndpoints) {
         Write-Host "Initiating scan on $Endpoint... " -ForegroundColor Gray -NoNewline
-        try{
-            $HostResult = Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force #-Verbose
+         try{
+            $HostResult = Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force -WarningAction Stop #-Verbose
             $MissingCount = ($HostResult.KBUpdate | Where-Object { $_ } | Sort-Object -Unique).Count
             Write-Host "[Success] ($MissingCount missing)" -ForegroundColor Green
             $HostResult # emit to $ScanResults
@@ -787,7 +787,7 @@ if ($Scan) {
                 $HostResult # emit to $ScanResults
             }
             elseif ((Test-Path $Certificates) -and
-                ($msg -match 'certificat|SSL|trust|0x800B|WinRM|connect|RPC')) {
+                ($msg -match 'certificate|SSL|trust|0x800B|WinRM|connect|RPC|WSMan|Start-JobProcess|cannot be reached')) {
                 Write-Host "[Possible Certificate Issue] (Updating Microsoft Root Certificates)" -ForegroundColor Cyan
                 Install-RootCerts -ComputerNames $Endpoint -CertPath $Certificates
             } else {
