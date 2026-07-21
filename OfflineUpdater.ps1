@@ -689,7 +689,7 @@ if ($NoActionSelected) {
         Write-Host "  1) -Scan Endpoints    (Run on AIR-GAPPED computer)"
         Write-Host "  2) -Download Updates  (Run on INTERNET-CONNECTED computer)"
         Write-Host "  3) -Deploy Updates    (Run on AIR-GAPPED computer)"
-        Write-Host "  d) -Delta Report      (Run with after scan to limit downloads)"
+        Write-Host "  d) -Delta Report      (Run on AIR-GAPPED after scan to limit downloads)"
         Write-Host "  q)  Quit"
         Write-Host "  (to target Active Directory discovery, rerun with -ScanAD)"     -ForegroundColor Gray
         Write-Host "  (to target Defender updates only, rerun with -DefenderOnly)"    -ForegroundColor Gray
@@ -781,7 +781,6 @@ if ($Scan) {
             if ($connFail) {
                 throw [System.Management.Automation.RuntimeException]::new("Unreachable via WSMan: $($connFail -join ' | ')")
             }
-
             $MissingCount = ($HostResult.KBUpdate | Where-Object { $_ } | Sort-Object -Unique).Count
             Write-Host "[Success] ($MissingCount missing)" -ForegroundColor Green
             $HostResult # emit to $ScanResults
