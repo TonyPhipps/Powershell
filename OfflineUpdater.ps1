@@ -88,15 +88,16 @@
     New-Item -ItemType Directory -Path d:\OfflineUpdater -Force
     Copy-Item -Path "\\otherhost\d$\OfflineUpdater\OfflineUpdater.ps1" -Destination "d:\OfflineUpdater\" -Force
     Copy-Item -Path "\\otherhost\d$\OfflineUpdater\catalog" -Destination "d:\OfflineUpdater\" -Recurse -Force
+    Copy-Item -Path "\\otherhost\d$\OfflineUpdater\DefenderUpdates" -Destination "d:\OfflineUpdater\" -Recurse -Force
     D:\OfflineUpdater\OfflineUpdater.ps1 -Scan -Host $Env:COMPUTERNAME -WorkingFolder "d:\OfflineUpdater"
-    D:\OfflineUpdater\OfflineUpdater.ps1 -DeployLocal -Repository \\otherpc\d$\OfflineUpdater\repository
+    D:\OfflineUpdater\OfflineUpdater.ps1 -DeployLocal -Repository \\otherpc\d$\OfflineUpdater\repository -WorkingFolder "d:\OfflineUpdater"
 
 .NOTES
     File Name      : OfflineUpdater.ps1
     Author         : Tony Phipps
     Prerequisites  : PowerShell 5.1+, Administrator privileges, RSAT (for -ScanAD)
-    Version        : 1.4
-    Date           : June 10, 2026
+    Version        : 1.5
+    Date           : July 24, 2026
     Copyright      : (c) 2026 Tony Phipps under the MIT License
 
     Manual Fallbacks are provided below for when kbupdate fails repeatedly on the last few remaining patches.
