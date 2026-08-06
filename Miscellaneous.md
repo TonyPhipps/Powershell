@@ -1,26 +1,39 @@
+- [Install Remote Server Administration Tools (RSAT)](#install-remote-server-administration-tools-rsat)
+- [Get Windows 7, 10 Product Key from current system](#get-windows-7-10-product-key-from-current-system)
+- [Resolve Shortened URL](#resolve-shortened-url)
+- [List mapped drives](#list-mapped-drives)
+- [Drives Reference](#drives-reference)
+- [Format a USB to FAT32](#format-a-usb-to-fat32)
+- [Get BitLocker Keys](#get-bitlocker-keys)
+- [Change the Network Profile Associated with a Network Connection](#change-the-network-profile-associated-with-a-network-connection)
+- [Filter a string to produce a valid filename](#filter-a-string-to-produce-a-valid-filename)
+- [Set a timeout on a powershell scriptblock](#set-a-timeout-on-a-powershell-scriptblock)
+- [Export Drivers](#export-drivers)
 
-Install Remote Server Administration Tools (RSAT)
+
+
+# Install Remote Server Administration Tools (RSAT)
 ```ps
 **Get-WindowsCapability -Name RSAT* -Online | Add-WindowsCapability -Online**
 ```
 
-Get Windows 7, 10 Product Key from current system
+# Get Windows 7, 10 Product Key from current system
 ```ps
 (Get-WmiObject -Query 'select * from SoftwareLicensingService').OA3xOriginalProductKey
 ```
 
-Resolve Shortened URL
+# Resolve Shortened URL
 ```ps
 $URL = "http://tinyurl.com/KindleWireless"
 (Invoke-WebRequest -Uri $URL -MaximumRedirection 0 -ErrorAction Ignore).Headers.Location
 ```
 
-List mapped drives
+# List mapped drives
 ```ps
 get-wmiobject -class 'Win32_LogicalDisk' -Filter 'drivetype=4'
 ```
 
-Drives Reference
+# Drives Reference
 ```ps
 Get-Disk
 Get-Partition -DiskNumber 1
@@ -31,7 +44,7 @@ New-Partition -DiskNumber 1 -UseMaximumSize -AssignDriveLetter
 Format-Volume -DriveLetter F -FileSystem NTFS -NewFileSystemLabel "Label"
 ```
 
-Format a USB to FAT32
+# Format a USB to FAT32
 ```ps
 get-disk
 Clear-Disk -Number 1 -RemoveData -Confirm:$false
@@ -41,7 +54,7 @@ Format-Volume -DriveLetter $part.DriveLetter -FileSystem FAT32 -NewFileSystemLab
 ```
 
 
-Get BitLocker Keys
+# Get BitLocker Keys
 ```ps
 ForEach ($Volume in Get-BitLockerVolume) {
     $Volume | Add-Member -MemberType NoteProperty -Name Key -Value (($Volume).KeyProtector.RecoveryPassword[1])
@@ -50,14 +63,15 @@ ForEach ($Volume in Get-BitLockerVolume) {
 ```
 
 
-Change the Network Profile Associated with a Network Connection (e.g. Public, Private, etc.)
+# Change the Network Profile Associated with a Network Connection 
+(e.g. Public, Private, etc.)
 ```ps
 Get-NetConnectionProfile
 Set-NetConnectionProfile -Name "Unidentified network" -NetworkCategory Private
 
 ```
 
-Filter a string to produce a valid filename
+# Filter a string to produce a valid filename
 ```ps
 function Get-ValidFileName {
     param (
@@ -76,7 +90,7 @@ function Get-ValidFileName {
 ```
 
 
-Set a timeout on a powershell scriptblock
+# Set a timeout on a powershell scriptblock
 ```ps
 $Timeout = 60
 $job = Start-Job -ScriptBlock {
@@ -94,4 +108,16 @@ while ($job.State -eq "Running" -and $JobTimer -le $Timeout) {
 if ($job.State -eq "Completed" -and $job.HasMoreData -eq $true) {
     $job | Receive-Job
 }
+```
+
+
+# Export Drivers
+This extracts all non-standard, third-party INF-based drivers (network, display, audio, chipset, touchpad, storage controllers) into organized subfolders within E:\DriversBackup.
+```ps
+Export-WindowsDriver -Online -Destination "E:\DriversBackup"
+```
+
+This will make Windows scan every subfolder, stage the drivers, and automatically install matching hardware drivers.
+```ps
+pnputil /add-driver "E:\DriversBackup\*.inf" /subdirs /install
 ```

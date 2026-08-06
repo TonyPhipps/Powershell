@@ -70,6 +70,9 @@
 .PARAMETER ScanAD
     Switch to discover target hosts via Active Directory rather than relying on a local hosts.txt file.
 
+.PARAMETER DeltaReport
+    Switch to compare files inside the repository with the latest compliance report, generating a truncated report of missing files.
+
 .EXAMPLE
     .\OfflineUpdater.ps1 -PreparePackage
     Downloads all necessary tools and the ~1GB scan catalog to prepare for an offline site visit.
@@ -85,15 +88,16 @@
     New-Item -ItemType Directory -Path d:\OfflineUpdater -Force
     Copy-Item -Path "\\otherhost\d$\OfflineUpdater\OfflineUpdater.ps1" -Destination "d:\OfflineUpdater\" -Force
     Copy-Item -Path "\\otherhost\d$\OfflineUpdater\catalog" -Destination "d:\OfflineUpdater\" -Recurse -Force
+    Copy-Item -Path "\\otherhost\d$\OfflineUpdater\DefenderUpdates" -Destination "d:\OfflineUpdater\" -Recurse -Force
     D:\OfflineUpdater\OfflineUpdater.ps1 -Scan -Host $Env:COMPUTERNAME -WorkingFolder "d:\OfflineUpdater"
-    D:\OfflineUpdater\OfflineUpdater.ps1 -DeployLocal -Repository \\otherpc\d$\OfflineUpdater\repository
+    D:\OfflineUpdater\OfflineUpdater.ps1 -DeployLocal -Repository \\otherpc\d$\OfflineUpdater\repository -WorkingFolder "d:\OfflineUpdater"
 
 .NOTES
     File Name      : OfflineUpdater.ps1
     Author         : Tony Phipps
     Prerequisites  : PowerShell 5.1+, Administrator privileges, RSAT (for -ScanAD)
-    Version        : 1.2
-    Date           : June 1, 2026
+    Version        : 1.5
+    Date           : July 24, 2026
     Copyright      : (c) 2026 Tony Phipps under the MIT License
 
     Manual Fallbacks are provided below for when kbupdate fails repeatedly on the last few remaining patches.
@@ -130,7 +134,7 @@ param (
 
     [Parameter(Mandatory = $false)]
     [alias("H", "Hosts", "Host", "Computer")]
-    [string[]]$Computers,
+    [string[]]$Computers = ($Env:COMPUTERNAME),
 
     [Parameter(Mandatory = $false)]
     [alias("P", "Prepare", "Package", "Update", "UpdatePackage")]
@@ -170,33 +174,27 @@ param (
 
     [Parameter(Mandatory = $false)]
     [alias("AD")]
-    [switch]$ScanAD
+    [switch]$ScanAD,
+
+    [Parameter(Mandatory = $false)]
+    [alias("Delta","Report")]
+    [switch]$DeltaReport
 )
 
-Set-StrictMode -Version Latest
-
-# --- HELPER FUNCTIONS ---
+#region: Functions
 function Get-TargetComputers {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
         [string[]]$Computers,
-        
+
         [Parameter(Mandatory = $false)]
         [switch]$ScanAD,
 
         [Parameter(Mandatory = $true)]
         [string]$WorkingFolder
     )
-    if ($null -ne $Computers -and $Computers.Count -gt 0) { # if an array of host names or an explicit valid file path is provided via $Computers
-        if ($Computers.Count -eq 1 -and (Test-Path -Path $Computers[0] -PathType Leaf -ErrorAction SilentlyContinue)) { # If a filepath is provided
-            Write-Verbose "Loading endpoints from explicit file path: $($Computers[0])"
-            return (Get-Content -Path $Computers[0]) | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
-        }
-        # Otherwise, parse string array inputs directly as computer items
-        Write-Verbose "Using explicit inline computer names passed from command line."
-        return $Computers | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
-    }
+
     if ($ScanAD) {
         try {
             $isInstalled = (Get-WindowsFeature -Name RSAT-ADDS-Tools -ErrorAction SilentlyContinue).Installed
@@ -213,15 +211,26 @@ function Get-TargetComputers {
                 $ADHosts | Out-File -FilePath $DefaultHostsPath -Force
                 return $ADHosts
             }
+            throw [System.Management.Automation.CmdletInvocationException]::new("RSAT: Active Directory query returned no enabled Windows hosts.")
         } else {
             throw [System.Management.Automation.CmdletInvocationException]::new("RSAT: Active Directory Tools are NOT installed. Cannot perform -ScanAD.")
         }
-    } 
+    }
+
+    if ($null -ne $Computers -and $Computers.Count -gt 0) {
+        $LooksLikeFile = $Computers.Count -eq 1 -and 
+                         ($Computers[0] -match '[\\/]' -or $Computers[0] -match '\.(txt|csv|lst)$')
+        if ($LooksLikeFile -and (Test-Path -Path $Computers[0] -PathType Leaf -ErrorAction SilentlyContinue)) {
+            Write-Host "Loading endpoints from explicit file path: $($Computers[0])"
+            return (Get-Content -Path $Computers[0]) | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
+        }
+        return $Computers | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
+    }
 
     # Fall back to checking the default host inventory file layout
     $DefaultHostFilePath = [string](Join-Path -Path $WorkingFolder -ChildPath "scan\hosts.txt")
     if (Test-Path -Path $DefaultHostFilePath -PathType Leaf) {
-        Write-Verbose "Using default file path host layout target asset context list: $DefaultHostFilePath"
+        Write-Host "Using default path to hosts.txt as target list: $DefaultHostFilePath"
         return (Get-Content -Path $DefaultHostFilePath) | Where-Object { $_ -match '^[a-zA-Z0-9][a-zA-Z0-9\.-]{0,253}$' }
     }
     throw [System.IO.FileNotFoundException]::new("Target hosts location configuration missing. Please explicitly provide target machine endpoints to -Computers, provide an enter-delimited path to a target text file, rerun the script utilizing the -ScanAD switch to dynamically scan Active Directory domain architectures, or create an enter-delimited host configuration text file locally at: '$DefaultHostFilePath'")
@@ -319,16 +328,23 @@ function Install-DefenderUpdates {
             Version   = [version]$File.VersionInfo.FileVersion
         }
     }
-    if (-not (Get-SmbShare -Name $ShareName -ErrorAction SilentlyContinue)) {
+
+    # Only provision SMB share architecture if non-local network routes exist in targets
+    $HasRemoteTargets = $TargetEndpoints | Where-Object { $_ -ne $env:COMPUTERNAME -and $_ -ne "localhost" -and $_ -ne "127.0.0.1" }
+    if ($HasRemoteTargets -and -not (Get-SmbShare -Name $ShareName -ErrorAction SilentlyContinue)) {
         New-SmbShare -Name $ShareName -Path $DefenderUpdatesPath -ReadAccess "Domain Computers", "Authenticated Users" -FullAccess "Administrators" | Out-Null
     }
     $UncPath = "\\$($env:COMPUTERNAME)\$ShareName"
     foreach ($Computer in $TargetEndpoints) {
         Write-Host "Checking Defender Status for $($Computer)... " -ForegroundColor Gray
         $Session = $null
+        $IsLocal = ($Computer -eq $env:COMPUTERNAME -or $Computer -eq "localhost" -or $Computer -eq "127.0.0.1")
         try {
-            $Session = New-PSSession -ComputerName $Computer -ErrorAction Stop
-            $RemoteStatus = Invoke-Command -Session $Session -ScriptBlock {
+            if (-not $IsLocal) {
+                $Session = New-PSSession -ComputerName $Computer -ErrorAction Stop
+            }
+            
+            $StatusBlock = {
                 $OSArch = (Get-CimInstance Win32_OperatingSystem).OSArchitecture
                 $ArchKey = if ($OSArch -match "64-bit") { "x64" } elseif ($OSArch -match "arm") { "arm64" } else { "x86" }
                 $ActiveAV = Get-CimInstance -Namespace root\SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction SilentlyContinue | 
@@ -356,6 +372,9 @@ function Install-DefenderUpdates {
                     }
                 }
             }
+
+            $RemoteStatus = if ($IsLocal) { & $StatusBlock } else { Invoke-Command -Session $Session -ScriptBlock $StatusBlock }
+
             if ($RemoteStatus.Skip) {
                 Write-Host "`t[SKIP] ($($RemoteStatus.Reason))" -ForegroundColor Yellow
                 continue
@@ -365,15 +384,24 @@ function Install-DefenderUpdates {
             if ($Match -and ($RemoteStatus.PlatformVer -lt $Match.Version)) {
                 Write-Host "`tUpdating Platform: $($RemoteStatus.PlatformVer) -> $($Match.Version)" -ForegroundColor Cyan
                 $StagingPath = "C:\Windows\Temp\$($Match.FileName)"
-                Copy-Item -Path $Match.LocalPath -Destination $StagingPath -ToSession $Session -Force
-                Invoke-Command -Session $Session -ArgumentList $StagingPath -ScriptBlock {
+                
+                $PlatformBlock = {
                     param($InstallerPath)
                     Start-Process -FilePath $InstallerPath -ArgumentList "/quiet", "/norestart" -Wait
                     Remove-Item -Path $InstallerPath -Force
                 }
+
+                if ($IsLocal) {
+                    Copy-Item -Path $Match.LocalPath -Destination $StagingPath -Force
+                    & $PlatformBlock -InstallerPath $StagingPath
+                } else {
+                    Copy-Item -Path $Match.LocalPath -Destination $StagingPath -ToSession $Session -Force
+                    Invoke-Command -Session $Session -ArgumentList $StagingPath -ScriptBlock $PlatformBlock
+                }
                 $PlatformWasUpdated = $true
             }
-            Invoke-Command -Session $Session -ScriptBlock {
+
+            $ServiceBlock = {
                 $Svc = Get-Service WinDefend -ErrorAction SilentlyContinue
                 if ($Svc -and $Svc.Status -ne 'Running') {
                     Set-Service -Name WinDefend -StartupType Automatic
@@ -381,14 +409,29 @@ function Install-DefenderUpdates {
                 }
                 Set-MpPreference -DisableRealtimeMonitoring $false -ErrorAction SilentlyContinue
             }
-            Invoke-Command -Session $Session -ArgumentList $UncPath -ScriptBlock {
+
+            if ($IsLocal) {
+                & $ServiceBlock
+            } else {
+                Invoke-Command -Session $Session -ScriptBlock $ServiceBlock
+            }
+
+            $SignatureBlock = {
                 param($Path)
                 try {
                     Set-MpPreference -SignatureDefinitionUpdateFileSharesSources $Path
                     Update-MpSignature -UpdateSource FileShares -ErrorAction Stop
                 } catch { }
             }
-            $FinalReport = Invoke-Command -Session $Session -ScriptBlock {
+
+            $UpdatePath = if ($IsLocal) { $DefenderUpdatesPath } else { $UncPath }
+            if ($IsLocal) {
+                & $SignatureBlock -Path $UpdatePath
+            } else {
+                Invoke-Command -Session $Session -ArgumentList $UpdatePath -ScriptBlock $SignatureBlock
+            }
+
+            $ReportBlock = {
                 $Retry = 0
                 while ($Retry -lt 5) {
                     $Stat = Get-MpComputerStatus -ErrorAction SilentlyContinue
@@ -397,6 +440,9 @@ function Install-DefenderUpdates {
                     $Retry++
                 }
             }
+
+            $FinalReport = if ($IsLocal) { & $ReportBlock } else { Invoke-Command -Session $Session -ScriptBlock $ReportBlock }
+
             if ($FinalReport) {
                 $EngineOut = if ($RemoteStatus.EngineVer -ne $FinalReport.AMEngineVersion) { "$($RemoteStatus.EngineVer) -> $($FinalReport.AMEngineVersion)" } else { "$($FinalReport.AMEngineVersion) (Current)" }
                 $SigOut    = if ($RemoteStatus.SignatureVer -ne $FinalReport.AntivirusSignatureVersion) { "$($RemoteStatus.SignatureVer) -> $($FinalReport.AntivirusSignatureVersion)" } else { "$($FinalReport.AntivirusSignatureVersion) (Current)" }
@@ -521,13 +567,31 @@ function Remove-TempFiles {
 function Get-RootCerts {
     [CmdletBinding()]
     param([string]$CertPath)
-    
-    Write-Host "Generating Root Certificates... " -ForegroundColor Gray -NoNewline
+    Write-Host "Checking for new Root Certificates... " -ForegroundColor Gray -NoNewline
     $CertDir = Split-Path -Path $CertPath -Parent
     if (-not (Test-Path $CertDir)) { New-Item -ItemType Directory -Path $CertDir -Force | Out-Null }
     try {
-        certutil.exe -generateSSTFromWU "$CertPath"
-        Write-Host "[Success] (Root certificates saved to $CertPath)" -ForegroundColor Green
+        $OldHash = $null
+        $HashPath = "$CertPath.hash"
+        if (Test-Path $CertPath) {
+            if (Test-Path $HashPath) {
+                $OldHash = Get-Content -Path $HashPath -Raw
+            } else {
+                $OldHash = (Get-FileHash -Path $CertPath -Algorithm SHA256).Hash
+            }
+        }
+        $certs = certutil.exe -generateSSTFromWU "$CertPath" *>$null
+        if (Test-Path $CertPath) {
+            $NewHash = (Get-FileHash -Path $CertPath -Algorithm SHA256).Hash
+            Set-Content -Path $HashPath -Value $NewHash -Force
+            if ($null -ne $OldHash -and $OldHash -ne $NewHash) {
+                Write-Host "[Success] new certs were updated" -ForegroundColor Green
+            } else {
+                Write-Host "[Success] no cert changes." -ForegroundColor Gray
+            }
+        } else {
+            Write-Error "[Failure] (SST file was not created)"
+        }
     } catch {
         Write-Error "[Failure] (Could not generate certificate store: $($_.Exception.Message))"
     }
@@ -539,8 +603,6 @@ function Install-RootCerts {
         [Parameter(Mandatory = $true)] [string[]]$ComputerNames,
         [Parameter(Mandatory = $true)] [string]$CertPath
     )
-
-    Write-Host "--- Operation: Deploying Certificates to Endpoints ---" -ForegroundColor Gray
     $CertBlock = {
         param($SstContent)
         try {
@@ -561,7 +623,7 @@ function Install-RootCerts {
         try {
             $Result = Invoke-Command -ComputerName $Computer -ScriptBlock $CertBlock -ArgumentList (,$SstBytes) -ErrorAction Stop
             if ($Result -eq "[Success]") {
-                Write-Host "[Success]" -ForegroundColor Green
+                Write-Host "[Success] Host will need to be re-scanned." -ForegroundColor Yellow
             } else {
                 Write-Host "$Result" -ForegroundColor Red
             }
@@ -571,10 +633,13 @@ function Install-RootCerts {
     }
 }
 
+
+#region: Main
+Set-StrictMode -Version Latest
 Clear-Host
-# --- Parameter Checks and Resolution ---
+#region: Params
 if (-not $WorkingFolder) {
-    if ($psISE -and (Test-Path -Path $psISE.CurrentFile.FullPath)) {
+    if ((Test-Path -Path "Variable:psISE") -and (Test-Path -Path $psISE.CurrentFile.FullPath)) {
         $ScriptRoot = Split-Path -Path $psISE.CurrentFile.FullPath -Parent
     } else {
         $ScriptRoot = $PSScriptRoot
@@ -613,8 +678,8 @@ try {
     Exit
 }
 
-# --- INTERACTIVE MENU ---
-$NoActionSelected = -not ($PreparePackage -or $Install -or $Scan -or $DownloadUpdates -or $DeployUpdates -or $DeployUpdatesLocal)
+#region: Menu
+$NoActionSelected = -not ($PreparePackage -or $Install -or $Scan -or $DownloadUpdates -or $DeployUpdates -or $DeployUpdatesLocal -or $DeltaReport)
 if ($NoActionSelected) {
     do {
         Write-Host "================================================================" -ForegroundColor Cyan
@@ -625,6 +690,7 @@ if ($NoActionSelected) {
         Write-Host "  1) -Scan Endpoints    (Run on AIR-GAPPED computer)"
         Write-Host "  2) -Download Updates  (Run on INTERNET-CONNECTED computer)"
         Write-Host "  3) -Deploy Updates    (Run on AIR-GAPPED computer)"
+        Write-Host "  d) -Delta Report      (Run on AIR-GAPPED after scan to limit downloads)"
         Write-Host "  q)  Quit"
         Write-Host "  (to target Active Directory discovery, rerun with -ScanAD)"     -ForegroundColor Gray
         Write-Host "  (to target Defender updates only, rerun with -DefenderOnly)"    -ForegroundColor Gray
@@ -639,13 +705,14 @@ if ($NoActionSelected) {
             "1" { $Scan = $true;            $Continue = $false }
             "2" { $DownloadUpdates = $true; $Continue = $false }
             "3" { $DeployUpdates = $true;   $Continue = $false }
+            "d" { $DeltaReport = $true;     $Continue = $false }
             "q" { exit }
             default { Write-Host "Invalid selection, try again." -ForegroundColor Red; Start-Sleep -Seconds 1; $Continue = $true }
         }
     } while ($Continue)
 }
 
-# --- PREPARE PACKAGE ---
+#region: -Prepare
 if ($PreparePackage) {
     Write-Host "--- Operation: Prepare Package ---" -ForegroundColor Gray
     try {
@@ -667,7 +734,7 @@ if ($PreparePackage) {
     }
 }
 
-# --- INSTALL MODULE ---
+#region: -Install
 if ($Install) {
     Write-Host "--- Operation: Install ---" -ForegroundColor Gray
     $PowerShellModules = "C:\Program Files\WindowsPowerShell\Modules"
@@ -688,7 +755,7 @@ if ($Install) {
     }
 }
 
-# --- Module Validation Check ---
+#region: Requirements
 $InstallRequired = $Scan, $DownloadUpdates, $DeployUpdates
 if ($InstallRequired -contains $true) {
     if (-not (Get-Module -ListAvailable -Name kbupdate)) {
@@ -697,21 +764,47 @@ if ($InstallRequired -contains $true) {
     }
 }
 
-# --- SCAN ENDPOINTS ---
+#region: -Scan
 if ($Scan) {
     Write-Host "--- Operation: Scan ---" -ForegroundColor Gray
     if (-not (Test-Path $Results)) {
         New-Item -ItemType Directory -Path $Results -Force | Out-Null
     }
     $ScanResults = foreach ($Endpoint in $TargetEndpoints) {
-        Write-Host "Initiating scan on $Endpoint... " -ForegroundColor Gray
-        try{
-            Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force #-Verbose
+        Write-Host "Initiating scan on $Endpoint... " -ForegroundColor Gray -NoNewline
+         try{
+            $WarnText = $null
+            $HostResult = Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force -WarningVariable WarnText 3>$null #-Verbose
+            $connFail = $WarnText | Where-Object {
+                $_ -match 'Start-JobProcess' -or $_ -match 'WSMan' -or
+                $_ -match 'Connecting to remote server' -or $_ -match 'failed with the following error'
+            }
+            if ($connFail) {
+                throw [System.Management.Automation.RuntimeException]::new("Unreachable via WSMan: $($connFail -join ' | ')")
+            }
+            $MissingCount = ($HostResult.KBUpdate | Where-Object { $_ } | Sort-Object -Unique).Count
+            Write-Host "[Success] ($MissingCount missing)" -ForegroundColor Green
+            $HostResult # emit to $ScanResults
         } catch {
-            if (Test-Path $Certificates) {
-                Write-Host "[Certificate Issue] (Updating Microsoft Root Certificates)" -ForegroundColor Cyan
-                Install-RootCerts -ComputerNames $TargetEndpoints -CertPath $Certificates
-            }                
+            $msg = $_.Exception.Message
+            if ($msg -match "The property 'KBUpdate' cannot be found on this object") {
+                Write-Host "[Success] (0 missing)" -ForegroundColor Green
+                $HostResult
+            }
+            elseif ($msg -match "The property 'Count' cannot be found on this object") {
+                Write-Host "[Success] (1 missing)" -ForegroundColor Green
+                $HostResult
+            }
+            elseif ($msg -match 'WSMan|Start-JobProcess|could not launch a host process|Connecting to remote server') {
+                Write-Host "[Failure] (Remoting/WinRM unhealthy on $Endpoint - host skipped. Check WinRM service.)" -ForegroundColor Red
+            }
+            elseif ((Test-Path $Certificates) -and
+                ($msg -match 'certificat|SSL|trust|0x800B')) {
+                Write-Host "[Possible Certificate Issue] (Updating Microsoft Root Certificates)" -ForegroundColor Cyan
+                Install-RootCerts -ComputerNames $Endpoint -CertPath $Certificates
+            } else {
+                Write-Host "[Failure] ($msg)" -ForegroundColor Red
+            }
         }
     }
     if ($ScanResults) {
@@ -730,7 +823,7 @@ if ($Scan) {
     }
 }
 
-# --- DOWNLOAD UPDATES ---
+#region: -Download
 if ($DownloadUpdates) {
     if (-not $SkipDefender){
         $DefenderPath = Join-Path $WorkingFolder "DefenderUpdates"
@@ -738,10 +831,11 @@ if ($DownloadUpdates) {
     }
     Get-RootCerts -CertPath $Certificates
     if (-not $DefenderOnly){
-        Write-Host "--- Checking wsusscn2.cab for age ---" -ForegroundColor Gray
+        Write-Host "Checking for wsusscn2.cab updates..." -ForegroundColor Gray -NoNewline
         Invoke-UpdateDownload -Url "https://go.microsoft.com/fwlink/?linkid=74689" -DestinationPath $Catalog -CheckExpiration
         Write-Host "Starting Windows KB downloads..." -ForegroundColor Gray
-        $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
+        # Supports processing both delta compliance reports and full compliance reports
+        $LatestReport = Get-ChildItem -Path $Results -Filter "*Compliance_Report_*.csv" | 
             Sort-Object LastWriteTime -Descending | 
                 Select-Object -First 1
         if (-not $LatestReport) {
@@ -761,7 +855,7 @@ if ($DownloadUpdates) {
     }
 }
 
-# --- DEPLOY UPDATES ---
+#region: -Deploy
 if ($DeployUpdates) {
     $DefenderPath = Join-Path $WorkingFolder "DefenderUpdates"
     if (-not $SkipDefender){
@@ -778,9 +872,10 @@ if ($DeployUpdates) {
             Write-Error "Repository folder not found at $Repository."
         } else {
             Write-Host "Loading deployment manifest: $($LatestReport.Name)" -ForegroundColor Gray
-            $NeededUpdates = Import-Csv -Path $LatestReport.FullName
-            if ($NeededUpdates.Count -eq 0) {
-                Write-Host "Manifest is empty. No updates to deploy." -ForegroundColor Red
+            $NeededUpdates = Import-Csv -Path $LatestReport.FullName |
+                Where-Object { $_.ComputerName -in $TargetEndpoints }
+            if ($null -eq $NeededUpdates -or @($NeededUpdates).Count -eq 0) {
+                Write-Host "Manifest contains no updates for the current target host(s). Nothing to deploy." -ForegroundColor Red
                 return
             }
             $VerifiedUpdates = [System.Collections.Generic.List[PSCustomObject]]::new()
@@ -806,9 +901,16 @@ if ($DeployUpdates) {
     }
 }
 
-# --- DEPLOY LOCAL ---
+#region: -DeployLocal
 if ($DeployUpdatesLocal) {
     Write-Host "--- Operation: Deploy Updates to Local Host ---" -ForegroundColor Gray
+    
+    # Process Defender definition updates locally if switch parameter permits
+    if (-not $SkipDefender) {
+        $DefenderPath = Join-Path $WorkingFolder "DefenderUpdates"
+        Install-DefenderUpdates -TargetEndpoints @($env:COMPUTERNAME) -DefenderUpdatesPath $DefenderPath
+    }
+
     $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
                     Sort-Object Name -Descending | 
                     Select-Object -First 1
@@ -857,4 +959,58 @@ if ($DeployUpdatesLocal) {
     Write-Host "--- Local Deployment Cycle Finished ---" -ForegroundColor Green
     Get-RebootStatus
     Remove-TempFiles
+}
+
+#region: -Delta
+if ($DeltaReport) {
+    Write-Host "--- Operation: Generate Delta Report ---" -ForegroundColor Gray
+    $LatestReport = Get-ChildItem -Path $Results -Filter "Full_Compliance_Report_*.csv" | 
+        Sort-Object LastWriteTime -Descending | 
+            Select-Object -First 1
+    if (-not $LatestReport) {
+        Write-Error "No Full Compliance Report found in $Results. Please execute a compliance scan first."
+    } else {
+        Write-Host "Parsing full compliance baseline report: $($LatestReport.FullName)" -ForegroundColor Gray
+        $FullUpdates = Import-Csv -Path $LatestReport.FullName
+        $DeltaUpdates = [System.Collections.Generic.List[PSCustomObject]]::new()
+        $MissingFilesList = [System.Collections.Generic.List[string]]::new()
+        foreach ($Row in $FullUpdates) {
+            
+            # Parse multiple HTTP URLs that may be listed within the single column
+            $Links = $Row.Link -split " " | Where-Object { $_ -like "http*" }
+            $RowNeedsDownload = $false
+            foreach ($Link in $Links) {
+                $FileName = Split-Path $Link -Leaf
+                $LocalPath = Join-Path $Repository $FileName
+                if (-not (Test-Path $LocalPath)) { # patch file is missing from the local Repository
+                    $RowNeedsDownload = $true
+                    if ($FileName -notin $MissingFilesList) {
+                        $MissingFilesList.Add($FileName)
+                    }
+                }
+            }
+            if ($RowNeedsDownload) { # Keep row for the delta compliance manifest
+                $DeltaUpdates.Add($Row)
+            }
+        }
+        if ($DeltaUpdates.Count -gt 0) {
+            $Timestamp = (Get-Date).ToString('yyyyMMdd_HHmm')
+            $DeltaReportPath = Join-Path $Results -ChildPath "Delta_Compliance_Report_$Timestamp.csv"
+            $DeltaKBsPath = Join-Path $Results -ChildPath "DeltaMissingKBs_$Timestamp.txt"
+            $DeltaUpdates | Export-Csv -Path $DeltaReportPath -NoTypeInformation
+            $DeltaKBs = $DeltaUpdates.KBUpdate | Where-Object { $_ } | Sort-Object -Unique
+            $DeltaKBs | Out-File -FilePath $DeltaKBsPath
+            Write-Host "[Success] Delta analysis evaluation completed." -ForegroundColor Green
+            Write-Host "Compliance records matching missing downloads: $($DeltaUpdates.Count) entries." -ForegroundColor Gray
+            Write-Host "Unique files needing network transfer: $($MissingFilesList.Count)" -ForegroundColor Gray
+            Write-Host "Truncated delta compliance CSV saved to: $DeltaReportPath" -ForegroundColor Cyan
+            Write-Host "Delta missing KBs list text file saved to: $DeltaKBsPath" -ForegroundColor Cyan
+            Write-Host "Export only these delta files to your internet host to finish the updates." -ForegroundColor Cyan
+            if (-not $SkipReport) {
+                $DeltaUpdates | Select-Object ComputerName, KBUpdate, Title, Description | Out-GridView -Title "Delta Missing Updates"
+            }
+        } else {
+            Write-Host "All needed security updates identified in the compliance report are already cached inside the repository directory." -ForegroundColor Green
+        }
+    }
 }
