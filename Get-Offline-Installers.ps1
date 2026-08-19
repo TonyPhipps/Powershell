@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Downloads English 64-bit offline installers for Firefox, Edge, Notepad++, and VS Code.
+    Downloads English 64-bit offline installers for Firefox, Edge, Chrome, Notepad++, and VS Code.
 .DESCRIPTION
     Designed with a modular architecture. New application installers can easily be 
     added by writing a function and registering it in the $appRegistry hashtable.
@@ -72,6 +72,14 @@ function Get-EdgeInstaller {
     Invoke-AppDownload -Url $url -DestinationDir $DestinationDir
 }
 
+function Get-ChromeInstaller {
+    param([string]$DestinationDir)
+    Write-Host "Fetching Google Chrome Standalone (64-bit)..." -ForegroundColor Yellow
+    # Direct offline setup URL for Chrome 64-bit
+    $url = "https://dl.google.com/chrome/install/ChromeStandaloneSetup64.exe"
+    Invoke-AppDownload -Url $url -DestinationDir $DestinationDir -FallbackFileName "ChromeStandaloneSetup64.exe"
+}
+
 function Get-NotepadPlusPlusInstaller {
     param([string]$DestinationDir)
     Write-Host "Fetching Notepad++ (64-bit)..." -ForegroundColor Yellow
@@ -106,15 +114,16 @@ function Get-VSCodeInstaller {
 function Start-OfflineInstallerDownloads {
     param(
         [string]$DestinationDir = "$env:USERPROFILE\Downloads",
-        [string[]]$AppsToDownload = @('Firefox', 'Edge', 'Notepad++' ,'VSCode')
+        [string[]]$AppsToDownload = @('Firefox', 'Edge', 'Chrome', 'Notepad++', 'VSCode')
     )
 
     # Master registry mapping application keys to download functions
     $appRegistry = @{
-        'Firefox'    = { param($dir) Get-FirefoxInstaller -DestinationDir $dir }
-        'Edge'       = { param($dir) Get-EdgeInstaller -DestinationDir $dir }
-        'Notepad++'  = { param($dir) Get-NotepadPlusPlusInstaller -DestinationDir $dir }
-        'VSCode'     = { param($dir) Get-VSCodeInstaller -DestinationDir $dir }
+        'Firefox'   = { param($dir) Get-FirefoxInstaller -DestinationDir $dir }
+        'Edge'      = { param($dir) Get-EdgeInstaller -DestinationDir $dir }
+        'Chrome'    = { param($dir) Get-ChromeInstaller -DestinationDir $dir }
+        'Notepad++' = { param($dir) Get-NotepadPlusPlusInstaller -DestinationDir $dir }
+        'VSCode'    = { param($dir) Get-VSCodeInstaller -DestinationDir $dir }
     }
 
     Write-Host "Starting offline installer downloads to: $DestinationDir`n" -ForegroundColor DarkCyan
