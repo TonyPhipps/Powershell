@@ -21,7 +21,7 @@
 param (
     [Parameter(Mandatory = $true, Position = 0)]
     [ValidateNotNullOrEmpty()]
-    [string]$OutputPath,
+    [string]$OutputPath = "F:\GoogleDrive\Tony\Projects\Magic\art",
 
     [Parameter(Position = 1)]
     [int]$StartSetId = -2,
