@@ -2,8 +2,8 @@
 .SYNOPSIS
     Downloads English 64-bit offline installers for Firefox, Edge, Chrome, Notepad++, and VS Code.
 .DESCRIPTION
-    Designed with a modular architecture. New application installers can easily be 
-    added by writing a function and registering it in the $appRegistry hashtable.
+    Designed with a modular architecture. Uses HEAD requests to inspect redirect filenames
+    without downloading payloads, ensuring existing files are skipped instantly.
 #>
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -28,29 +28,47 @@ function Invoke-AppDownload {
     }
 
     try {
-        # Resolve official filename from redirect headers
+        # Use HEAD request so we only inspect headers/redirects without downloading file bytes
         $request = [System.Net.WebRequest]::Create($Url)
         $request.UserAgent = "PowerShellAppDownloader"
+        $request.Method = "HEAD"
         $response = $request.GetResponse()
         
-        $rawFileName = [System.IO.Path]::GetFileName($response.ResponseUri.AbsolutePath)
-        $fileName = [System.Uri]::UnescapeDataString($rawFileName)
+        # 1. Try to extract filename from Content-Disposition header if present
+        $fileName = $null
+        $contentDisposition = $response.Headers["Content-Disposition"]
+        if ($contentDisposition -match 'filename="?([^";]+)"?') {
+            $fileName = $Matches[1]
+        }
+        
+        # 2. Otherwise extract from the resolved redirect URL
+        if ([string]::IsNullOrWhiteSpace($fileName)) {
+            $rawFileName = [System.IO.Path]::GetFileName($response.ResponseUri.AbsolutePath)
+            $fileName = [System.Uri]::UnescapeDataString($rawFileName)
+        }
+        
         $response.Close()
 
-        # Fallback if the redirect URL doesn't present a full filename
+        # 3. Apply fallback if filename resolution failed
         if ([string]::IsNullOrWhiteSpace($fileName) -or -not ($fileName -match '\.')) {
             if ($FallbackFileName) { $fileName = $FallbackFileName }
-            else { throw "Unable to resolve filename from header." }
+            else { throw "Unable to resolve filename from server." }
         }
 
         $outputPath = Join-Path -Path $DestinationDir -ChildPath $fileName
+
+        # Check if file already exists BEFORE downloading
+        if (Test-Path -Path $outputPath) {
+            Write-Host "File '$fileName' already exists. Skipping download.`n" -ForegroundColor Yellow
+            return
+        }
+
         Write-Host "Downloading $fileName..." -ForegroundColor Cyan
-        
         Invoke-WebRequest -Uri $Url -OutFile $outputPath -UseBasicParsing
         Write-Host "Successfully saved to: $outputPath`n" -ForegroundColor Green
     }
     catch {
-        Write-Error "Failed to download from $Url : $_"
+        Write-Error "Failed to process download for $Url : $_"
     }
 }
 
@@ -60,29 +78,28 @@ function Invoke-AppDownload {
 
 function Get-FirefoxInstaller {
     param([string]$DestinationDir)
-    Write-Host "Fetching Firefox (64-bit, en-US)..." -ForegroundColor Yellow
+    Write-Host "Checking Firefox (64-bit, en-US)..." -ForegroundColor Yellow
     $url = "https://download.mozilla.org/?product=firefox-latest-ssl&os=win64&lang=en-US"
-    Invoke-AppDownload -Url $url -DestinationDir $DestinationDir
+    Invoke-AppDownload -Url $url -DestinationDir $DestinationDir -FallbackFileName "Firefox Setup.exe"
 }
 
 function Get-EdgeInstaller {
     param([string]$DestinationDir)
-    Write-Host "Fetching Microsoft Edge Enterprise (64-bit MSI)..." -ForegroundColor Yellow
+    Write-Host "Checking Microsoft Edge Enterprise (64-bit MSI)..." -ForegroundColor Yellow
     $url = "https://go.microsoft.com/fwlink/?LinkID=2093437"
-    Invoke-AppDownload -Url $url -DestinationDir $DestinationDir
+    Invoke-AppDownload -Url $url -DestinationDir $DestinationDir -FallbackFileName "MicrosoftEdgeEnterpriseX64.msi"
 }
 
 function Get-ChromeInstaller {
     param([string]$DestinationDir)
-    Write-Host "Fetching Google Chrome Standalone (64-bit)..." -ForegroundColor Yellow
-    # Direct offline setup URL for Chrome 64-bit
+    Write-Host "Checking Google Chrome Standalone (64-bit)..." -ForegroundColor Yellow
     $url = "https://dl.google.com/chrome/install/ChromeStandaloneSetup64.exe"
     Invoke-AppDownload -Url $url -DestinationDir $DestinationDir -FallbackFileName "ChromeStandaloneSetup64.exe"
 }
 
 function Get-NotepadPlusPlusInstaller {
     param([string]$DestinationDir)
-    Write-Host "Fetching Notepad++ (64-bit)..." -ForegroundColor Yellow
+    Write-Host "Checking Notepad++ (64-bit)..." -ForegroundColor Yellow
     try {
         $apiUri = "https://api.github.com/repos/notepad-plus-plus/notepad-plus-plus/releases/latest"
         $release = Invoke-RestMethod -Uri $apiUri -UserAgent "PowerShellAppDownloader"
@@ -101,10 +118,9 @@ function Get-NotepadPlusPlusInstaller {
 
 function Get-VSCodeInstaller {
     param([string]$DestinationDir)
-    Write-Host "Fetching VS Code System Installer (64-bit)..." -ForegroundColor Yellow
-    # Windows x64 System Offline Setup
+    Write-Host "Checking VS Code System Installer (64-bit)..." -ForegroundColor Yellow
     $url = "https://code.visualstudio.com/sha/download?build=stable&os=win32-x64"
-    Invoke-AppDownload -Url $url -DestinationDir $DestinationDir
+    Invoke-AppDownload -Url $url -DestinationDir $DestinationDir -FallbackFileName "VSCodeSetup-x64.exe"
 }
 
 # ==========================================
@@ -117,7 +133,6 @@ function Start-OfflineInstallerDownloads {
         [string[]]$AppsToDownload = @('Firefox', 'Edge', 'Chrome', 'Notepad++', 'VSCode')
     )
 
-    # Master registry mapping application keys to download functions
     $appRegistry = @{
         'Firefox'   = { param($dir) Get-FirefoxInstaller -DestinationDir $dir }
         'Edge'      = { param($dir) Get-EdgeInstaller -DestinationDir $dir }
@@ -126,7 +141,7 @@ function Start-OfflineInstallerDownloads {
         'VSCode'    = { param($dir) Get-VSCodeInstaller -DestinationDir $dir }
     }
 
-    Write-Host "Starting offline installer downloads to: $DestinationDir`n" -ForegroundColor DarkCyan
+    Write-Host "Starting offline installer process in: $DestinationDir`n" -ForegroundColor DarkCyan
 
     foreach ($appName in $AppsToDownload) {
         if ($appRegistry.ContainsKey($appName)) {
@@ -137,5 +152,5 @@ function Start-OfflineInstallerDownloads {
     }
 }
 
-# Run script to download all listed installers
+# Run script to download or skip existing installers
 Start-OfflineInstallerDownloads
