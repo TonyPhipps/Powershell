@@ -76,8 +76,10 @@ Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer
 
 # Set cursor size to 5 and color style to inverted
 Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Accessibility' -Name 'CursorSize' -Value 5
+Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Accessibility' -Name 'CursorType' -Value 2
 Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Accessibility' -Name 'CursorColorType' -Value 2
 Set-ItemProperty -Path 'HKCU:\Control Panel\Cursors' -Name 'CursorBaseSize' -Value 64
+Set-ItemProperty -Path 'HKCU:\Control Panel\Cursors' -Name 'Scheme Source' -Value 1
 
 # Restart Windows Explorer to apply changes
 Stop-Process -Name explorer -Force
