@@ -74,5 +74,12 @@ Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer
 # Show all file extensions
 Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'HideFileExt' -Value 0
 
+# Set cursor size to 5 and color style to inverted
+Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Accessibility' -Name 'CursorSize' -Value 5
+Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Accessibility' -Name 'CursorColorType' -Value 2
+Set-ItemProperty -Path 'HKCU:\Control Panel\Cursors' -Name 'CursorBaseSize' -Value 64
+
 # Restart Windows Explorer to apply changes
 Stop-Process -Name explorer -Force
+
+
