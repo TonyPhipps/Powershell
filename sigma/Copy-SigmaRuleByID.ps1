@@ -26,7 +26,7 @@ $files = Get-ChildItem $SigmaRules -Recurse | Where-Object { !$_.PSIsContainer }
 # Loop through each file
 foreach ($file in $files) {
     # Read the content of the file
-    $content = Get-Content $file.FullName -TotalCount 2
+    $content = Get-Content $file.FullName -Encoding utf8 -TotalCount 2
 
     # Check if any of the strings exist in the file content
     foreach ($string in $stringsToFind) {
