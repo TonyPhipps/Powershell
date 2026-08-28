@@ -26,13 +26,13 @@ Set-RegProperty "HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae
 reg add "HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32" /f /ve​
 
 # Install RSAT: Active Directory Tools
-Get-WindowsCapability -Online -Name "Rsat.ActiveDirectory.DS-LDS.Tools*" | Add-WindowsCapability -Online
+# Get-WindowsCapability -Online -Name "Rsat.ActiveDirectory.DS-LDS.Tools*" | Add-WindowsCapability -Online
 
 # Install GPO Tools:
-Get-WindowsCapability -Online -Name "Rsat.GroupPolicy.Management.Tools*" | Add-WindowsCapability -Online
+# Get-WindowsCapability -Online -Name "Rsat.GroupPolicy.Management.Tools*" | Add-WindowsCapability -Online
 
 # Install DNS Server Tools:
-Get-WindowsCapability -Online -Name "Rsat.Dns.Tools*" | Add-WindowsCapability -Online
+# Get-WindowsCapability -Online -Name "Rsat.Dns.Tools*" | Add-WindowsCapability -Online
 
 # Set Maximum Performance, Minimum Power Savings
 powercfg /duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 # Unlock Ultimate Performance plan
@@ -63,7 +63,7 @@ Get-ChildItem -Path 'HKCU:\Control Panel\NotifyIconSettings' | ForEach-Object {
 }
 
 # Set Taskbar Widgets to "Hidden" (Value = 0)
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarDa" -Value 
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarDa" -Value 0
 
 # Force the layout to "More Pins" (0 = Default, 1 = More Pins, 2 = More Recommendations)
 Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Start_Layout" -Value 1
@@ -71,5 +71,17 @@ Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer
 # Turn off the document history trackers that bloat the bottom half of the menu
 Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Start_TrackDocs" -Value 0
 
+# Show all file extensions
+Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'HideFileExt' -Value 0
+
+# Set cursor size to 5 and color style to inverted
+Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Accessibility' -Name 'CursorSize' -Value 5
+Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Accessibility' -Name 'CursorType' -Value 2
+Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Accessibility' -Name 'CursorColorType' -Value 2
+Set-ItemProperty -Path 'HKCU:\Control Panel\Cursors' -Name 'CursorBaseSize' -Value 64
+Set-ItemProperty -Path 'HKCU:\Control Panel\Cursors' -Name 'Scheme Source' -Value 1
+
 # Restart Windows Explorer to apply changes
 Stop-Process -Name explorer -Force
+
+
