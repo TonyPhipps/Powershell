@@ -18,111 +18,80 @@ param(
     [string]$OutputPath = ".\Hardware_Inventory_$($env:COMPUTERNAME).txt"
 )
 
-$output = [System.Collections.Generic.List[string]]::new()
+$inventory = [System.Collections.Generic.List[PSCustomObject]]::new()
 
-function Add-Section ([string]$title) {
-    $output.Add("")
-    $output.Add("================================================================================")
-    $output.Add("  $title")
-    $output.Add("================================================================================")
-}
-
-function Add-Line ([string]$label, [string]$value) {
-    $output.Add(("{0,-28} : {1}" -f $label, $value))
+function Add-HardwareItem {
+    param(
+        [string]$Category,
+        [string]$Name,
+        [string]$Manufacturer,
+        [string]$Details,
+        [string]$Identifier
+    )
+    $inventory.Add([PSCustomObject]@{
+        Category     = $Category
+        Name         = $Name
+        Manufacturer = $Manufacturer
+        Details      = $Details
+        Identifier   = $Identifier
+    })
 }
 
 # --- System Summary ---
-Add-Section "SYSTEM SUMMARY"
 $cs   = Get-CimInstance -ClassName Win32_ComputerSystem
 $bios = Get-CimInstance -ClassName Win32_BIOS
-
-Add-Line "Computer Name" $env:COMPUTERNAME
-Add-Line "System Manufacturer" $cs.Manufacturer
-Add-Line "System Model" $cs.Model
-Add-Line "System Type" $cs.SystemType
-Add-Line "BIOS Version / Date" "$($bios.SMBIOSBIOSVersion) ($($bios.ReleaseDate.ToString('yyyy-MM-dd')))"
-Add-Line "System Serial Number" $bios.SerialNumber
+Add-HardwareItem -Category "System Summary" -Name $cs.Model -Manufacturer $cs.Manufacturer -Details "Type: $($cs.SystemType) | BIOS: $($bios.SMBIOSBIOSVersion) ($($bios.ReleaseDate.ToString('yyyy-MM-dd')))" -Identifier "Serial: $($bios.SerialNumber) | Host: $env:COMPUTERNAME"
 
 # --- Motherboard ---
-Add-Section "MOTHERBOARD"
 $mobo = Get-CimInstance -ClassName Win32_BaseBoard
-Add-Line "Manufacturer" $mobo.Manufacturer
-Add-Line "Product" $mobo.Product
-Add-Line "Version / Serial" "$($mobo.Version) / $($mobo.SerialNumber)"
+Add-HardwareItem -Category "Motherboard" -Name $mobo.Product -Manufacturer $mobo.Manufacturer -Details "Version: $($mobo.Version)" -Identifier $mobo.SerialNumber
 
-# --- Processor ---
-Add-Section "PROCESSOR (CPU)"
+# --- Processor (CPU) ---
 $cpus = Get-CimInstance -ClassName Win32_Processor
 foreach ($cpu in $cpus) {
-    Add-Line "Name" $cpu.Name.Trim()
-    Add-Line "Cores / Threads" "$($cpu.NumberOfCores) Cores / $($cpu.NumberOfLogicalProcessors) Threads"
-    Add-Line "Max Clock Speed" "$($cpu.MaxClockSpeed) MHz"
-    Add-Line "Socket" $cpu.SocketDesignation
+    Add-HardwareItem -Category "Processor (CPU)" -Name $cpu.Name.Trim() -Manufacturer $cpu.Manufacturer -Details "$($cpu.NumberOfCores) Cores / $($cpu.NumberOfLogicalProcessors) Threads @ $($cpu.MaxClockSpeed) MHz" -Identifier $cpu.SocketDesignation
 }
 
-# --- Memory ---
-Add-Section "MEMORY (RAM)"
+# --- Memory (RAM) ---
 $ramModules = Get-CimInstance -ClassName Win32_PhysicalMemory
-$totalRAM = [math]::Round(($ramModules | Measure-Object -Property Capacity -Sum).Sum / 1GB, 2)
-Add-Line "Total Installed RAM" "$totalRAM GB"
-Add-Line "Populated Slots" "$($ramModules.Count)"
-
 $stickNum = 1
 foreach ($ram in $ramModules) {
     $capGB = [math]::Round($ram.Capacity / 1GB, 2)
     $speed = if ($ram.ConfiguredClockSpeed) { $ram.ConfiguredClockSpeed } else { $ram.Speed }
-    Add-Line "  [Slot $stickNum]" "$($ram.Manufacturer.Trim()) $($ram.PartNumber.Trim()) - $capGB GB @ $speed MHz ($($ram.DeviceLocator))"
+    $mfg   = if ($ram.Manufacturer) { $ram.Manufacturer.Trim() } else { "Unknown" }
+    $part  = if ($ram.PartNumber) { $ram.PartNumber.Trim() } else { "N/A" }
+    Add-HardwareItem -Category "Memory (RAM)" -Name "Slot $stickNum ($($ram.DeviceLocator))" -Manufacturer $mfg -Details "$capGB GB @ $speed MHz (Part: $part)" -Identifier $ram.SerialNumber
     $stickNum++
 }
 
-# --- Graphics ---
-Add-Section "GRAPHICS (GPU)"
+# --- Graphics (GPU) ---
 $gpus = Get-CimInstance -ClassName Win32_VideoController
 foreach ($gpu in $gpus) {
     $vramGB = if ($gpu.AdapterRAM) { [math]::Round($gpu.AdapterRAM / 1GB, 2) } else { "N/A" }
-    Add-Line "GPU Name" $gpu.Name
-    Add-Line "Dedicated VRAM" "$vramGB GB"
-    Add-Line "Current Mode" "$($gpu.CurrentHorizontalResolution)x$($gpu.CurrentVerticalResolution) @ $($gpu.CurrentRefreshRate) Hz"
-    Add-Line "Driver Version" $gpu.DriverVersion
-    $output.Add("")
+    $mfg    = if ($gpu.AdapterCompatibility) { $gpu.AdapterCompatibility } else { $gpu.Caption }
+    Add-HardwareItem -Category "Graphics (GPU)" -Name $gpu.Name -Manufacturer $mfg -Details "VRAM: $vramGB GB | Res: $($gpu.CurrentHorizontalResolution)x$($gpu.CurrentVerticalResolution)@$($gpu.CurrentRefreshRate)Hz | Driver: $($gpu.DriverVersion)" -Identifier $gpu.PNPDeviceID
 }
 
-# --- Storage Drives ---
-Add-Section "STORAGE DRIVES & VOLUMES"
+# --- Storage Drives & Volumes ---
 $disks = Get-CimInstance -ClassName Win32_DiskDrive
 foreach ($disk in $disks) {
     $sizeGB = [math]::Round($disk.Size / 1GB, 2)
-    Add-Line "Model" $disk.Model
-    Add-Line "Capacity" "$sizeGB GB"
-    Add-Line "Interface Type" $disk.InterfaceType
-    Add-Line "Media Type" $disk.MediaType
-    Add-Line "Partitions" $disk.Partitions
-    Add-Line "Serial Number" $disk.SerialNumber.Trim()
-
-    # Map drive letters / volumes to the physical disk
     $partitions = Get-CimAssociatedInstance -InputObject $disk -ResultClassName Win32_DiskPartition -ErrorAction SilentlyContinue
     $volumes = foreach ($part in $partitions) {
         Get-CimAssociatedInstance -InputObject $part -ResultClassName Win32_LogicalDisk -ErrorAction SilentlyContinue
     }
-    if ($volumes) {
-        $driveList = ($volumes | ForEach-Object { "$($_.DeviceID) ($([math]::Round($_.Size / 1GB, 1)) GB)" }) -join ", "
-        Add-Line "Volume(s)" $driveList
-    }
-    $output.Add("")
+    $driveList = if ($volumes) { ($volumes | ForEach-Object { "$($_.DeviceID) ($([math]::Round($_.Size / 1GB, 1)) GB)" }) -join ", " } else { "None" }
+    $serial    = if ($disk.SerialNumber) { $disk.SerialNumber.Trim() } else { "N/A" }
+    Add-HardwareItem -Category "Storage Drives & Volumes" -Name $disk.Model -Manufacturer $disk.Manufacturer -Details "Capacity: $sizeGB GB | Interface: $($disk.InterfaceType) | Media: $($disk.MediaType) | Volumes: $driveList" -Identifier $serial
 }
 
 # --- Audio Devices & Sound Cards ---
-Add-Section "AUDIO DEVICES & SOUND CARDS"
 $audioDevs = Get-CimInstance -ClassName Win32_SoundDevice
 foreach ($audio in $audioDevs) {
-    Add-Line "Device Name" $audio.Name
-    Add-Line "Manufacturer" $audio.Manufacturer
-    Add-Line "Status" $audio.Status
-    $output.Add("")
+    Add-HardwareItem -Category "Audio Devices & Sound Cards" -Name $audio.Name -Manufacturer $audio.Manufacturer -Details "Status: $($audio.Status)" -Identifier $audio.DeviceID
 }
 
 # --- Connected Bluetooth Devices ---
-Add-Section "CONNECTED BLUETOOTH DEVICES"
 $btDevices = Get-CimInstance -ClassName Win32_PnPEntity | Where-Object {
     ($_.PNPClass -eq 'Bluetooth' -or $_.DeviceID -like 'BTHENUM*') -and
     $_.Name -and
@@ -130,17 +99,11 @@ $btDevices = Get-CimInstance -ClassName Win32_PnPEntity | Where-Object {
 }
 if ($btDevices) {
     foreach ($bt in $btDevices) {
-        Add-Line "Device Name" $bt.Name
-        Add-Line "Manufacturer" $bt.Manufacturer
-        Add-Line "Status" $bt.Status
-        $output.Add("")
+        Add-HardwareItem -Category "Connected Bluetooth Devices" -Name $bt.Name -Manufacturer $bt.Manufacturer -Details "Status: $($bt.Status)" -Identifier $bt.DeviceID
     }
-} else {
-    Add-Line "Bluetooth" "No active Bluetooth peripheral devices detected."
 }
 
 # --- Gaming Controllers ---
-Add-Section "GAMING CONTROLLERS"
 $controllers = Get-CimInstance -ClassName Win32_PnPEntity | Where-Object {
     $_.Name -and (
         $_.Name -match 'Controller|Gamepad|Joystick|Xbox|PlayStation|DualSense|XINPUT' -or
@@ -150,17 +113,11 @@ $controllers = Get-CimInstance -ClassName Win32_PnPEntity | Where-Object {
 }
 if ($controllers) {
     foreach ($ctl in $controllers) {
-        Add-Line "Controller Name" $ctl.Name
-        Add-Line "Manufacturer" $ctl.Manufacturer
-        Add-Line "Status" $ctl.Status
-        $output.Add("")
+        Add-HardwareItem -Category "Gaming Controllers" -Name $ctl.Name -Manufacturer $ctl.Manufacturer -Details "Status: $($ctl.Status)" -Identifier $ctl.DeviceID
     }
-} else {
-    Add-Line "Gaming Controllers" "No connected game controllers detected."
 }
 
 # --- USB & External Peripherals ---
-Add-Section "CONNECTED USB & EXTERNAL PERIPHERALS"
 $usbDevices = Get-CimInstance -ClassName Win32_PnPEntity | Where-Object {
     $_.DeviceID -like 'USB*' -and
     $_.Name -and
@@ -168,25 +125,22 @@ $usbDevices = Get-CimInstance -ClassName Win32_PnPEntity | Where-Object {
 }
 if ($usbDevices) {
     foreach ($usb in $usbDevices) {
-        Add-Line "Device Name" $usb.Name
-        Add-Line "Manufacturer" $usb.Manufacturer
-        Add-Line "Status" $usb.Status
-        $output.Add("")
+        Add-HardwareItem -Category "Connected USB & External Peripherals" -Name $usb.Name -Manufacturer $usb.Manufacturer -Details "Status: $($usb.Status)" -Identifier $usb.DeviceID
     }
-} else {
-    Add-Line "USB Peripherals" "No connected external USB peripherals detected."
 }
 
-# --- Network Adapters ---
-Add-Section "PHYSICAL NETWORK ADAPTERS"
+# --- Physical Network Adapters ---
 $nics = Get-CimInstance -ClassName Win32_NetworkAdapter | Where-Object { $_.PhysicalAdapter -and $_.MACAddress }
 foreach ($nic in $nics) {
-    Add-Line "Adapter Name" $nic.Name
-    Add-Line "MAC Address" $nic.MACAddress
-    Add-Line "Connection Speed" "$(if ($nic.Speed) { [math]::Round($nic.Speed / 1MB, 0).ToString() + ' Mbps' } else { 'Disconnected' })"
-    $output.Add("")
+    $speedStr = if ($nic.Speed) { [math]::Round($nic.Speed / 1MB, 0).ToString() + ' Mbps' } else { 'Disconnected' }
+    Add-HardwareItem -Category "Physical Network Adapters" -Name $nic.Name -Manufacturer $nic.Manufacturer -Details "Connection Speed: $speedStr" -Identifier "MAC: $($nic.MACAddress)"
 }
 
-# Export report
-$output | Out-File -FilePath $OutputPath -Encoding utf8
-Write-Host "Hardware inventory successfully generated at: $OutputPath" -ForegroundColor Green
+# Handle OutputPath if parameter is explicitly passed
+if ($PSBoundParameters.ContainsKey('OutputPath')) {
+    $inventory | Export-Csv -Path $OutputPath -NoTypeInformation -Encoding utf8
+    Write-Host "Hardware inventory exported to: $OutputPath" -ForegroundColor Green
+}
+
+# Output objects directly to pipeline
+return $inventory
