@@ -95,7 +95,7 @@ foreach ($audio in $audioDevs) {
 $btDevices = Get-CimInstance -ClassName Win32_PnPEntity | Where-Object {
     ($_.PNPClass -eq 'Bluetooth' -or $_.DeviceID -like 'BTHENUM*') -and
     $_.Name -and
-    $_.Name -notmatch 'Bluetooth Device|Enumerator|Adapter|Radio|Protocol'
+    $_.Name -notmatch 'Bluetooth Device|Enumerator|Adapter|Radio|Protocol|Generic|Standard|Transport|Service|Access'
 }
 if ($btDevices) {
     foreach ($bt in $btDevices) {
@@ -109,7 +109,7 @@ $controllers = Get-CimInstance -ClassName Win32_PnPEntity | Where-Object {
         $_.Name -match 'Controller|Gamepad|Joystick|Xbox|PlayStation|DualSense|XINPUT' -or
         $_.PNPClass -eq 'XINPUT'
     ) -and
-    $_.Name -notmatch 'Virtual|Software|Root'
+    $_.Name -notmatch 'Virtual|Software|Root|eXtensible|Adapter|Standard|HID-compliant|Programmable|Loopback|Family'
 }
 if ($controllers) {
     foreach ($ctl in $controllers) {
@@ -121,7 +121,7 @@ if ($controllers) {
 $usbDevices = Get-CimInstance -ClassName Win32_PnPEntity | Where-Object {
     $_.DeviceID -like 'USB*' -and
     $_.Name -and
-    $_.Name -notmatch 'Host Controller|Root Hub|Generic USB Hub|Composite Device|PCI to USB|USB Input Device'
+    $_.Name -notmatch 'Host Controller|Root Hub|Generic USB Hub|Composite Device|PCI to USB|USB Input Device|Generic|Adapter'
 }
 if ($usbDevices) {
     foreach ($usb in $usbDevices) {
