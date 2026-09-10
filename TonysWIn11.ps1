@@ -19,7 +19,7 @@
 
     # --- User preference toggles ---
     $ApplyExplorerTweaks      = $true    # show hidden files/extensions/empty drives, force all tray icons visible
-    $ApplyTaskbarTweaks       = $true    # hide Task View/Search/Widgets/Chat, left-align, never combine buttons
+    $ApplyTaskbarTweaks       = $true    # hide Task View/Search/Widgets/Chat, left-align, always combine buttons
     $ApplyStartMenuTweaks     = $true    # "More Pins" layout, kill app suggestions/recommendations/tips/autoplay
     $ApplyContextMenuTweak    = $true    # restore the Win10-style "show more options" right-click menu
     $ApplyCursorTweaks        = $true    # enlarge cursor and switch it to the inverted color scheme
@@ -130,7 +130,7 @@
         Set-RegProperty "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarMn" "DWORD" 0
         # Left-align the taskbar (0 = Left, 1 = Center)
         Set-RegProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarAl" "DWORD" 0
-        # Never combine taskbar buttons (0 = Always, 1 = When full, 2 = Never)
+        # Combine taskbar buttons (0 = Always, 1 = When full, 2 = Never)
         Set-RegProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarGlomLevel" "DWORD" 0
     }
 
