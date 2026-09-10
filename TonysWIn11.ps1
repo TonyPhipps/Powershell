@@ -18,60 +18,60 @@
 # =====================================================================
 
     # --- User preference toggles ---
-    $ApplyExplorerTweaks      = $true    # hidden files, extensions, drives, tray
-    $ApplyTaskbarTweaks       = $true    # task view, search, widgets, chat, align, combine
-    $ApplyStartMenuTweaks     = $true    # start layout, suggestions, recommendations
-    $ApplyContextMenuTweak    = $true    # restore Win10-style "show more options" menu
-    $ApplyCursorTweaks        = $true    # larger inverted cursor
-    $ApplyMouseTweaks         = $true    # disable enhanced pointer precision
-    $ApplyThemeTweaks         = $true    # dark app theme
+    $ApplyExplorerTweaks      = $true    # show hidden files/extensions/empty drives, force all tray icons visible
+    $ApplyTaskbarTweaks       = $true    # hide Task View/Search/Widgets/Chat, left-align, never combine buttons
+    $ApplyStartMenuTweaks     = $true    # "More Pins" layout, kill app suggestions/recommendations/tips/autoplay
+    $ApplyContextMenuTweak    = $true    # restore the Win10-style "show more options" right-click menu
+    $ApplyCursorTweaks        = $true    # enlarge cursor and switch it to the inverted color scheme
+    $ApplyMouseTweaks         = $true    # turn off Enhanced Pointer Precision (mouse acceleration)
+    $ApplyThemeTweaks         = $true    # switch apps to the dark theme
 
     # --- Privacy toggles (per-app device access) ---
-    $PrivCamera               = $false
-    $PrivMicrophone           = $false
-    $PrivAccountInfo          = $false
-    $PrivCalendar             = $false
-    $PrivMessaging            = $true
-    $PrivRadio                = $false
-    $PrivSyncWithDevices      = $true
-    $PrivLanguageList         = $true
-    $PrivFeedback             = $true
-    $PrivInkingTyping         = $true
-    $PrivLocationSensor       = $true
-    $PrivAdvertisingId        = $true
-    $PrivRecentItems          = $true
+    $PrivCamera               = $false   # deny apps access to the camera
+    $PrivMicrophone           = $false   # deny apps access to the microphone
+    $PrivAccountInfo          = $false   # deny apps access to your name/picture/account info
+    $PrivCalendar             = $false   # deny apps access to the calendar
+    $PrivMessaging            = $true    # deny apps access to SMS/MMS messaging
+    $PrivRadio                = $false   # deny apps control of radios (e.g. Bluetooth)
+    $PrivSyncWithDevices      = $true    # deny apps syncing with unpaired wireless devices
+    $PrivLanguageList         = $true    # stop websites from reading your language list
+    $PrivFeedback             = $true    # disable Windows feedback prompts and write feedback
+    $PrivInkingTyping         = $true    # stop collection of inking/typing data for personalization
+    $PrivLocationSensor       = $true    # turn off the location sensor
+    $PrivAdvertisingId        = $true    # disable the advertising ID used for personalized ads
+    $PrivRecentItems          = $true    # stop tracking recently opened documents
 
     # --- System preference toggles (need elevation) ---
-    $InstallRsatTools         = $false   # AD / GPO / DNS admin tools
-    $ApplyAnonymousShares     = $true
-    $ApplyScreenSaverGrace    = $true
-    $ApplySystemPrivacy       = $true    # HKLM personalization / inking policy
-    $ApplyFastStartupDisable  = $true
-    $ApplyPowerPlan           = $true    # Ultimate Performance + no timeouts
-    $ApplyRecentDocsClear     = $true
-    $ApplyTelemetryLevel      = $true
-    $ApplyConsumerFeatures    = $true
-    $ApplyDriverUpdateBlock   = $false
-    $ApplyServiceDisable      = $true
+    $InstallRsatTools         = $false   # install RSAT admin tools (AD / GPO / DNS)
+    $ApplyAnonymousShares     = $true    # allow connecting to anonymous (guest) network shares
+    $ApplyScreenSaverGrace    = $true    # set a 10-second grace period before screen-saver password locks
+    $ApplySystemPrivacy       = $true    # apply machine-wide personalization / inking privacy policy
+    $ApplyFastStartupDisable  = $true    # disable Fast Startup (hiberboot)
+    $ApplyPowerPlan           = $true    # enable Ultimate Performance, disable standby/hibernate timeouts
+    $ApplyRecentDocsClear     = $true    # clear the recent-documents list on every logoff
+    $ApplyTelemetryLevel      = $true    # set diagnostic data to Basic/Required (level 1)
+    $ApplyConsumerFeatures    = $true    # disable Windows consumer features (auto-installed promo apps)
+    $ApplyDriverUpdateBlock   = $false   # block driver delivery via Windows Update / device metadata
+    $ApplyServiceDisable      = $true    # disable the services selected in the block below
 
     # --- Individual service toggles (only used if $ApplyServiceDisable) ---
-    $SvcDiagTrack             = $true
-    $SvcGeolocation           = $true
-    $SvcMapsBroker            = $true
-    $SvcNetTcpPortSharing     = $true
-    $SvcRemoteAccess          = $false
-    $SvcRemoteRegistry        = $false
-    $SvcTrkWks                = $true
-    $SvcBiometric             = $false   # false if you use Windows Hello
-    $SvcXbox                  = $true    # breaks Game Bar / Store if disabled
+    $SvcDiagTrack             = $true    # disable Connected User Experiences and Telemetry
+    $SvcGeolocation           = $true    # disable the Geolocation service
+    $SvcMapsBroker            = $true    # disable the Downloaded Maps Manager
+    $SvcNetTcpPortSharing     = $true    # disable the Net.Tcp Port Sharing service
+    $SvcRemoteAccess          = $false   # disable Routing and Remote Access
+    $SvcRemoteRegistry        = $false   # disable Remote Registry
+    $SvcTrkWks                = $true    # disable Distributed Link Tracking Client
+    $SvcBiometric             = $false   # disable the Windows Biometric service (leave off if you use Windows Hello)
+    $SvcXbox                  = $true    # disable Xbox services (breaks Game Bar / Store if disabled)
 
     # --- Software removal toggles ---
-    $RemoveApps               = $true
-    $RemoveTeamsConsumer      = $false
-    $RemoveOneDrive           = $false
+    $RemoveApps               = $true    # remove the bundled bloat apps listed later
+    $RemoveTeamsConsumer      = $false   # also remove the consumer Teams / Chat app
+    $RemoveOneDrive           = $false   # uninstall OneDrive and strip it from Explorer
 
     # --- Cleanup ---
-    $RestartExplorer          = $true
+    $RestartExplorer          = $true    # restart explorer.exe so all changes take effect
 
 
 # =====================================================================
