@@ -250,29 +250,52 @@ function Invoke-UpdateDownload {
     } else { 
         $DestinationPath 
     }
-    if ($CheckExpiration -and (Test-Path $FullDestination)) {
-        $LastModified = (Get-Item $FullDestination).LastWriteTime
-        if ($LastModified -ge (Get-Date).AddDays(-1)) {
-            Write-Host "[Skip] ($FileName is current: $($LastModified.ToString('MM/dd HH:mm')))." -ForegroundColor Gray
-            return
-        }
-    }
-    if (-not $CheckExpiration -and (Test-Path $FullDestination)) {
-        Write-Host "[SKIP] ($FileName already exists)" -ForegroundColor Gray
-        return
-    }
+
     $ParentDir = Split-Path $FullDestination -Parent
     if (-not (Test-Path $ParentDir)) {
         New-Item -ItemType Directory -Path $ParentDir -Force | Out-Null
     }
-    try {
-        $StatusMsg = if ($CheckExpiration) { "Refreshing $FileName..." } else { "Downloading $FileName..." }
-        Write-Host "$StatusMsg " -ForegroundColor Cyan -NoNewline
-        Invoke-WebRequest -Uri $Url -OutFile $FullDestination -UseBasicParsing
-        Write-Host "[Success]" -ForegroundColor Green
+
+    $ShouldDownload = $true
+
+    if ($CheckExpiration -and (Test-Path $FullDestination)) {
+        try {
+            # Perform a HEAD request to check the server's file date without downloading payload
+            $request = [System.Net.WebRequest]::Create($Url)
+            $request.UserAgent = "PowerShellAppDownloader"
+            $request.Method = "HEAD"
+            $response = $request.GetResponse()
+            
+            $serverLastModified = $response.LastModified
+            $response.Close()
+
+            $localLastModified = (Get-Item $FullDestination).LastWriteTime
+
+            if ($serverLastModified -le $localLastModified) {
+                Write-Host "[Skip] ($FileName is up-to-date. Local: $($localLastModified.ToString('MM/dd/yyyy HH:mm')), Server: $($serverLastModified.ToString('MM/dd/yyyy HH:mm')))." -ForegroundColor Gray
+                $ShouldDownload = $false
+            } else {
+                Write-Host "[Update] ($FileName on server is newer. Downloading update...)" -ForegroundColor Cyan
+            }
+        }
+        catch {
+            Write-Host "[Warning] Could not verify server file date ($($_.Exception.Message)). Proceeding with download..." -ForegroundColor Yellow
+        }
     }
-    catch {
-        Write-Host "[Failure] (Error: $($_.Exception.Message))" -ForegroundColor Red
+    elseif (-not $CheckExpiration -and (Test-Path $FullDestination)) {
+        Write-Host "[SKIP] ($FileName already exists)" -ForegroundColor Gray
+        $ShouldDownload = $false
+    }
+
+    if ($ShouldDownload) {
+        try {
+            Write-Host "Downloading $FileName..." -ForegroundColor Cyan -NoNewline
+            Invoke-WebRequest -Uri $Url -OutFile $FullDestination -UseBasicParsing
+            Write-Host "[Success]" -ForegroundColor Green
+        }
+        catch {
+            Write-Host "[Failure] (Error: $($_.Exception.Message))" -ForegroundColor Red
+        }
     }
 }
 
