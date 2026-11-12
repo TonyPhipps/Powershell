@@ -800,7 +800,7 @@ if ($Scan) {
             $HostResult = Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force -WarningVariable WarnText 3>$null #-Verbose
             $connFail = $WarnText | Where-Object {
                 $_ -match 'Start-JobProcess' -or $_ -match 'WSMan' -or
-                $_ -match 'Connecting to remote server' -or $_ -match 'failed with the following error'
+                $_ -match 'Connecting to remote server' -or $_ -match 'error'
             }
             if ($connFail) {
                 throw [System.Management.Automation.RuntimeException]::new("Unreachable via WSMan: $($connFail -join ' | ')")
@@ -818,7 +818,7 @@ if ($Scan) {
                 Write-Host "[Success] (1 missing)" -ForegroundColor Green
                 $HostResult
             }
-            elseif ($msg -match 'WSMan|Start-JobProcess|could not launch a host process|Connecting to remote server') {
+            elseif ($msg -match 'WSMan|Start-JobProcess|could not launch a host process|Connecting to remote server|The remote procedure call failed') {
                 Write-Host "[Failure] (Remoting/WinRM unhealthy on $Endpoint - host skipped. Check WinRM service.)" -ForegroundColor Red
             }
             elseif ((Test-Path $Certificates) -and
