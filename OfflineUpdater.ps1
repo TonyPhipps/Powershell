@@ -795,6 +795,21 @@ if ($Scan) {
     }
     $ScanResults = foreach ($Endpoint in $TargetEndpoints) {
         Write-Host "Initiating scan on $Endpoint... " -ForegroundColor Gray -NoNewline
+        
+        # Fast connectivity pre-check to skip offline endpoints immediately
+        $IsLocal = ($Endpoint -eq $env:COMPUTERNAME -or $Endpoint -eq "localhost" -or $Endpoint -eq "127.0.0.1")
+        if (-not $IsLocal) {
+            $IsOnline = Test-Connection -ComputerName $Endpoint -Count 1 -Quiet -ErrorAction SilentlyContinue
+            if (-not $IsOnline) {
+                # Fallback check on WinRM port (5985) in case ping is blocked by firewall
+                $WinRMOpen = Test-NetConnection -ComputerName $Endpoint -Port 5985 -InformationLevel Quiet -ErrorAction SilentlyContinue
+                if (-not $WinRMOpen) {
+                    Write-Host "[Failure] (Host offline or unreachable - skipped)" -ForegroundColor Red
+                    continue
+                }
+            }
+        }
+
          try{
             $WarnText = $null
             $HostResult = Get-KbNeededUpdate -ComputerName $Endpoint -ScanFilePath $Catalog -Force -WarningVariable WarnText 3>$null #-Verbose
