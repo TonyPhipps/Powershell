@@ -32,7 +32,7 @@ choco install cpu-z -y
 choco install speccy -y
 choco install nirlauncher -y
 
-# Speciality
+# Specialty
 choco install putty -y
 choco install ffmpeg -y
 choco install shotcut -y
